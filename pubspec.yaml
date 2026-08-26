@@ -4,7 +4,7 @@ publish_to: "none"
 
 # Fonte canônica de versionName/versionCode.
 # Nunca duplicar a versão manualmente em Gradle, UI ou workflows.
-version: 2.0.11+200025
+version: 2.0.12+200026
 
 environment:
   sdk: ">=3.13.0 <4.0.0"
@@ -24,7 +24,7 @@ dependencies:
   pinenacl: 0.6.0
   xml: ^7.0.1
   workmanager: ^0.10.9
-  flutter_local_notifications: ^20.1.0
+  flutter_local_notifications: ^22.3.0
 
 dev_dependencies:
   flutter_test:

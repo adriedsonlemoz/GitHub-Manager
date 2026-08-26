@@ -26,6 +26,8 @@ class _RepositoryArtifactsScreenState
     extends ConsumerState<RepositoryArtifactsScreen> {
   late Future<List<ActionArtifact>> _future;
   late Future<List<ReleaseAsset>> _releaseFuture;
+  final Set<int> _selectedArtifactIds = <int>{};
+  bool _selectionMode = false;
 
   @override
   void initState() {
@@ -155,6 +157,86 @@ class _RepositoryArtifactsScreenState
     }
   }
 
+  void _toggleSelection(ActionArtifact artifact) {
+    if (widget.readOnly) return;
+    setState(() {
+      _selectionMode = true;
+      if (!_selectedArtifactIds.add(artifact.id)) {
+        _selectedArtifactIds.remove(artifact.id);
+      }
+      if (_selectedArtifactIds.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedArtifactIds.clear();
+      _selectionMode = false;
+    });
+  }
+
+  Future<void> _selectAllArtifacts() async {
+    final items = await _future;
+    if (!mounted) return;
+    setState(() {
+      _selectionMode = true;
+      _selectedArtifactIds
+        ..clear()
+        ..addAll(items.map((item) => item.id));
+    });
+  }
+
+  Future<void> _deleteSelectedArtifacts() async {
+    if (_selectedArtifactIds.isEmpty || widget.readOnly) return;
+    final count = _selectedArtifactIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Excluir $count artifact(s)?'),
+        content: const Text(
+          'Os artifacts selecionados serão removidos permanentemente do GitHub. '
+          'Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_forever_outlined),
+            label: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final deleted = await ref.read(artifactServiceProvider).deleteArtifacts(
+            repositoryFullName: widget.repositoryFullName,
+            artifactIds: _selectedArtifactIds,
+          );
+      _clearSelection();
+      await _refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$deleted artifact(s) excluído(s) permanentemente.'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_message(error))),
+        );
+      }
+    }
+  }
+
   Future<void> _deleteArtifact(ActionArtifact artifact) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -200,15 +282,45 @@ class _RepositoryArtifactsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('APKs e Artifacts'),
+        leading: _selectionMode
+            ? IconButton(
+                onPressed: _clearSelection,
+                tooltip: 'Cancelar seleção',
+                icon: const Icon(Icons.close_rounded),
+              )
+            : null,
+        title: Text(
+          _selectionMode
+              ? '${_selectedArtifactIds.length} selecionado(s)'
+              : 'APKs e Artifacts',
+        ),
         actions: [
-          if (!widget.readOnly)
+          if (!widget.readOnly && _selectionMode) ...[
+            IconButton(
+              onPressed: _selectAllArtifacts,
+              tooltip: 'Selecionar todos',
+              icon: const Icon(Icons.select_all_rounded),
+            ),
+            IconButton(
+              onPressed: _selectedArtifactIds.isEmpty
+                  ? null
+                  : _deleteSelectedArtifacts,
+              tooltip: 'Excluir selecionados',
+              icon: const Icon(Icons.delete_forever_outlined),
+            ),
+          ] else if (!widget.readOnly) ...[
+            IconButton(
+              onPressed: () => setState(() => _selectionMode = true),
+              tooltip: 'Selecionar artifacts',
+              icon: const Icon(Icons.checklist_rounded),
+            ),
             IconButton(
               onPressed: _deleteOlderApks,
               tooltip: 'Excluir APKs anteriores',
               icon: const Icon(Icons.auto_delete_outlined),
             ),
-          const DownloadCenterButton(),
+          ],
+          if (!_selectionMode) const DownloadCenterButton(),
           const SizedBox(width: 4),
         ],
       ),
@@ -305,19 +417,36 @@ class _RepositoryArtifactsScreenState
                       children: [
                         Row(
                           children: [
-                            Icon(
-                              artifact.likelyContainsApk
-                                  ? Icons.android_rounded
-                                  : Icons.inventory_2_outlined,
-                            ),
+                            if (_selectionMode && !widget.readOnly)
+                              Checkbox(
+                                value: _selectedArtifactIds.contains(artifact.id),
+                                onChanged: (_) => _toggleSelection(artifact),
+                              )
+                            else
+                              Icon(
+                                artifact.likelyContainsApk
+                                    ? Icons.android_rounded
+                                    : Icons.inventory_2_outlined,
+                              ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Text(
-                                artifact.name,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              child: InkWell(
+                                onLongPress: widget.readOnly
+                                    ? null
+                                    : () => _toggleSelection(artifact),
+                                onTap: _selectionMode && !widget.readOnly
+                                    ? () => _toggleSelection(artifact)
+                                    : null,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Text(
+                                    artifact.name,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -337,9 +466,10 @@ class _RepositoryArtifactsScreenState
                           ),
                         ],
                         const SizedBox(height: 10),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Wrap(
+                        if (!_selectionMode)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Wrap(
                             spacing: 8,
                             runSpacing: 8,
                             alignment: WrapAlignment.end,

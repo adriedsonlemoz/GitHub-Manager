@@ -46,6 +46,21 @@ class ArtifactService {
         '/repos/$repositoryFullName/actions/artifacts/$artifactId',
       );
 
+  Future<int> deleteArtifacts({
+    required String repositoryFullName,
+    required Iterable<int> artifactIds,
+  }) async {
+    var deleted = 0;
+    for (final artifactId in artifactIds.toSet()) {
+      await deleteArtifact(
+        repositoryFullName: repositoryFullName,
+        artifactId: artifactId,
+      );
+      deleted++;
+    }
+    return deleted;
+  }
+
 
   Future<List<ReleaseAsset>> listReleaseAssets(String repositoryFullName) async {
     final response = await _client.get<List<dynamic>>(

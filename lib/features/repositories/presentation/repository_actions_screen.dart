@@ -1243,42 +1243,56 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                   ),
                 ),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              Row(
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _working ? null : _downloadLogs,
-                    icon: const Icon(Icons.download_for_offline_outlined),
-                    label: const Text('Baixar logs'),
-                  ),
-                  if (!widget.readOnly && _run.isRunning)
-                    OutlinedButton.icon(
-                      onPressed: _working ? null : _cancel,
-                      icon: const Icon(Icons.stop_circle_outlined),
-                      label: Text(_working ? 'Cancelando...' : 'Cancelar build'),
-                    )
-                  else if (!_run.isRunning) ...[
-                    if (!widget.readOnly)
-                      OutlinedButton.icon(
-                        onPressed: _working ? null : _rerun,
-                        icon: const Icon(Icons.replay_rounded),
-                        label: const Text('Reexecutar'),
-                      ),
-                    FilledButton.tonalIcon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onOpenArtifacts();
-                      },
-                      icon: const Icon(Icons.android_rounded),
-                      label: const Text('Baixar APK'),
+                  Expanded(
+                    child: _RunActionButton(
+                      icon: Icons.download_for_offline_outlined,
+                      label: 'Logs',
+                      onPressed: _working ? null : _downloadLogs,
                     ),
-                    if (!widget.readOnly)
-                      OutlinedButton.icon(
-                        onPressed: _working ? null : _deleteRun,
-                        icon: const Icon(Icons.delete_forever_outlined),
-                        label: const Text('Excluir execução'),
+                  ),
+                  const SizedBox(width: 6),
+                  if (!widget.readOnly && _run.isRunning) ...[
+                    Expanded(
+                      child: _RunActionButton(
+                        icon: Icons.stop_circle_outlined,
+                        label: 'Cancelar',
+                        onPressed: _working ? null : _cancel,
                       ),
+                    ),
+                  ] else if (!_run.isRunning) ...[
+                    if (!widget.readOnly) ...[
+                      Expanded(
+                        child: _RunActionButton(
+                          icon: Icons.replay_rounded,
+                          label: 'Repetir',
+                          onPressed: _working ? null : _rerun,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(
+                      child: _RunActionButton(
+                        icon: Icons.android_rounded,
+                        label: 'APK',
+                        filled: true,
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          widget.onOpenArtifacts();
+                        },
+                      ),
+                    ),
+                    if (!widget.readOnly) ...[
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _RunActionButton(
+                          icon: Icons.delete_outline_rounded,
+                          label: 'Excluir',
+                          onPressed: _working ? null : _deleteRun,
+                        ),
+                      ),
+                    ],
                   ],
                 ],
               ),
@@ -1286,6 +1300,59 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
           );
         },
       ),
+    );
+  }
+}
+
+class _RunActionButton extends StatelessWidget {
+  const _RunActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.filled = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 20),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.fade,
+          softWrap: false,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ],
+    );
+
+    return SizedBox(
+      height: 58,
+      child: filled
+          ? FilledButton.tonal(
+              onPressed: onPressed,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              ),
+              child: child,
+            )
+          : OutlinedButton(
+              onPressed: onPressed,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              ),
+              child: child,
+            ),
     );
   }
 }
