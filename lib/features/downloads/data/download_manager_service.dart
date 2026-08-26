@@ -33,11 +33,20 @@ class DownloadManagerService {
     required String repositoryFullName,
     required String branch,
     required String projectName,
+    String? version,
   }) {
     final safeName = _safeName(
       projectName.isEmpty ? repositoryFullName.split('/').last : projectName,
     );
-    final fileName = '$safeName-${_safeName(branch)}.zip';
+    final now = DateTime.now();
+    String two(int value) => value.toString().padLeft(2, '0');
+    final stamp =
+        '${now.year}${two(now.month)}${two(now.day)}-${two(now.hour)}${two(now.minute)}${two(now.second)}';
+    final safeVersion = version?.trim().isNotEmpty == true
+        ? '-v${_safeName(version!.trim())}'
+        : '';
+    final fileName =
+        '$safeName$safeVersion-$stamp-${_safeName(branch)}.zip';
     return _startRedirected(
       title: 'Projeto ${projectName.isEmpty ? safeName : projectName}',
       fileName: fileName,
@@ -547,10 +556,12 @@ class DownloadManagerService {
     File source,
   ) async {
     item.failureStage = 'salvar_downloads';
+    final projectFolder = _projectFolderName(item.repositoryFullName);
     Future<String> publish() => PlatformActions.publishToDownloads(
           sourcePath: source.path,
           fileName: item.fileName,
           mimeType: _mimeType(item),
+          relativeFolder: projectFolder,
         );
 
     String location;
@@ -803,6 +814,16 @@ class DownloadManagerService {
       return 'application/zip';
     }
     return 'application/octet-stream';
+  }
+
+  static String? _projectFolderName(String? repositoryFullName) {
+    if (repositoryFullName == null || repositoryFullName.trim().isEmpty) {
+      return null;
+    }
+    final raw = repositoryFullName.split('/').last.trim();
+    if (raw.isEmpty) return null;
+    final readable = raw.replaceAll(RegExp(r'[-_]+'), ' ').trim();
+    return _safeName(readable, keepExtension: true);
   }
 
   static String _safeName(String raw, {bool keepExtension = false}) {

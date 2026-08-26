@@ -34,6 +34,7 @@ abstract final class PlatformActions {
     required String sourcePath,
     required String fileName,
     required String mimeType,
+    String? relativeFolder,
   }) async {
     final location = await _channel.invokeMethod<String>(
       'publishToDownloads',
@@ -41,6 +42,7 @@ abstract final class PlatformActions {
         'sourcePath': sourcePath,
         'fileName': fileName,
         'mimeType': mimeType,
+        'relativeFolder': relativeFolder,
       },
     );
     if (location == null || location.isEmpty) {

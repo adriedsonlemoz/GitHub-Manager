@@ -470,6 +470,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
           repositoryFullName: repository.fullName,
           branch: repository.defaultBranch,
           projectName: info.projectName,
+          version: info.version,
         );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -606,7 +607,14 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
               slivers: [
                 SliverAppBar(
                   pinned: true,
-                  title: Text(info.projectName),
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  surfaceTintColor: Theme.of(context).colorScheme.surface,
+                  scrolledUnderElevation: 2,
+                  title: Text(
+                    info.projectName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   actions: [
                     IconButton(
                       onPressed: () => _downloadProjectZip(repository, info),
@@ -874,7 +882,10 @@ class _RepositoryHeader extends StatelessWidget {
                           ? data.first
                           : null;
                       if (latest == null) {
-                        return const Chip(label: Text('Sem builds'));
+                        return const _ProjectInfoBadge(
+                          icon: Icons.schedule_outlined,
+                          label: 'Sem builds',
+                        );
                       }
                       final label = latest.isRunning
                           ? 'Build em execução'
@@ -883,16 +894,15 @@ class _RepositoryHeader extends StatelessWidget {
                               : latest.conclusion == 'failure'
                                   ? 'Última build falhou'
                                   : 'Build ${latest.status}';
-                      return Chip(
-                        avatar: Icon(
-                          latest.isRunning
-                              ? Icons.sync_rounded
-                              : latest.conclusion == 'success'
-                                  ? Icons.check_circle_outline_rounded
-                                  : Icons.error_outline_rounded,
-                          size: 15,
-                        ),
-                        label: Text(label),
+                      return _ProjectInfoBadge(
+                        icon: latest.isRunning
+                            ? Icons.sync_rounded
+                            : latest.conclusion == 'success'
+                                ? Icons.check_circle_outline_rounded
+                                : latest.conclusion == 'failure'
+                                    ? Icons.error_outline_rounded
+                                    : Icons.schedule_outlined,
+                        label: label,
                       );
                     },
                   ),

@@ -52,6 +52,7 @@ class MainActivity : FlutterActivity() {
                     sourcePath = call.argument<String>("sourcePath"),
                     fileName = call.argument<String>("fileName"),
                     mimeType = call.argument<String>("mimeType"),
+                    relativeFolder = call.argument<String>("relativeFolder"),
                     result = result,
                 )
                 "requestLegacyDownloadsPermission" -> requestLegacyDownloadsPermission(result)
@@ -158,6 +159,7 @@ class MainActivity : FlutterActivity() {
         sourcePath: String?,
         fileName: String?,
         mimeType: String?,
+        relativeFolder: String?,
         result: MethodChannel.Result,
     ) {
         if (sourcePath.isNullOrBlank() || fileName.isNullOrBlank()) {
@@ -174,7 +176,15 @@ class MainActivity : FlutterActivity() {
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                     put(MediaStore.MediaColumns.MIME_TYPE, mimeType ?: "application/octet-stream")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    val relativePath = buildString {
+                        append(Environment.DIRECTORY_DOWNLOADS)
+                        append("/GitHub")
+                        if (!relativeFolder.isNullOrBlank()) {
+                            append("/")
+                            append(safeFolderName(relativeFolder))
+                        }
+                    }
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
                 val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
@@ -210,7 +220,13 @@ class MainActivity : FlutterActivity() {
             }
 
             @Suppress("DEPRECATION")
-            val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val downloadsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val githubDirectory = File(downloadsRoot, "GitHub")
+            val downloads = if (relativeFolder.isNullOrBlank()) {
+                githubDirectory
+            } else {
+                File(githubDirectory, safeFolderName(relativeFolder))
+            }
             if (!downloads.exists()) {
                 downloads.mkdirs()
             }
@@ -302,6 +318,14 @@ class MainActivity : FlutterActivity() {
             "$packageName.fileprovider",
             file,
         )
+    }
+
+    private fun safeFolderName(value: String): String {
+        val cleaned = value
+            .replace(Regex("[\\/:*?\"<>|]"), "-")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return cleaned.ifBlank { "Projeto" }
     }
 
     private fun uniqueLegacyFile(directory: File, requestedName: String): File {
