@@ -13,11 +13,13 @@ class RepositoryActionsScreen extends ConsumerStatefulWidget {
   const RepositoryActionsScreen({
     required this.repositoryFullName,
     required this.defaultBranch,
+    this.readOnly = false,
     super.key,
   });
 
   final String repositoryFullName;
   final String defaultBranch;
+  final bool readOnly;
 
   @override
   ConsumerState<RepositoryActionsScreen> createState() =>
@@ -32,6 +34,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
   bool _hasRunning = false;
   bool _starting = false;
   bool _showDiagnostics = false;
+  RepositoryActionsData? _currentData;
 
   @override
   void initState() {
@@ -51,16 +54,16 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
           workflow: _selectedWorkflow,
         );
     _hasRunning = data.allRuns.any((run) => run.isRunning);
+    _currentData = data;
     return data;
   }
 
   Future<void> _refresh({bool silent = false}) async {
-    final future = _load();
-    if (mounted) {
-      setState(() => _future = future);
-    }
     try {
-      await future;
+      final data = await _load();
+      if (mounted) {
+        setState(() => _future = Future<RepositoryActionsData>.value(data));
+      }
     } catch (_) {
       if (!silent) {
         rethrow;
@@ -178,9 +181,10 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
         repositoryFullName: widget.repositoryFullName,
         run: run,
         onChanged: () => _refresh(silent: true),
+        readOnly: widget.readOnly,
         onOpenArtifacts: () {
           if (mounted) {
-            context.push('/repositories/${widget.repositoryFullName}/artifacts');
+            context.push('/repositories/${widget.repositoryFullName}/artifacts?readOnly=${widget.readOnly ? '1' : '0'}');
           }
         },
       ),
@@ -236,23 +240,26 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
           const DownloadCenterButton(),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _starting ? null : _runWorkflow,
-        icon: _starting
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.play_arrow_rounded),
-        label: const Text('Executar build'),
-      ),
+      floatingActionButton: widget.readOnly
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _starting ? null : _runWorkflow,
+              icon: _starting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.play_arrow_rounded),
+              label: const Text('Executar build'),
+            ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<RepositoryActionsData>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            final retained = snapshot.data ?? _currentData;
+            if (snapshot.connectionState == ConnectionState.waiting && retained == null) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
@@ -261,7 +268,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                 ],
               );
             }
-            if (snapshot.hasError) {
+            if (snapshot.hasError && retained == null) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
@@ -276,7 +283,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
               );
             }
 
-            final data = snapshot.data!;
+            final data = retained!;
             final runs = data.runs;
             final runGroups = _groupRuns(runs);
             return ListView(
@@ -915,12 +922,14 @@ class _RunDetailsSheet extends ConsumerStatefulWidget {
     required this.run,
     required this.onChanged,
     required this.onOpenArtifacts,
+    required this.readOnly,
   });
 
   final String repositoryFullName;
   final RepositoryWorkflowRun run;
   final VoidCallback onChanged;
   final VoidCallback onOpenArtifacts;
+  final bool readOnly;
 
   @override
   ConsumerState<_RunDetailsSheet> createState() => _RunDetailsSheetState();
@@ -931,6 +940,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
   late Future<List<RepositoryWorkflowJob>> _jobsFuture;
   Timer? _timer;
   bool _working = false;
+  List<RepositoryWorkflowJob>? _currentJobs;
 
   @override
   void initState() {
@@ -940,11 +950,14 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
     _updateTimer();
   }
 
-  Future<List<RepositoryWorkflowJob>> _loadJobs() =>
-      ref.read(repositoryGitServiceProvider).listWorkflowRunJobs(
-            repositoryFullName: widget.repositoryFullName,
-            runId: _run.id,
-          );
+  Future<List<RepositoryWorkflowJob>> _loadJobs() async {
+    final jobs = await ref.read(repositoryGitServiceProvider).listWorkflowRunJobs(
+          repositoryFullName: widget.repositoryFullName,
+          runId: _run.id,
+        );
+    _currentJobs = jobs;
+    return jobs;
+  }
 
   void _updateTimer() {
     _timer?.cancel();
@@ -1028,6 +1041,46 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
     }
   }
 
+  Future<void> _deleteRun() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir execução permanentemente?'),
+        content: Text(
+          '${_run.name} #${_run.runNumber} será removida do GitHub Actions. '
+          'Artifacts ligados a essa execução também podem ser removidos pelo GitHub. '
+          'Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _working = true);
+    try {
+      await ref.read(repositoryGitServiceProvider).deleteWorkflowRun(
+            repositoryFullName: widget.repositoryFullName,
+            runId: _run.id,
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.onChanged();
+    } catch (error) {
+      if (mounted) {
+        _showError(error);
+        setState(() => _working = false);
+      }
+    }
+  }
+
   void _downloadLogs() {
     ref.read(downloadManagerProvider).startWorkflowLogs(
           repositoryFullName: widget.repositoryFullName,
@@ -1071,7 +1124,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
           List<RepositoryWorkflowJob>>(
         future: _jobsFuture,
         builder: (context, snapshot) {
-          final jobs = snapshot.data ?? const <RepositoryWorkflowJob>[];
+          final jobs = snapshot.data ?? _currentJobs ?? const <RepositoryWorkflowJob>[];
           RepositoryWorkflowJob? failedJob;
           for (final job in jobs) {
             if (job.failed) {
@@ -1150,9 +1203,9 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                 ),
               ],
               const SizedBox(height: 12),
-              if (snapshot.connectionState == ConnectionState.waiting)
+              if (snapshot.connectionState == ConnectionState.waiting && jobs.isEmpty)
                 const LinearProgressIndicator()
-              else if (snapshot.hasError)
+              else if (snapshot.hasError && jobs.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text(
@@ -1199,18 +1252,19 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                     icon: const Icon(Icons.download_for_offline_outlined),
                     label: const Text('Baixar logs'),
                   ),
-                  if (_run.isRunning)
+                  if (!widget.readOnly && _run.isRunning)
                     OutlinedButton.icon(
                       onPressed: _working ? null : _cancel,
                       icon: const Icon(Icons.stop_circle_outlined),
                       label: Text(_working ? 'Cancelando...' : 'Cancelar build'),
                     )
-                  else ...[
-                    OutlinedButton.icon(
-                      onPressed: _working ? null : _rerun,
-                      icon: const Icon(Icons.replay_rounded),
-                      label: const Text('Reexecutar'),
-                    ),
+                  else if (!_run.isRunning) ...[
+                    if (!widget.readOnly)
+                      OutlinedButton.icon(
+                        onPressed: _working ? null : _rerun,
+                        icon: const Icon(Icons.replay_rounded),
+                        label: const Text('Reexecutar'),
+                      ),
                     FilledButton.tonalIcon(
                       onPressed: () {
                         Navigator.of(context).pop();
@@ -1219,6 +1273,12 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                       icon: const Icon(Icons.android_rounded),
                       label: const Text('Baixar APK'),
                     ),
+                    if (!widget.readOnly)
+                      OutlinedButton.icon(
+                        onPressed: _working ? null : _deleteRun,
+                        icon: const Icon(Icons.delete_forever_outlined),
+                        label: const Text('Excluir execução'),
+                      ),
                   ],
                 ],
               ),

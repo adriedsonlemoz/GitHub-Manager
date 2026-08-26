@@ -17,6 +17,10 @@ final repositoriesProvider = FutureProvider<List<GitHubRepository>>(
   (ref) => ref.watch(repositoryServiceProvider).listRepositories(),
 );
 
+final followedRepositoriesProvider = FutureProvider<List<GitHubRepository>>(
+  (ref) => ref.watch(repositoryServiceProvider).listFollowedRepositories(),
+);
+
 final repositoryGitServiceProvider = Provider<RepositoryGitService>(
   (ref) => RepositoryGitService(ref.watch(githubApiClientProvider)),
 );

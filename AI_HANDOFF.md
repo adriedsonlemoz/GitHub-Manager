@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.8+200022`, com Builds/GitHub Actions, envio de build e Central de Downloads revisados.
+Estado atual: `2.0.9+200023`, com repositórios acompanhados, Builds/GitHub Actions, exclusões e Central de Downloads revisados.
 
 ## Arquitetura
 
@@ -17,6 +17,7 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 
 ## Recursos principais
 
+- repositórios acompanhados em modo somente leitura, com Releases/APKs públicos;
 - lista e CRUD de repositórios;
 - metadados de projeto, versão e tecnologias;
 - navegação/edição/upload de arquivos;

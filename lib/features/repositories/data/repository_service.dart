@@ -6,6 +6,7 @@ class RepositoryService {
   RepositoryService(this._client, this._database);
 
   static const _cacheKey = 'github.repositories';
+  static const _followedKey = 'followed.repositories';
   final GitHubApiClient _client;
   final LocalDatabase _database;
 
@@ -55,6 +56,69 @@ class RepositoryService {
       }
       rethrow;
     }
+  }
+
+
+  Future<List<GitHubRepository>> listFollowedRepositories() async {
+    final stored = await _database.readJson(_followedKey);
+    final names = stored is List
+        ? stored.whereType<String>().map((item) => item.trim()).where((item) => item.isNotEmpty).toList()
+        : <String>[];
+    final repositories = <GitHubRepository>[];
+    for (final fullName in names) {
+      try {
+        repositories.add(await getRepository(fullName));
+      } catch (_) {
+        // Mantém referências locais mesmo se um repositório ficar temporariamente indisponível.
+      }
+    }
+    repositories.sort(
+      (a, b) => (b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+    );
+    return repositories;
+  }
+
+  Future<GitHubRepository> followRepository(String input) async {
+    final fullName = _normalizeRepositoryReference(input);
+    final repository = await getRepository(fullName);
+    final stored = await _database.readJson(_followedKey);
+    final names = stored is List
+        ? stored.whereType<String>().map((item) => item.trim()).where((item) => item.isNotEmpty).toList()
+        : <String>[];
+    if (!names.contains(repository.fullName)) {
+      names.add(repository.fullName);
+      await _database.putJson(_followedKey, names);
+    }
+    return repository;
+  }
+
+  Future<void> unfollowRepository(String fullName) async {
+    final stored = await _database.readJson(_followedKey);
+    final names = stored is List
+        ? stored.whereType<String>().map((item) => item.trim()).where((item) => item.isNotEmpty).toList()
+        : <String>[];
+    names.removeWhere((item) => item.toLowerCase() == fullName.toLowerCase());
+    await _database.putJson(_followedKey, names);
+  }
+
+  static String _normalizeRepositoryReference(String input) {
+    var value = input.trim();
+    if (value.startsWith('https://github.com/')) {
+      value = value.substring('https://github.com/'.length);
+    } else if (value.startsWith('http://github.com/')) {
+      value = value.substring('http://github.com/'.length);
+    }
+    value = value.split('?').first.split('#').first;
+    value = value.replaceAll(RegExp(r'/+$'), '');
+    if (value.endsWith('.git')) {
+      value = value.substring(0, value.length - 4);
+    }
+    final parts = value.split('/').where((item) => item.isNotEmpty).toList();
+    if (parts.length != 2) {
+      throw const FormatException('Informe o link do GitHub ou owner/repo.');
+    }
+    return '${parts[0]}/${parts[1]}';
   }
 
   Future<GitHubRepository> getRepository(String fullName) async {

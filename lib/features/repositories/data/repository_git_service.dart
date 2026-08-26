@@ -729,6 +729,14 @@ class RepositoryGitService {
         '/repos/$repositoryFullName/actions/runs/$runId/rerun',
       );
 
+  Future<void> deleteWorkflowRun({
+    required String repositoryFullName,
+    required int runId,
+  }) =>
+      _client.delete<void>(
+        '/repos/$repositoryFullName/actions/runs/$runId',
+      );
+
   static String _contentsEndpoint(String fullName, String path) {
     final normalized = path.trim();
     if (normalized.isEmpty) {

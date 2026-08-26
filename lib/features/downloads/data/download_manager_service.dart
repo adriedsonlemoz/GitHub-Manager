@@ -117,6 +117,24 @@ class DownloadManagerService {
     );
   }
 
+  ManagedDownload startPublicUrl({
+    required String title,
+    required String fileName,
+    required String repositoryFullName,
+    required String url,
+    required bool isApk,
+  }) {
+    final item = _createItem(
+      title: title,
+      fileName: fileName,
+      type: isApk ? ManagedDownloadType.apk : ManagedDownloadType.file,
+      repositoryFullName: repositoryFullName,
+      sourceEndpoint: url,
+    );
+    unawaited(_runDirectUrl(item, url));
+    return item;
+  }
+
   Future<void> cancel(String id) async {
     final item = _find(id);
     if (item == null || !item.isActive) {
@@ -144,7 +162,9 @@ class DownloadManagerService {
     }
     item.resetForRetry();
     _emit();
-    if (item.isApk && item.artifactId != null) {
+    if (endpoint.startsWith('https://') || endpoint.startsWith('http://')) {
+      unawaited(_runDirectUrl(item, endpoint));
+    } else if (item.isApk && item.artifactId != null) {
       unawaited(_runArtifactApk(item, endpoint));
     } else {
       unawaited(_runRedirected(item, endpoint));
@@ -229,6 +249,72 @@ class DownloadManagerService {
     _items.insert(0, item);
     _emit();
     return item;
+  }
+
+  Future<void> _runDirectUrl(ManagedDownload item, String url) async {
+    final cancelToken = CancelToken();
+    _cancelTokens[item.id] = cancelToken;
+    File? partialFile;
+    File? completedFile;
+    try {
+      final directory = await _workingDirectory();
+      completedFile = await _uniqueFile(directory, item.fileName);
+      partialFile = File('${completedFile.path}.part');
+      item
+        ..fileName = p.basename(completedFile.path)
+        ..sourceEndpoint = url;
+      _markStarted(item);
+
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 20),
+          receiveTimeout: const Duration(minutes: 10),
+          followRedirects: true,
+        ),
+      );
+      await dio.download(
+        url,
+        partialFile.path,
+        cancelToken: cancelToken,
+        onReceiveProgress: (received, total) =>
+            _updateProgress(item, received, total),
+      );
+
+      if (item.status == ManagedDownloadStatus.cancelled) return;
+      completedFile = await partialFile.rename(completedFile.path);
+      partialFile = null;
+      item.receivedBytes = await completedFile.length();
+      if (item.totalBytes <= 0) item.totalBytes = item.receivedBytes;
+      await _publishCompleted(item, completedFile);
+      completedFile = null;
+    } catch (error) {
+      if (item.status != ManagedDownloadStatus.cancelled) {
+        _recordFailure(
+          item,
+          error is DioException
+              ? DownloadFailureException(
+                  error.message ?? 'Falha ao baixar arquivo público.',
+                  code: 'PUBLIC_DOWNLOAD_FAILED',
+                  endpoint: url,
+                  stage: 'baixar_arquivo',
+                  httpStatus: error.response?.statusCode,
+                )
+              : error,
+          fallbackStage: 'baixar_arquivo',
+        );
+      }
+    } finally {
+      _cancelTokens.remove(item.id);
+      _progressSamples.remove(item.id);
+      if (partialFile != null && await partialFile.exists()) {
+        await partialFile.delete();
+      }
+      if (completedFile != null && await completedFile.exists()) {
+        await completedFile.delete();
+      }
+      _emit();
+      await _persistHistory();
+    }
   }
 
   Future<void> _runRedirected(ManagedDownload item, String endpoint) async {

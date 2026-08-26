@@ -19,9 +19,14 @@ import 'package:github_manager/features/repositories/presentation/technology_bad
 import 'package:go_router/go_router.dart';
 
 class RepositoryDetailScreen extends ConsumerStatefulWidget {
-  const RepositoryDetailScreen({required this.repositoryFullName, super.key});
+  const RepositoryDetailScreen({
+    required this.repositoryFullName,
+    this.readOnly = false,
+    super.key,
+  });
 
   final String repositoryFullName;
+  final bool readOnly;
 
   @override
   ConsumerState<RepositoryDetailScreen> createState() =>
@@ -553,11 +558,12 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                       icon: const Icon(Icons.folder_zip_outlined),
                     ),
                     const DownloadCenterButton(),
-                    IconButton(
-                      onPressed: () => _manageRepository(repository),
-                      tooltip: 'Gerenciar repositório',
-                      icon: const Icon(Icons.more_vert_rounded),
-                    ),
+                    if (!widget.readOnly)
+                      IconButton(
+                        onPressed: () => _manageRepository(repository),
+                        tooltip: 'Gerenciar repositório',
+                        icon: const Icon(Icons.more_vert_rounded),
+                      ),
                     const SizedBox(width: 4),
                   ],
                 ),
@@ -568,6 +574,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                       repository: repository,
                       info: info,
                       runsFuture: _runsFuture,
+                      readOnly: widget.readOnly,
                     ),
                   ),
                 ),
@@ -581,13 +588,14 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            _QuickActionButton(
-                              width: width,
-                              icon: Icons.folder_zip_outlined,
-                              label: 'Enviar build',
-                              filled: true,
-                              onTap: () => _sendBuild(repository),
-                            ),
+                            if (!widget.readOnly)
+                              _QuickActionButton(
+                                width: width,
+                                icon: Icons.folder_zip_outlined,
+                                label: 'Enviar build',
+                                filled: true,
+                                onTap: () => _sendBuild(repository),
+                              ),
                             _QuickActionButton(
                               width: width,
                               icon: Icons.open_in_new_rounded,
@@ -632,30 +640,45 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 22),
                   sliver: SliverList.list(
                     children: [
-                      _WorkspaceTile(
-                        icon: Icons.folder_open_rounded,
-                        title: 'Arquivos',
-                        subtitle: 'Navegar, editar, criar, excluir e enviar arquivos',
-                        onTap: () => context.push(
-                          '/repositories/${repository.fullName}/files?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
+                      if (!widget.readOnly) ...[
+                        _WorkspaceTile(
+                          icon: Icons.folder_open_rounded,
+                          title: 'Arquivos',
+                          subtitle: 'Navegar, editar, criar, excluir e enviar arquivos',
+                          onTap: () => context.push(
+                            '/repositories/${repository.fullName}/files?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 7),
+                        const SizedBox(height: 7),
+                      ],
                       _WorkspaceTile(
                         icon: Icons.play_circle_outline_rounded,
                         title: 'Builds',
                         subtitle: 'Executar, acompanhar etapas, abrir logs e baixar APK',
                         onTap: () => context.push(
-                          '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
+                          '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}&readOnly=${widget.readOnly ? '1' : '0'}',
                         ),
                       ),
                       const SizedBox(height: 7),
+                      if (!widget.readOnly) ...[
+                        _WorkspaceTile(
+                          icon: Icons.key_rounded,
+                          title: 'Secrets',
+                          subtitle: 'Adicionar, importar, substituir e excluir Secrets',
+                          onTap: () => context.push(
+                            '/repositories/${repository.fullName}/secrets',
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                      ],
                       _WorkspaceTile(
-                        icon: Icons.key_rounded,
-                        title: 'Secrets',
-                        subtitle: 'Adicionar, importar, substituir e excluir Secrets',
+                        icon: Icons.android_rounded,
+                        title: 'APKs e artifacts',
+                        subtitle: widget.readOnly
+                            ? 'Baixar arquivos públicos disponíveis no GitHub'
+                            : 'Baixar ou excluir APKs e artifacts',
                         onTap: () => context.push(
-                          '/repositories/${repository.fullName}/secrets',
+                          '/repositories/${repository.fullName}/artifacts?readOnly=${widget.readOnly ? '1' : '0'}',
                         ),
                       ),
                       const SizedBox(height: 7),
@@ -667,15 +690,17 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                           '/repositories/${repository.fullName}/commits?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
                         ),
                       ),
-                      const SizedBox(height: 7),
-                      _WorkspaceTile(
-                        icon: Icons.bug_report_outlined,
-                        title: 'Bugs',
-                        subtitle: 'GitHub Issues — mantido sem alterações nesta versão',
-                        onTap: () => context.push(
-                          '/repositories/${repository.fullName}/bugs',
+                      if (!widget.readOnly) ...[
+                        const SizedBox(height: 7),
+                        _WorkspaceTile(
+                          icon: Icons.bug_report_outlined,
+                          title: 'Bugs',
+                          subtitle: 'GitHub Issues — mantido sem alterações nesta versão',
+                          onTap: () => context.push(
+                            '/repositories/${repository.fullName}/bugs',
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -697,11 +722,13 @@ class _RepositoryHeader extends StatelessWidget {
     required this.repository,
     required this.info,
     required this.runsFuture,
+    required this.readOnly,
   });
 
   final GitHubRepository repository;
   final RepositoryProjectInfo info;
   final Future<List<RepositoryWorkflowRun>> runsFuture;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -757,11 +784,19 @@ class _RepositoryHeader extends StatelessWidget {
                 runSpacing: 7,
                 children: [
                   if (info.version?.isNotEmpty == true)
-                    Chip(label: Text('v${info.version}')),
-                  Chip(
-                    avatar: const Icon(Icons.account_tree_outlined, size: 15),
-                    label: Text(repository.defaultBranch),
+                    _ProjectInfoBadge(
+                      icon: Icons.new_releases_outlined,
+                      label: 'v${info.version}',
+                    ),
+                  _ProjectInfoBadge(
+                    icon: Icons.account_tree_outlined,
+                    label: repository.defaultBranch,
                   ),
+                  if (readOnly)
+                    const _ProjectInfoBadge(
+                      icon: Icons.visibility_outlined,
+                      label: 'Somente leitura',
+                    ),
                   ...info.technologies.map((item) => TechnologyBadge(name: item)),
                   FutureBuilder<List<RepositoryWorkflowRun>>(
                     future: runsFuture,
@@ -797,6 +832,46 @@ class _RepositoryHeader extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      );
+}
+
+
+class _ProjectInfoBadge extends StatelessWidget {
+  const _ProjectInfoBadge({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .7),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ],
         ),
       );
 }

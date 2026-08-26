@@ -10,6 +10,7 @@ class RepositoryCard extends ConsumerWidget {
     this.onMenu,
     this.onOpenExternal,
     this.onCopyLink,
+    this.readOnly = false,
     super.key,
   });
 
@@ -18,6 +19,7 @@ class RepositoryCard extends ConsumerWidget {
   final VoidCallback? onMenu;
   final VoidCallback? onOpenExternal;
   final VoidCallback? onCopyLink;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,6 +78,22 @@ class RepositoryCard extends ConsumerWidget {
                                     ),
                               ),
                             ),
+                            if (readOnly)
+                              Container(
+                                margin: const EdgeInsets.only(left: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: scheme.secondaryContainer,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  'Acompanhado',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                        color: scheme.onSecondaryContainer,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                              ),
                             if (repository.isArchived)
                               const Padding(
                                 padding: EdgeInsets.only(left: 6),

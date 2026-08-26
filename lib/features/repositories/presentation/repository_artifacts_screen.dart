@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
+import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
 
 class RepositoryArtifactsScreen extends ConsumerStatefulWidget {
-  const RepositoryArtifactsScreen({required this.repositoryFullName, super.key});
+  const RepositoryArtifactsScreen({
+    required this.repositoryFullName,
+    this.readOnly = false,
+    super.key,
+  });
 
   final String repositoryFullName;
+  final bool readOnly;
 
   @override
   ConsumerState<RepositoryArtifactsScreen> createState() =>
@@ -19,21 +25,45 @@ class RepositoryArtifactsScreen extends ConsumerStatefulWidget {
 class _RepositoryArtifactsScreenState
     extends ConsumerState<RepositoryArtifactsScreen> {
   late Future<List<ActionArtifact>> _future;
+  late Future<List<ReleaseAsset>> _releaseFuture;
 
   @override
   void initState() {
     super.initState();
     _future = _load();
+    _releaseFuture = _loadReleases();
   }
 
-  Future<List<ActionArtifact>> _load() => ref
-      .read(artifactServiceProvider)
-      .listArtifacts(widget.repositoryFullName);
+  Future<List<ActionArtifact>> _load() async {
+    try {
+      return await ref
+          .read(artifactServiceProvider)
+          .listArtifacts(widget.repositoryFullName);
+    } catch (_) {
+      if (widget.readOnly) return const <ActionArtifact>[];
+      rethrow;
+    }
+  }
+
+  Future<List<ReleaseAsset>> _loadReleases() async {
+    try {
+      return await ref
+          .read(artifactServiceProvider)
+          .listReleaseAssets(widget.repositoryFullName);
+    } catch (_) {
+      if (widget.readOnly) return const <ReleaseAsset>[];
+      rethrow;
+    }
+  }
 
   Future<void> _refresh() async {
     final future = _load();
-    setState(() => _future = future);
-    await future;
+    final releases = _loadReleases();
+    setState(() {
+      _future = future;
+      _releaseFuture = releases;
+    });
+    await Future.wait([future, releases]);
   }
 
   void _download(ActionArtifact artifact) {
@@ -64,12 +94,123 @@ class _RepositoryArtifactsScreenState
     );
   }
 
+  void _downloadRelease(ReleaseAsset asset) {
+    ref.read(downloadManagerProvider).startPublicUrl(
+          title: '${asset.tagName} • ${asset.name}',
+          fileName: asset.name,
+          repositoryFullName: widget.repositoryFullName,
+          url: asset.downloadUrl,
+          isApk: asset.isApk,
+        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Download da Release iniciado. Acompanhe pela Central de Downloads.'),
+      ),
+    );
+  }
+
+  Future<void> _deleteOlderApks() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir APKs anteriores?'),
+        content: const Text(
+          'O artifact APK mais recente será mantido. Todos os APKs anteriores ainda disponíveis serão excluídos permanentemente do GitHub.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Excluir anteriores'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final count = await ref
+          .read(artifactServiceProvider)
+          .deleteOlderApkArtifacts(widget.repositoryFullName);
+      await _refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              count == 0
+                  ? 'Não havia APKs anteriores para excluir.'
+                  : '$count APK(s) anterior(es) excluído(s) permanentemente.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_message(error))),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteArtifact(ActionArtifact artifact) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir artifact permanentemente?'),
+        content: Text(
+          '${artifact.name} será removido do GitHub. Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(artifactServiceProvider).deleteArtifact(
+            repositoryFullName: widget.repositoryFullName,
+            artifactId: artifact.id,
+          );
+      await _refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Artifact excluído permanentemente.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_message(error))),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('APKs e Artifacts'),
-        actions: const [DownloadCenterButton(), SizedBox(width: 4)],
+        actions: [
+          if (!widget.readOnly)
+            IconButton(
+              onPressed: _deleteOlderApks,
+              tooltip: 'Excluir APKs anteriores',
+              icon: const Icon(Icons.auto_delete_outlined),
+            ),
+          const DownloadCenterButton(),
+          const SizedBox(width: 4),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -100,26 +241,62 @@ class _RepositoryArtifactsScreenState
               );
             }
             final items = snapshot.data ?? const <ActionArtifact>[];
-            if (items.isEmpty) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(18),
-                children: const [
-                  Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(18),
-                      child: Text('Nenhum artifact disponível neste repositório.'),
-                    ),
-                  ),
-                ],
-              );
-            }
             return ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(12),
-              itemCount: items.length,
+              itemCount: items.length + 1,
               itemBuilder: (context, index) {
-                final artifact = items[index];
+                if (index == 0) {
+                  return FutureBuilder<List<ReleaseAsset>>(
+                    future: _releaseFuture,
+                    builder: (context, releaseSnapshot) {
+                      final releases = releaseSnapshot.data ?? const <ReleaseAsset>[];
+                      if (releaseSnapshot.connectionState == ConnectionState.waiting) {
+                        return const Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(14),
+                            child: LinearProgressIndicator(),
+                          ),
+                        );
+                      }
+                      if (releases.isEmpty) {
+                        if (items.isEmpty) {
+                          return const Card(
+                            child: Padding(
+                              padding: EdgeInsets.all(18),
+                              child: Text(
+                                'Nenhum APK, artifact ou arquivo de Release disponível neste repositório.',
+                              ),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      }
+                      return Card(
+                        child: ExpansionTile(
+                          initiallyExpanded: widget.readOnly,
+                          leading: const Icon(Icons.new_releases_outlined),
+                          title: const Text('Releases públicas'),
+                          subtitle: Text('${releases.length} arquivo(s) disponível(is)'),
+                          children: releases.take(20).map(
+                            (asset) => ListTile(
+                              leading: Icon(
+                                asset.isApk ? Icons.android_rounded : Icons.download_outlined,
+                              ),
+                              title: Text(asset.name),
+                              subtitle: Text(
+                                '${asset.tagName} • ${_formatBytes(asset.sizeBytes)} • ${_formatDate(asset.publishedAt)}',
+                              ),
+                              trailing: const Icon(Icons.download_rounded),
+                              onTap: () => _downloadRelease(asset),
+                            ),
+                          ).toList(),
+                        ),
+                      );
+                    },
+                  );
+                }
+                final artifact = items[index - 1];
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(14),
@@ -162,20 +339,33 @@ class _RepositoryArtifactsScreenState
                         const SizedBox(height: 10),
                         Align(
                           alignment: Alignment.centerRight,
-                          child: FilledButton.tonalIcon(
-                            onPressed: artifact.expired ? null : () => _download(artifact),
-                            icon: Icon(
-                              artifact.expired
-                                  ? Icons.history_toggle_off_rounded
-                                  : Icons.download_rounded,
-                            ),
-                            label: Text(
-                              artifact.expired
-                                  ? 'Artifact expirado'
-                                  : artifact.likelyContainsApk
-                                      ? 'Baixar APK'
-                                      : 'Baixar artifact',
-                            ),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.end,
+                            children: [
+                              FilledButton.tonalIcon(
+                                onPressed: artifact.expired ? null : () => _download(artifact),
+                                icon: Icon(
+                                  artifact.expired
+                                      ? Icons.history_toggle_off_rounded
+                                      : Icons.download_rounded,
+                                ),
+                                label: Text(
+                                  artifact.expired
+                                      ? 'Artifact expirado'
+                                      : artifact.likelyContainsApk
+                                          ? 'Baixar APK'
+                                          : 'Baixar artifact',
+                                ),
+                              ),
+                              if (!widget.readOnly)
+                                OutlinedButton.icon(
+                                  onPressed: () => _deleteArtifact(artifact),
+                                  icon: const Icon(Icons.delete_forever_outlined),
+                                  label: const Text('Excluir'),
+                                ),
+                            ],
                           ),
                         ),
                       ],

@@ -39,7 +39,10 @@ final appRouter = GoRouter(
       builder: (_, state) {
         final fullName =
             '${state.pathParameters['owner']}/${state.pathParameters['repo']}';
-        return RepositoryDetailScreen(repositoryFullName: fullName);
+        return RepositoryDetailScreen(
+          repositoryFullName: fullName,
+          readOnly: state.uri.queryParameters['readOnly'] == '1',
+        );
       },
       routes: [
         GoRoute(
@@ -61,6 +64,7 @@ final appRouter = GoRouter(
             return RepositoryActionsScreen(
               repositoryFullName: fullName,
               defaultBranch: state.uri.queryParameters['branch'] ?? 'main',
+              readOnly: state.uri.queryParameters['readOnly'] == '1',
             );
           },
         ),
@@ -88,7 +92,10 @@ final appRouter = GoRouter(
           builder: (_, state) {
             final fullName =
                 '${state.pathParameters['owner']}/${state.pathParameters['repo']}';
-            return RepositoryArtifactsScreen(repositoryFullName: fullName);
+            return RepositoryArtifactsScreen(
+              repositoryFullName: fullName,
+              readOnly: state.uri.queryParameters['readOnly'] == '1',
+            );
           },
         ),
         GoRoute(

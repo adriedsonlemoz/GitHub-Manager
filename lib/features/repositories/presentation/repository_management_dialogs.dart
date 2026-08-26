@@ -231,76 +231,152 @@ class _EditRepositoryDialogState extends State<_EditRepositoryDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Editar repositório'),
-        content: AdaptiveDialogBody(
+  Widget build(BuildContext context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 720),
           child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Editar repositório',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Fechar',
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: _name,
-                  decoration: const InputDecoration(labelText: 'Nome do repositório'),
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome do repositório',
+                    prefixIcon: Icon(Icons.folder_outlined),
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _description,
-                  decoration: const InputDecoration(labelText: 'Descrição'),
-                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Descrição',
+                    prefixIcon: Icon(Icons.notes_rounded),
+                    alignLabelWithHint: true,
+                  ),
+                  minLines: 3,
+                  maxLines: 5,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _homepage,
                   keyboardType: TextInputType.url,
                   decoration: const InputDecoration(
                     labelText: 'Site / link relacionado',
-                    helperText: 'A API permite editar homepage. A URL github.com/owner/repo é gerada automaticamente pelo GitHub.',
+                    hintText: 'https://exemplo.com',
+                    prefixIcon: Icon(Icons.link_rounded),
                   ),
                 ),
-                const SizedBox(height: 12),
-                SelectableText(
-                  'URL do repositório: ${widget.repository.htmlUrl}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Endereço do GitHub',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      SelectableText(
+                        widget.repository.htmlUrl,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'O endereço acompanha automaticamente o nome do repositório.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 8),
                 SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 2),
                   title: const Text('Privado'),
+                  subtitle: const Text('Limitar acesso às pessoas autorizadas'),
                   value: _private,
                   onChanged: (value) => setState(() => _private = value),
                 ),
                 SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 2),
                   title: const Text('Arquivado'),
+                  subtitle: const Text('Deixar o repositório em modo somente leitura no GitHub'),
                   value: _archived,
                   onChanged: (value) => setState(() => _archived = value),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: () {
+                        if (_name.text.trim().isEmpty) return;
+                        Navigator.pop(
+                          context,
+                          RepositoryDraft(
+                            name: _name.text.trim(),
+                            description: _description.text.trim(),
+                            homepage: _homepage.text.trim(),
+                            isPrivate: _private,
+                            isArchived: _archived,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('Salvar'),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () {
-              if (_name.text.trim().isEmpty) {
-                return;
-              }
-              Navigator.pop(
-                context,
-                RepositoryDraft(
-                  name: _name.text.trim(),
-                  description: _description.text.trim(),
-                  homepage: _homepage.text.trim(),
-                  isPrivate: _private,
-                  isArchived: _archived,
-                ),
-              );
-            },
-            child: const Text('Salvar'),
-          ),
-        ],
       );
+
 }
 
 class _RepositoryActionsSheet extends StatelessWidget {
