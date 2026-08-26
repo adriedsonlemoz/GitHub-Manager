@@ -7,6 +7,7 @@ import 'package:github_manager/features/builds/presentation/build_providers.dart
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class RepositoryArtifactsScreen extends ConsumerStatefulWidget {
   const RepositoryArtifactsScreen({
@@ -71,11 +72,7 @@ class _RepositoryArtifactsScreenState
 
   void _download(ActionArtifact artifact) {
     if (artifact.expired) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Este artifact expirou no GitHub e não está mais disponível para download.'),
-        ),
-      );
+      showCenteredNotice(context, 'Este artifact expirou no GitHub e não está mais disponível para download.');
       return;
     }
     final manager = ref.read(downloadManagerProvider);
@@ -90,11 +87,7 @@ class _RepositoryArtifactsScreenState
         artifact: artifact,
       );
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Download iniciado. Acompanhe pela Central de Downloads.'),
-      ),
-    );
+    showCenteredNotice(context, 'Download iniciado. Acompanhe pela Central de Downloads.');
   }
 
   void _downloadRelease(ReleaseAsset asset) {
@@ -105,11 +98,7 @@ class _RepositoryArtifactsScreenState
           url: asset.downloadUrl,
           isApk: asset.isApk,
         );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Download da Release iniciado. Acompanhe pela Central de Downloads.'),
-      ),
-    );
+    showCenteredNotice(context, 'Download da Release iniciado. Acompanhe pela Central de Downloads.');
   }
 
   Future<void> _publishRelease(ActionArtifact artifact) async {
@@ -266,9 +255,7 @@ class _RepositoryArtifactsScreenState
     } catch (error) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_message(error))),
-        );
+        showCenteredNotice(context, _message(error));
       }
     } finally {
       phase.dispose();
@@ -305,21 +292,13 @@ class _RepositoryArtifactsScreenState
           .deleteOlderApkArtifacts(widget.repositoryFullName);
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              count == 0
+        showCenteredNotice(context, count == 0
                   ? 'Não havia APKs anteriores para excluir.'
-                  : '$count APK(s) anterior(es) excluído(s) permanentemente.',
-            ),
-          ),
-        );
+                  : '$count APK(s) anterior(es) excluído(s) permanentemente.');
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_message(error))),
-        );
+        showCenteredNotice(context, _message(error));
       }
     }
   }
@@ -389,17 +368,11 @@ class _RepositoryArtifactsScreenState
       _clearSelection();
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$deleted artifact(s) excluído(s) permanentemente.'),
-          ),
-        );
+        showCenteredNotice(context, '$deleted artifact(s) excluído(s) permanentemente.');
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_message(error))),
-        );
+        showCenteredNotice(context, _message(error));
       }
     }
   }
@@ -432,15 +405,11 @@ class _RepositoryArtifactsScreenState
           );
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Artifact excluído permanentemente.')),
-        );
+        showCenteredNotice(context, 'Artifact excluído permanentemente.');
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_message(error))),
-        );
+        showCenteredNotice(context, _message(error));
       }
     }
   }

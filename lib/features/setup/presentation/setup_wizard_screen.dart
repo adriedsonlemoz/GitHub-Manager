@@ -7,6 +7,7 @@ import 'package:github_manager/features/auth/presentation/auth_providers.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:go_router/go_router.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class SetupWizardScreen extends ConsumerStatefulWidget {
   const SetupWizardScreen({this.embedded = false, super.key});
@@ -44,9 +45,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Conexão com o GitHub validada.')),
-      );
+      showCenteredNotice(context, 'Conexão com o GitHub validada.');
       if (widget.embedded) {
         setState(() => _step = 3);
       } else {
@@ -59,7 +58,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
       final message = error is AppException
           ? error.message
           : 'Não foi possível validar o token. Confira o token e as permissões.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      showCenteredNotice(context, message);
     } finally {
       if (mounted) {
         setState(() => _working = false);
@@ -123,9 +122,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                       onCopy: () async {
                         await Clipboard.setData(const ClipboardData(text: _tokenUrl));
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Link copiado.')),
-                          );
+                          showCenteredNotice(context, 'Link copiado.');
                         }
                       },
                       onBack: () => setState(() => _step = 0),

@@ -17,6 +17,7 @@ import 'package:github_manager/features/repositories/presentation/repository_man
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/repositories/presentation/technology_badge.dart';
 import 'package:go_router/go_router.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class RepositoryDetailScreen extends ConsumerStatefulWidget {
   const RepositoryDetailScreen({
@@ -81,9 +82,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
   Future<void> _copyLink(GitHubRepository repository) async {
     await Clipboard.setData(ClipboardData(text: repository.htmlUrl));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link do repositório copiado.')),
-      );
+      showCenteredNotice(context, 'Link do repositório copiado.');
     }
   }
 
@@ -116,15 +115,9 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
           .forkRepository(repository.fullName);
       ref.invalidate(repositoriesProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            fork.fullName.isEmpty
+      showCenteredNotice(context, fork.fullName.isEmpty
                 ? 'Fork solicitado. O GitHub pode levar alguns segundos para criar a cópia.'
-                : 'Fork criado: ${fork.fullName}',
-          ),
-        ),
-      );
+                : 'Fork criado: ${fork.fullName}');
     } catch (error) {
       if (mounted) _showError(error);
     }
@@ -142,28 +135,112 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
         return;
       }
 
-      final phase = ValueNotifier<String>('Preparando sincronização');
+      final progress = ValueNotifier<ProjectUploadProgress>(
+        ProjectUploadProgress(
+          phase: 'Preparando sincronização',
+          current: 0,
+          total: project.fileCount,
+        ),
+      );
+      final uploadLog = ValueNotifier<List<String>>(
+        <String>['Preparando projeto para envio'],
+      );
+
+      void updateProgress(ProjectUploadProgress value) {
+        progress.value = value;
+        final detail = value.fileName?.trim().isNotEmpty == true
+            ? '${value.phase}: ${value.fileName}'
+            : value.phase;
+        final current = List<String>.from(uploadLog.value);
+        if (current.isEmpty || current.last != detail) {
+          current.add(detail);
+          if (current.length > 6) {
+            current.removeAt(0);
+          }
+          uploadLog.value = current;
+        }
+      }
+
       showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Enviando build'),
           content: AdaptiveDialogBody(
-            child: ValueListenableBuilder<String>(
-              valueListenable: phase,
-              builder: (context, value, _) => Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(value),
-                  const SizedBox(height: 14),
-                  const LinearProgressIndicator(),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'O projeto será sincronizado primeiro. Depois o GitHub Manager confirmará se o Android APK iniciou e usará workflow_dispatch somente se necessário.',
-                  ),
-                ],
-              ),
+            child: AnimatedBuilder(
+              animation: Listenable.merge([progress, uploadLog]),
+              builder: (context, _) {
+                final value = progress.value;
+                final fraction = value.fraction?.clamp(0.0, 1.0).toDouble();
+                final percent = fraction == null
+                    ? null
+                    : (fraction * 100).clamp(0, 100).round();
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value.phase,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (value.total > 0)
+                      Text(
+                        '${value.current.clamp(0, value.total)} de ${value.total} arquivos'
+                        '${percent == null ? '' : ' • $percent%'}',
+                      ),
+                    if (value.fileName?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        value.fileName!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(value: fraction),
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Processo',
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          const SizedBox(height: 5),
+                          ...uploadLog.value.map(
+                            (line) => Padding(
+                              padding: const EdgeInsets.only(bottom: 2),
+                              child: Text(
+                                '• $line',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Projetos grandes podem levar alguns minutos. Não feche o aplicativo durante a sincronização.',
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -176,7 +253,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
               repositoryFullName: repository.fullName,
               branch: repository.defaultBranch,
               commitMessage: '',
-              onProgress: (progress) => phase.value = progress.phase,
+              onProgress: updateProgress,
             );
         uploadResult = uploaded;
         if (!uploaded.changed) {
@@ -190,14 +267,26 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
           );
           return;
         }
-        phase.value = 'Confirmando o disparo da build';
+        updateProgress(
+          ProjectUploadProgress(
+            phase: 'Confirmando o disparo da build',
+            current: project.fileCount,
+            total: project.fileCount,
+          ),
+        );
         final launch = await ref
             .read(repositoryGitServiceProvider)
             .ensureBuildForCommit(
               repositoryFullName: repository.fullName,
               branch: repository.defaultBranch,
               commitSha: uploaded.commitSha,
-              onStatus: (status) => phase.value = status,
+              onStatus: (status) => updateProgress(
+                ProjectUploadProgress(
+                  phase: status,
+                  current: project.fileCount,
+                  total: project.fileCount,
+                ),
+              ),
             );
         if (!mounted) {
           return;
@@ -227,7 +316,8 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
           _showError(error);
         }
       } finally {
-        phase.dispose();
+        progress.dispose();
+        uploadLog.dispose();
       }
     } catch (error) {
       if (mounted) {
@@ -288,11 +378,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Build manual enviada. Ela pode levar alguns segundos para aparecer.'),
-        ),
-      );
+      showCenteredNotice(context, 'Build manual enviada. Ela pode levar alguns segundos para aparecer.');
       context.push(
         '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
       );
@@ -455,11 +541,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
           repositoryFullName: repository.fullName,
           artifact: artifact,
         );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Download do APK iniciado. Acompanhe pelo botão de Downloads.'),
-      ),
-    );
+    showCenteredNotice(context, 'Download do APK iniciado. Acompanhe pelo botão de Downloads.');
   }
 
   void _downloadProjectZip(
@@ -472,11 +554,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
           projectName: info.projectName,
           version: info.version,
         );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Download do projeto iniciado em ZIP.'),
-      ),
-    );
+    showCenteredNotice(context, 'Download do projeto iniciado em ZIP.');
   }
 
   Future<void> _manageRepository(GitHubRepository repository) async {
@@ -535,7 +613,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
     final message = error is AppException
         ? error.message
         : 'Não foi possível concluir a operação.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showCenteredNotice(context, message);
   }
 
   @override

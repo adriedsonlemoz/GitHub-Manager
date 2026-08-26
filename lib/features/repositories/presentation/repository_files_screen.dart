@@ -5,6 +5,7 @@ import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:github_manager/features/repositories/presentation/repository_file_editor_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class RepositoryFilesScreen extends ConsumerStatefulWidget {
   const RepositoryFilesScreen({
@@ -90,9 +91,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
       }
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${files.length} arquivo(s) enviado(s) ao GitHub.')),
-        );
+        showCenteredNotice(context, '${files.length} arquivo(s) enviado(s) ao GitHub.');
       }
     } catch (error) {
       if (mounted) {
@@ -162,7 +161,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
           );
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Arquivo excluído.')));
+        showCenteredNotice(context, 'Arquivo excluído.');
       }
     } catch (error) {
       if (mounted) {
@@ -173,7 +172,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
 
   void _showError(Object error) {
     final message = error is AppException ? error.message : 'Não foi possível concluir a operação.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showCenteredNotice(context, message);
   }
 
   @override

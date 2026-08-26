@@ -6,6 +6,7 @@ import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/features/secrets/data/repository_secrets_service.dart';
 import 'package:github_manager/features/secrets/domain/repository_secret.dart';
 import 'package:github_manager/features/secrets/presentation/secrets_providers.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class RepositorySecretsScreen extends ConsumerStatefulWidget {
   const RepositorySecretsScreen({required this.repositoryFullName, super.key});
@@ -254,9 +255,7 @@ class _RepositorySecretsScreenState
             values: values,
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$count Secrets salvos.')),
-        );
+        showCenteredNotice(context, '$count Secrets salvos.');
       }
     });
   }
@@ -383,7 +382,7 @@ class _RepositorySecretsScreenState
             : error is AppException
                 ? error.message
                 : 'Não foi possível concluir a operação de Secrets.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showCenteredNotice(context, message);
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/features/issues/domain/repository_issue.dart';
 import 'package:github_manager/features/issues/presentation/issue_providers.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class RepositoryIssuesScreen extends ConsumerStatefulWidget {
   const RepositoryIssuesScreen({required this.repositoryFullName, super.key});
@@ -56,9 +57,7 @@ class _RepositoryIssuesScreenState
           );
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bug criado no GitHub Issues.')),
-        );
+        showCenteredNotice(context, 'Bug criado no GitHub Issues.');
       }
     } catch (error) {
       if (mounted) {
@@ -212,7 +211,7 @@ class _RepositoryIssuesScreenState
     final message = error is AppException
         ? error.message
         : 'Não foi possível concluir a operação.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showCenteredNotice(context, message);
   }
 
   @override

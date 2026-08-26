@@ -13,6 +13,7 @@ import 'package:github_manager/features/repositories/presentation/repository_man
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/setup/presentation/setup_wizard_screen.dart';
 import 'package:go_router/go_router.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class RepositoriesScreen extends ConsumerStatefulWidget {
   const RepositoriesScreen({super.key});
@@ -70,13 +71,20 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
     final result = await showCreateRepositoryDialog(context);
     if (result == null || !mounted) return;
     try {
-      await ref.read(repositoryServiceProvider).createRepository(
+      final created = await ref.read(repositoryServiceProvider).createRepository(
             name: result.name,
             description: result.description,
             homepage: result.homepage,
             isPrivate: result.isPrivate,
           );
       await _refresh();
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          'Repositório ${created.name} criado com sucesso.',
+          kind: CenteredNoticeKind.success,
+        );
+      }
     } catch (error) {
       if (mounted) _showError(error);
     }
@@ -181,9 +189,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
         await ref.read(followedRepositoriesProvider.future);
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Repositório adicionado aos acompanhados.')),
-        );
+        showCenteredNotice(context, 'Repositório adicionado aos acompanhados.');
       }
     } catch (error) {
       if (mounted) _showError(error);
@@ -197,7 +203,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
       final result = await showEditRepositoryDialog(context, repository);
       if (result == null || !mounted) return;
       try {
-        await ref.read(repositoryServiceProvider).updateRepository(
+        final updated = await ref.read(repositoryServiceProvider).updateRepository(
               fullName: repository.fullName,
               name: result.name,
               description: result.description,
@@ -206,6 +212,13 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
               isArchived: result.isArchived,
             );
         await _refresh();
+        if (mounted) {
+          showCenteredNotice(
+            context,
+            'Repositório ${updated.name} atualizado com sucesso.',
+            kind: CenteredNoticeKind.success,
+          );
+        }
       } catch (error) {
         if (mounted) _showError(error);
       }
@@ -215,6 +228,13 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
       try {
         await ref.read(repositoryServiceProvider).deleteRepository(repository.fullName);
         await _refresh();
+        if (mounted) {
+          showCenteredNotice(
+            context,
+            'Repositório ${repository.name} excluído com sucesso.',
+            kind: CenteredNoticeKind.success,
+          );
+        }
       } catch (error) {
         if (mounted) _showError(error);
       }
@@ -251,15 +271,9 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
           );
       ref.invalidate(repositoriesProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            fork.fullName.isEmpty
+      showCenteredNotice(context, fork.fullName.isEmpty
                 ? 'Fork solicitado ao GitHub. Ele pode levar alguns segundos para aparecer.'
-                : 'Fork criado: ${fork.fullName}',
-          ),
-        ),
-      );
+                : 'Fork criado: ${fork.fullName}');
       setState(() => _section = 0);
     } catch (error) {
       if (mounted) _showError(error);
@@ -289,14 +303,19 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
     if (confirmed != true || !mounted) return;
     await ref.read(repositoryServiceProvider).unfollowRepository(repository.fullName);
     ref.invalidate(followedRepositoriesProvider);
+    if (mounted) {
+      showCenteredNotice(
+        context,
+        '${repository.name} removido dos acompanhados.',
+        kind: CenteredNoticeKind.success,
+      );
+    }
   }
 
   Future<void> _copyLink(GitHubRepository repository) async {
     await Clipboard.setData(ClipboardData(text: repository.htmlUrl));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link do repositório copiado.')),
-      );
+      showCenteredNotice(context, 'Link do repositório copiado.');
     }
   }
 
@@ -306,7 +325,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
         : error is FormatException
             ? error.message
             : 'Não foi possível concluir a operação.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showCenteredNotice(context, message);
   }
 
   @override

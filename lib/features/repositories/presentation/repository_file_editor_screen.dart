@@ -4,6 +4,7 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:github_manager/features/repositories/presentation/code_highlighting_controller.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class RepositoryFileEditorScreen extends ConsumerStatefulWidget {
   const RepositoryFileEditorScreen._({
@@ -146,9 +147,7 @@ class _RepositoryFileEditorScreenState
         final message = error is AppException
             ? error.message
             : 'Não foi possível salvar o arquivo.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        showCenteredNotice(context, message);
       }
     } finally {
       if (mounted) {

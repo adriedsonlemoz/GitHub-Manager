@@ -11,6 +11,7 @@ import 'package:github_manager/features/home/domain/github_profile.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:go_router/go_router.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -51,17 +52,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final resolved = await BuildMonitorService.setEnabled(enabled);
     if (!mounted) return;
     setState(() => _buildNotificationsEnabled = resolved);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          resolved
+    showCenteredNotice(context, resolved
               ? 'Avisos de build ativados.'
               : enabled
                   ? 'Permissão de notificações não concedida.'
-                  : 'Avisos de build desativados.',
-        ),
-      ),
-    );
+                  : 'Avisos de build desativados.');
   }
 
   Future<void> _setTheme(ThemeMode mode) async {
@@ -153,7 +148,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.invalidate(githubProfileProvider);
       ref.invalidate(repositoriesProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Token validado e salvo.')));
+        showCenteredNotice(context, 'Token validado e salvo.');
       }
     } catch (error) {
       if (mounted) {
@@ -168,9 +163,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
     if (token == null || token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nenhum token GitHub salvo neste aparelho.')),
-      );
+      showCenteredNotice(context, 'Nenhum token GitHub salvo neste aparelho.');
       return;
     }
     var visible = false;
@@ -219,9 +212,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onPressed: () async {
                           await Clipboard.setData(ClipboardData(text: token));
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Token copiado.')),
-                            );
+                            showCenteredNotice(context, 'Token copiado.');
                           }
                         },
                         icon: const Icon(Icons.copy_rounded),
@@ -320,7 +311,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             );
         ref.invalidate(githubProfileProvider);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perfil atualizado no GitHub.')));
+          showCenteredNotice(context, 'Perfil atualizado no GitHub.');
         }
       } catch (error) {
         if (mounted) {
@@ -437,7 +428,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           );
       await _loadApiSettings();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Configuração da API salva.')));
+        showCenteredNotice(context, 'Configuração da API salva.');
       }
     }
 
@@ -449,7 +440,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _showError(Object error) {
     final message = error is AppException ? error.message : 'Não foi possível concluir a operação.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showCenteredNotice(context, message);
   }
 
   @override

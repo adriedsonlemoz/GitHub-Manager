@@ -127,7 +127,7 @@ class GitProjectUploadService {
         } else {
           onProgress?.call(
             ProjectUploadProgress(
-              phase: 'Enviando arquivos',
+              phase: 'Enviando arquivo para o GitHub',
               current: processed,
               total: project.fileCount,
               fileName: gitPath,
@@ -155,7 +155,7 @@ class GitProjectUploadService {
         processed++;
         onProgress?.call(
           ProjectUploadProgress(
-            phase: 'Preparando commit',
+            phase: 'Processando arquivos do projeto',
             current: processed,
             total: project.fileCount,
             fileName: gitPath,
@@ -181,8 +181,10 @@ class GitProjectUploadService {
 
     onProgress?.call(
       ProjectUploadProgress(
-        phase: stalePaths.isEmpty ? 'Criando árvore Git' : 'Removendo arquivos antigos',
-        current: processed,
+        phase: stalePaths.isEmpty
+            ? 'Preparando sincronização no GitHub'
+            : 'Removendo ${stalePaths.length} arquivo(s) antigo(s)',
+        current: project.fileCount,
         total: project.fileCount,
       ),
     );

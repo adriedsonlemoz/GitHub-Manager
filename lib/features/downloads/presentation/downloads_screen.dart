@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -309,7 +310,7 @@ class DownloadsScreen extends ConsumerWidget {
   }
 
   static void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showCenteredNotice(context, message);
   }
 
   static String _mimeType(ManagedDownload item) {

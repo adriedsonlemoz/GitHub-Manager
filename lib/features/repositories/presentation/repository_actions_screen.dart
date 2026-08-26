@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -161,11 +162,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
       _clearRunSelection();
       await _refresh(silent: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$deleted execução(ões) excluída(s) permanentemente.'),
-          ),
-        );
+        showCenteredNotice(context, '$deleted execução(ões) excluída(s) permanentemente.');
       }
     } catch (error) {
       if (mounted) _showError(error);
@@ -245,13 +242,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
         ref: widget.defaultBranch,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${selected.name} iniciado na branch ${widget.defaultBranch}.',
-            ),
-          ),
-        );
+        showCenteredNotice(context, '${selected.name} iniciado na branch ${widget.defaultBranch}.');
         _selectedWorkflow = selected;
         await Future<void>.delayed(const Duration(seconds: 2));
         await _refresh();
@@ -304,9 +295,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
   }
 
   void _showError(Object error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_message(error))),
-    );
+    showCenteredNotice(context, _message(error));
   }
 
   @override
@@ -1269,13 +1258,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
           runTitle: '${_run.name}-${_run.runNumber}',
         );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Download dos logs iniciado. Acompanhe pela Central de Downloads.',
-          ),
-        ),
-      );
+      showCenteredNotice(context, 'Download dos logs iniciado. Acompanhe pela Central de Downloads.');
     }
   }
 
@@ -1285,7 +1268,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
         : error is AppException
             ? error.message
             : 'Não foi possível atualizar esta execução.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showCenteredNotice(context, message);
   }
 
   @override
