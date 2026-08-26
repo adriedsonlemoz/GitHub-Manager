@@ -35,6 +35,9 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
   bool _starting = false;
   bool _showDiagnostics = false;
   RepositoryActionsData? _currentData;
+  final Set<int> _selectedRunIds = <int>{};
+  bool _selectionMode = false;
+  bool _deletingSelected = false;
 
   @override
   void initState() {
@@ -73,9 +76,104 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
 
   void _selectWorkflow(RepositoryWorkflow? workflow) {
     setState(() {
+      _selectedRunIds.clear();
+      _selectionMode = false;
       _selectedWorkflow = workflow;
       _future = _load();
     });
+  }
+
+  void _clearRunSelection() {
+    setState(() {
+      _selectedRunIds.clear();
+      _selectionMode = false;
+    });
+  }
+
+  void _toggleRunSelection(RepositoryWorkflowRun run) {
+    if (widget.readOnly || run.isRunning) return;
+    setState(() {
+      _selectionMode = true;
+      if (!_selectedRunIds.add(run.id)) {
+        _selectedRunIds.remove(run.id);
+      }
+      if (_selectedRunIds.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+  }
+
+  void _selectAllVisibleRuns({bool failedOnly = false}) {
+    final data = _currentData;
+    if (data == null || widget.readOnly) return;
+    final candidates = data.runs.where(
+      (run) =>
+          !run.isRunning &&
+          (!failedOnly || run.conclusion == 'failure'),
+    );
+    setState(() {
+      _selectionMode = true;
+      _selectedRunIds
+        ..clear()
+        ..addAll(candidates.map((run) => run.id));
+      if (_selectedRunIds.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedRuns() async {
+    if (_selectedRunIds.isEmpty || widget.readOnly || _deletingSelected) return;
+    final count = _selectedRunIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Excluir $count execução(ões)?'),
+        content: const Text(
+          'As execuções selecionadas serão removidas permanentemente do GitHub Actions. '
+          'Artifacts ligados a essas execuções também podem ser removidos pelo GitHub. '
+          'Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_forever_outlined),
+            label: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingSelected = true);
+    try {
+      final deleted = await ref
+          .read(repositoryGitServiceProvider)
+          .deleteWorkflowRuns(
+            repositoryFullName: widget.repositoryFullName,
+            runIds: _selectedRunIds,
+          );
+      if (!mounted) return;
+      _clearRunSelection();
+      await _refresh(silent: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$deleted execução(ões) excluída(s) permanentemente.'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _deletingSelected = false);
+      }
+    }
   }
 
   Future<void> _runWorkflow() async {
@@ -218,29 +316,74 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
         : 'Execuções — ${_selectedWorkflow!.name}';
     return Scaffold(
       appBar: AppBar(
-        title: Text(screenTitle),
+        leading: _selectionMode
+            ? IconButton(
+                onPressed: _clearRunSelection,
+                tooltip: 'Cancelar seleção',
+                icon: const Icon(Icons.close_rounded),
+              )
+            : null,
+        title: Text(
+          _selectionMode
+              ? '${_selectedRunIds.length} selecionada(s)'
+              : screenTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
-          IconButton(
-            onPressed: () => setState(() => _showDiagnostics = !_showDiagnostics),
-            tooltip: 'Diagnóstico da API',
-            icon: const Icon(Icons.monitor_heart_outlined),
-          ),
-          IconButton(
-            onPressed: () => _refresh(),
-            tooltip: 'Atualizar',
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          IconButton(
-            onPressed: () => context.push(
-              '/repositories/${widget.repositoryFullName}/artifacts',
+          if (_selectionMode && !widget.readOnly) ...[
+            IconButton(
+              onPressed: () => _selectAllVisibleRuns(failedOnly: true),
+              tooltip: 'Selecionar falhas',
+              icon: const Icon(Icons.error_outline_rounded),
             ),
-            tooltip: 'APKs e artifacts',
-            icon: const Icon(Icons.android_rounded),
-          ),
-          const DownloadCenterButton(),
+            IconButton(
+              onPressed: () => _selectAllVisibleRuns(),
+              tooltip: 'Selecionar todas',
+              icon: const Icon(Icons.select_all_rounded),
+            ),
+            IconButton(
+              onPressed: _selectedRunIds.isEmpty || _deletingSelected
+                  ? null
+                  : _deleteSelectedRuns,
+              tooltip: 'Excluir selecionadas',
+              icon: _deletingSelected
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.delete_forever_outlined),
+            ),
+          ] else ...[
+            if (!widget.readOnly)
+              IconButton(
+                onPressed: () => setState(() => _selectionMode = true),
+                tooltip: 'Selecionar execuções',
+                icon: const Icon(Icons.checklist_rounded),
+              ),
+            IconButton(
+              onPressed: () => setState(() => _showDiagnostics = !_showDiagnostics),
+              tooltip: 'Diagnóstico da API',
+              icon: const Icon(Icons.monitor_heart_outlined),
+            ),
+            IconButton(
+              onPressed: () => _refresh(),
+              tooltip: 'Atualizar',
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+            IconButton(
+              onPressed: () => context.push(
+                '/repositories/${widget.repositoryFullName}/artifacts?readOnly=${widget.readOnly ? '1' : '0'}',
+              ),
+              tooltip: 'APKs e artifacts',
+              icon: const Icon(Icons.android_rounded),
+            ),
+            const DownloadCenterButton(),
+          ],
         ],
       ),
-      floatingActionButton: widget.readOnly
+      floatingActionButton: widget.readOnly || _selectionMode
           ? null
           : FloatingActionButton.extended(
               onPressed: _starting ? null : _runWorkflow,
@@ -317,7 +460,12 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _RunGroupCard(
                         group: group,
-                        onRunTap: _showRunDetails,
+                        selectionMode: _selectionMode,
+                        selectedRunIds: _selectedRunIds,
+                        onRunTap: _selectionMode
+                            ? _toggleRunSelection
+                            : _showRunDetails,
+                        onRunLongPress: _toggleRunSelection,
                       ),
                     ),
                   ),
@@ -559,10 +707,16 @@ class _RunGroupCard extends StatelessWidget {
   const _RunGroupCard({
     required this.group,
     required this.onRunTap,
+    required this.onRunLongPress,
+    required this.selectionMode,
+    required this.selectedRunIds,
   });
 
   final _RunGroup group;
   final ValueChanged<RepositoryWorkflowRun> onRunTap;
+  final ValueChanged<RepositoryWorkflowRun> onRunLongPress;
+  final bool selectionMode;
+  final Set<int> selectedRunIds;
 
   @override
   Widget build(BuildContext context) {
@@ -601,7 +755,12 @@ class _RunGroupCard extends StatelessWidget {
             ...group.runs.map(
               (run) => _RunResultTile(
                 run: run,
+                selectionMode: selectionMode,
+                selected: selectedRunIds.contains(run.id),
                 onTap: () => onRunTap(run),
+                onLongPress: run.isRunning
+                    ? null
+                    : () => onRunLongPress(run),
               ),
             ),
           ],
@@ -616,10 +775,16 @@ class _RunResultTile extends StatelessWidget {
   const _RunResultTile({
     required this.run,
     required this.onTap,
+    required this.selectionMode,
+    required this.selected,
+    this.onLongPress,
   });
 
   final RepositoryWorkflowRun run;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool selectionMode;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -651,17 +816,26 @@ class _RunResultTile extends StatelessWidget {
       ),
       child: ListTile(
         onTap: onTap,
+        onLongPress: onLongPress,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-        leading: Icon(
-          run.isRunning
-              ? Icons.sync_rounded
-              : isSuccess
-                  ? Icons.check_circle_rounded
-                  : isFailure
-                      ? Icons.error_rounded
-                      : Icons.schedule_rounded,
-          color: foreground,
-        ),
+        leading: selectionMode
+            ? Checkbox(
+                value: selected,
+                onChanged: run.isRunning ? null : (_) => onTap(),
+                side: BorderSide(color: foreground),
+                checkColor: isSuccess ? successColor : Colors.white,
+                activeColor: isFailure ? failureColor : Theme.of(context).colorScheme.primary,
+              )
+            : Icon(
+                run.isRunning
+                    ? Icons.sync_rounded
+                    : isSuccess
+                        ? Icons.check_circle_rounded
+                        : isFailure
+                            ? Icons.error_rounded
+                            : Icons.schedule_rounded,
+                color: foreground,
+              ),
         title: Text(
           '${run.name} #${run.runNumber}',
           style: TextStyle(
@@ -677,16 +851,23 @@ class _RunResultTile extends StatelessWidget {
           style: TextStyle(color: foreground),
         ),
         isThreeLine: true,
-        trailing: run.isRunning
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: foreground,
-                ),
-              )
-            : Icon(Icons.chevron_right_rounded, color: foreground),
+        trailing: selectionMode
+            ? run.isRunning
+                ? Tooltip(
+                    message: 'Execução em andamento não pode ser excluída',
+                    child: Icon(Icons.lock_clock_outlined, color: foreground),
+                  )
+                : null
+            : run.isRunning
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: foreground,
+                    ),
+                  )
+                : Icon(Icons.chevron_right_rounded, color: foreground),
       ),
     );
   }

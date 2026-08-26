@@ -737,6 +737,21 @@ class RepositoryGitService {
         '/repos/$repositoryFullName/actions/runs/$runId',
       );
 
+  Future<int> deleteWorkflowRuns({
+    required String repositoryFullName,
+    required Iterable<int> runIds,
+  }) async {
+    var deleted = 0;
+    for (final runId in runIds.toSet()) {
+      await deleteWorkflowRun(
+        repositoryFullName: repositoryFullName,
+        runId: runId,
+      );
+      deleted++;
+    }
+    return deleted;
+  }
+
   static String _contentsEndpoint(String fullName, String path) {
     final normalized = path.trim();
     if (normalized.isEmpty) {
