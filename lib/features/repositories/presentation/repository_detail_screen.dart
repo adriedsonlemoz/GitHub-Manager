@@ -401,16 +401,23 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
     required ProjectUploadResult uploadResult,
     required RepositoryBuildLaunchResult launch,
   }) async {
-    final workflowName = launch.workflow?.name ?? 'Android APK';
+    final workflowName = launch.workflow?.name ??
+        (launch.runs.isNotEmpty ? launch.runs.first.name : 'Android APK');
     final statusText = launch.dispatchTriggered
         ? launch.runs.isEmpty
-            ? 'O push não iniciou o APK automaticamente. O GitHub Manager enviou o comando manual para $workflowName; a execução pode levar alguns segundos para aparecer.'
-            : 'O push não iniciou o APK automaticamente. O GitHub Manager iniciou $workflowName por workflow_dispatch e a execução já apareceu no GitHub.'
-        : '$workflowName foi iniciado automaticamente pelo push deste commit. Nenhuma execução manual duplicada foi criada.';
+            ? 'O push não iniciou uma build de APK. O GitHub Manager iniciou $workflowName por workflow_dispatch; a execução pode levar alguns segundos para aparecer.'
+            : 'O push não iniciou uma build de APK. O GitHub Manager iniciou $workflowName por workflow_dispatch e a execução já apareceu no GitHub.'
+        : 'Projeto atualizado • Build iniciada\n\n'
+            '$workflowName já foi encontrado para o SHA ${uploadResult.commitSha.substring(0, 7)}. '
+            'Nenhum workflow manual foi disparado e nenhuma build duplicada foi criada.';
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Build enviada'),
+        title: Text(
+          launch.dispatchTriggered
+              ? 'Projeto atualizado • Build iniciada manualmente'
+              : 'Projeto atualizado • Build iniciada',
+        ),
         content: AdaptiveDialogBody(
           child: Column(
             mainAxisSize: MainAxisSize.min,

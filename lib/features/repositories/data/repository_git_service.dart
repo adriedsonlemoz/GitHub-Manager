@@ -258,15 +258,27 @@ class RepositoryGitService {
     required String branch,
     required RepositoryWorkflow workflow,
   }) async {
-    if (workflow.path.trim().isEmpty) {
-      return false;
+    final candidates = <String>{
+      if (workflow.path.trim().isNotEmpty)
+        workflow.path.trim().replaceFirst(RegExp(r'^/+'), ''),
+      if (workflow.fileName.trim().isNotEmpty)
+        '.github/workflows/${workflow.fileName.trim()}',
+    };
+    for (final path in candidates) {
+      try {
+        final file = await readTextFile(
+          repositoryFullName: repositoryFullName,
+          branch: branch,
+          path: path,
+        );
+        if (_supportsWorkflowDispatchContent(file.content)) {
+          return true;
+        }
+      } catch (_) {
+        // Tenta a próxima forma de localizar o mesmo workflow.
+      }
     }
-    final file = await readTextFile(
-      repositoryFullName: repositoryFullName,
-      branch: branch,
-      path: workflow.path,
-    );
-    return _supportsWorkflowDispatchContent(file.content);
+    return false;
   }
 
   Future<int?> dispatchWorkflow({
@@ -321,78 +333,66 @@ class RepositoryGitService {
     required String branch,
     required String commitSha,
     void Function(String status)? onStatus,
-    int verificationAttempts = 4,
+    int verificationAttempts = 5,
     Duration verificationDelay = const Duration(seconds: 2),
   }) async {
-    List<RepositoryWorkflow> workflows = const [];
-    for (var attempt = 0; attempt < verificationAttempts; attempt++) {
-      onStatus?.call('Verificando execução do GitHub Actions');
-      workflows = await listWorkflows(repositoryFullName);
-      final runs = await listWorkflowRunsForCommit(
-        repositoryFullName: repositoryFullName,
-        commitSha: commitSha,
+    final normalizedSha = commitSha.trim();
+    if (normalizedSha.isEmpty) {
+      throw const RepositoryFileException(
+        'O commit criado não possui SHA válido.',
+        code: 'BUILD_COMMIT_SHA_MISSING',
       );
-      final apkWorkflow = _firstApkWorkflow(workflows);
-      final apkRuns = apkWorkflow == null
-          ? runs.where(_runLooksLikeApk).toList(growable: false)
-          : runs.where((run) => run.belongsTo(apkWorkflow)).toList(growable: false);
+    }
+
+    // O SHA recém-criado é sempre consultado ANTES de procurar um workflow
+    // manual. Isso evita disparar uma segunda build enquanto o push ainda
+    // está sendo indexado pelo GitHub.
+    for (var attempt = 0; attempt < verificationAttempts; attempt++) {
+      onStatus?.call(
+        attempt == 0
+            ? 'Verificando se o push já iniciou a build'
+            : 'Aguardando a build automática aparecer no GitHub',
+      );
+
+      final commitRuns = await listWorkflowRunsForCommit(
+        repositoryFullName: repositoryFullName,
+        commitSha: normalizedSha,
+      );
+      final apkRuns = commitRuns.where(_runLooksLikeApk).toList(growable: false);
+
       if (apkRuns.isNotEmpty) {
+        List<RepositoryWorkflow> workflows = const [];
+        try {
+          workflows = await listWorkflows(repositoryFullName);
+        } catch (_) {
+          // A execução do SHA já prova que o push iniciou a build.
+        }
+        final workflow = _workflowForRun(workflows, apkRuns.first);
+        onStatus?.call('Projeto atualizado • Build iniciada');
         return RepositoryBuildLaunchResult(
-          commitSha: commitSha,
+          commitSha: normalizedSha,
           runs: apkRuns,
-          workflow: apkWorkflow ?? _workflowForRun(workflows, apkRuns.first),
+          workflow: workflow,
           dispatchTriggered: false,
         );
       }
 
       if (attempt + 1 < verificationAttempts) {
-        onStatus?.call(
-          workflows.isEmpty
-              ? 'Aguardando o GitHub indexar os workflows'
-              : 'Aguardando o Android APK iniciar pelo push',
-        );
         await Future<void>.delayed(verificationDelay);
       }
     }
 
-    if (workflows.isEmpty) {
-      const apkPath = '.github/workflows/android-apk.yml';
-      try {
-        final apkFile = await readTextFile(
-          repositoryFullName: repositoryFullName,
-          branch: branch,
-          path: apkPath,
-        );
-        if (!_supportsWorkflowDispatchContent(apkFile.content)) {
-          throw const RepositoryFileException(
-            'O Android APK existe no repositório, mas não possui workflow_dispatch.',
-            code: 'APK_WORKFLOW_DISPATCH_UNAVAILABLE',
-          );
-        }
-        onStatus?.call('Workflow ainda indexando. Iniciando Android APK pelo arquivo');
-        final workflowRunId = await dispatchWorkflowFile(
-          repositoryFullName: repositoryFullName,
-          workflowFileName: 'android-apk.yml',
-          ref: branch,
-        );
-        await Future<void>.delayed(const Duration(seconds: 2));
-        final runs = await listWorkflowRunsForCommit(
-          repositoryFullName: repositoryFullName,
-          commitSha: commitSha,
-        );
-        return RepositoryBuildLaunchResult(
-          commitSha: commitSha,
-          runs: runs.where(_runLooksLikeApk).toList(growable: false),
-          workflow: null,
-          dispatchTriggered: true,
-          workflowRunId: workflowRunId,
-        );
-      } on GitHubNotFoundException {
-        throw const RepositoryFileException(
-          'O projeto foi enviado, mas o GitHub ainda não reconheceu o Android APK como workflow executável. Abra Builds e tente novamente em alguns instantes.',
-          code: 'ACTIONS_WORKFLOWS_NOT_INDEXED',
-        );
-      }
+    // Somente depois de confirmar que não existe execução APK para o SHA
+    // novo é permitido procurar workflow_dispatch.
+    onStatus?.call(
+      'Nenhuma build automática encontrada. Verificando execução manual',
+    );
+
+    List<RepositoryWorkflow> workflows = const [];
+    try {
+      workflows = await listWorkflows(repositoryFullName);
+    } on AppException {
+      // Ainda tentaremos descobrir workflows pelos próprios arquivos YAML.
     }
 
     final workflow = await _selectApkDispatchWorkflow(
@@ -400,32 +400,100 @@ class RepositoryGitService {
       branch: branch,
       workflows: workflows,
     );
-    if (workflow == null) {
-      throw const RepositoryFileException(
-        'O projeto foi enviado, mas não existe um workflow de APK com workflow_dispatch para iniciar a build manualmente.',
-        code: 'APK_WORKFLOW_DISPATCH_UNAVAILABLE',
+
+    if (workflow != null) {
+      // Reconsulta o SHA imediatamente antes do POST de dispatch para fechar
+      // a janela de corrida entre a verificação anterior e o disparo manual.
+      final lastSecondRuns = await listWorkflowRunsForCommit(
+        repositoryFullName: repositoryFullName,
+        commitSha: normalizedSha,
+      );
+      final automaticRuns =
+          lastSecondRuns.where(_runLooksLikeApk).toList(growable: false);
+      if (automaticRuns.isNotEmpty) {
+        onStatus?.call('Projeto atualizado • Build iniciada');
+        return RepositoryBuildLaunchResult(
+          commitSha: normalizedSha,
+          runs: automaticRuns,
+          workflow: _workflowForRun(workflows, automaticRuns.first),
+          dispatchTriggered: false,
+        );
+      }
+
+      onStatus?.call('O push não iniciou a build. Iniciando ${workflow.name}');
+      final workflowRunId = await dispatchWorkflow(
+        repositoryFullName: repositoryFullName,
+        workflow: workflow,
+        ref: branch,
+      );
+
+      await Future<void>.delayed(const Duration(seconds: 2));
+      final runs = await listWorkflowRunsForCommit(
+        repositoryFullName: repositoryFullName,
+        commitSha: normalizedSha,
+      );
+      final apkRuns = runs
+          .where((run) => run.belongsTo(workflow) || _runLooksLikeApk(run))
+          .toList(growable: false);
+      return RepositoryBuildLaunchResult(
+        commitSha: normalizedSha,
+        runs: apkRuns,
+        workflow: workflow,
+        dispatchTriggered: true,
+        workflowRunId: workflowRunId,
       );
     }
 
-    onStatus?.call('O push não iniciou a build. Iniciando ${workflow.name}');
-    final workflowRunId = await dispatchWorkflow(
+    // Workflows recém-criados podem demorar a aparecer em /actions/workflows.
+    // Fazemos fallback nos arquivos reais de .github/workflows.
+    final fileWorkflow = await _findApkDispatchWorkflowFile(
       repositoryFullName: repositoryFullName,
-      workflow: workflow,
-      ref: branch,
+      branch: branch,
     );
 
-    await Future<void>.delayed(const Duration(seconds: 2));
-    final runs = await listWorkflowRunsForCommit(
-      repositoryFullName: repositoryFullName,
-      commitSha: commitSha,
-    );
-    final apkRuns = runs.where((run) => run.belongsTo(workflow)).toList(growable: false);
-    return RepositoryBuildLaunchResult(
-      commitSha: commitSha,
-      runs: apkRuns,
-      workflow: workflow,
-      dispatchTriggered: true,
-      workflowRunId: workflowRunId,
+    if (fileWorkflow != null) {
+      final lastSecondRuns = await listWorkflowRunsForCommit(
+        repositoryFullName: repositoryFullName,
+        commitSha: normalizedSha,
+      );
+      final automaticRuns =
+          lastSecondRuns.where(_runLooksLikeApk).toList(growable: false);
+      if (automaticRuns.isNotEmpty) {
+        onStatus?.call('Projeto atualizado • Build iniciada');
+        return RepositoryBuildLaunchResult(
+          commitSha: normalizedSha,
+          runs: automaticRuns,
+          workflow: _workflowForRun(workflows, automaticRuns.first),
+          dispatchTriggered: false,
+        );
+      }
+
+      onStatus?.call(
+        'O push não iniciou a build. Iniciando ${fileWorkflow.fileName}',
+      );
+      final workflowRunId = await dispatchWorkflowFile(
+        repositoryFullName: repositoryFullName,
+        workflowFileName: fileWorkflow.fileName,
+        ref: branch,
+      );
+
+      await Future<void>.delayed(const Duration(seconds: 2));
+      final runs = await listWorkflowRunsForCommit(
+        repositoryFullName: repositoryFullName,
+        commitSha: normalizedSha,
+      );
+      return RepositoryBuildLaunchResult(
+        commitSha: normalizedSha,
+        runs: runs.where(_runLooksLikeApk).toList(growable: false),
+        workflow: null,
+        dispatchTriggered: true,
+        workflowRunId: workflowRunId,
+      );
+    }
+
+    throw const RepositoryFileException(
+      'O projeto foi atualizado, mas nenhuma build automática apareceu para o novo commit e não foi encontrado um workflow de APK com workflow_dispatch.',
+      code: 'APK_WORKFLOW_DISPATCH_UNAVAILABLE',
     );
   }
 
@@ -441,24 +509,121 @@ class RepositoryGitService {
   }
 
   static bool _isApkWorkflowCandidate(RepositoryWorkflow workflow) {
-    final fileName = workflow.fileName.toLowerCase();
-    final name = workflow.name.trim().toLowerCase();
-    if (fileName == 'android-apk.yml' || name == 'android apk') {
+    final searchable =
+        '${workflow.name} ${workflow.fileName} ${workflow.path}'.toLowerCase();
+    if (searchable.contains('apk')) {
       return true;
     }
-    final searchable = '$name ${workflow.path}'.toLowerCase();
-    return searchable.contains('apk') && !searchable.contains('release');
+    return searchable.contains('android') &&
+        (searchable.contains('build') || searchable.contains('signed'));
   }
 
   static bool _runLooksLikeApk(RepositoryWorkflowRun run) {
-    final searchable = '${run.name} ${run.workflowPath}'.toLowerCase();
-    return searchable.contains('apk') && !searchable.contains('release');
+    final searchable =
+        '${run.name} ${run.title} ${run.workflowPath}'.toLowerCase();
+    if (searchable.contains('apk')) {
+      return true;
+    }
+    return searchable.contains('android') &&
+        (searchable.contains('build') || searchable.contains('signed'));
   }
 
-  static bool _supportsWorkflowDispatchContent(String content) => RegExp(
-        r'^\s*workflow_dispatch\s*:',
-        multiLine: true,
-      ).hasMatch(content);
+  static bool _supportsWorkflowDispatchContent(String content) {
+    final withoutComments = content
+        .split('\n')
+        .map((line) {
+          final index = line.indexOf('#');
+          return index < 0 ? line : line.substring(0, index);
+        })
+        .join('\n');
+
+    // Aceita:
+    // on:
+    //   workflow_dispatch:
+    // "workflow_dispatch":
+    // on: [push, workflow_dispatch]
+    // on: {push: ..., workflow_dispatch: ...}
+    return RegExp(
+          r'''(?m)^\s*["']?workflow_dispatch["']?\s*:''',
+        ).hasMatch(withoutComments) ||
+        RegExp(
+          r'''(?m)^\s*on\s*:\s*\[[^\]]*\bworkflow_dispatch\b[^\]]*\]''',
+        ).hasMatch(withoutComments) ||
+        RegExp(
+          r'''(?m)^\s*on\s*:\s*\{[^\}]*\bworkflow_dispatch\b[^\}]*\}''',
+        ).hasMatch(withoutComments) ||
+        RegExp(
+          r'''(?m)^\s*on\s*:\s*["']?workflow_dispatch["']?\s*$''',
+        ).hasMatch(withoutComments);
+  }
+
+  Future<_WorkflowFileCandidate?> _findApkDispatchWorkflowFile({
+    required String repositoryFullName,
+    required String branch,
+  }) async {
+    List<RepositoryContentItem> files;
+    try {
+      files = await listContents(
+        repositoryFullName: repositoryFullName,
+        branch: branch,
+        path: '.github/workflows',
+      );
+    } catch (_) {
+      return null;
+    }
+
+    final yamlFiles = files
+        .where(
+          (item) =>
+              item.isFile &&
+              (item.name.toLowerCase().endsWith('.yml') ||
+                  item.name.toLowerCase().endsWith('.yaml')),
+        )
+        .toList(growable: false);
+
+    final preferred = <RepositoryContentItem>[
+      ...yamlFiles.where(_contentItemLooksLikeApkWorkflow),
+      ...yamlFiles.where((item) => !_contentItemLooksLikeApkWorkflow(item)),
+    ];
+
+    for (final item in preferred) {
+      try {
+        final file = await readTextFile(
+          repositoryFullName: repositoryFullName,
+          branch: branch,
+          path: item.path,
+        );
+        if (!_supportsWorkflowDispatchContent(file.content)) {
+          continue;
+        }
+
+        final nameMatch = RegExp(
+          r'''(?m)^\s*name\s*:\s*["']?([^"'\n#]+)''',
+        ).firstMatch(file.content);
+        final declaredName = nameMatch?.group(1)?.trim() ?? '';
+        final searchable =
+            '${item.name} $declaredName ${file.content}'.toLowerCase();
+
+        if (searchable.contains('apk') ||
+            (searchable.contains('android') &&
+                searchable.contains('build'))) {
+          return _WorkflowFileCandidate(
+            fileName: item.name,
+            path: item.path,
+          );
+        }
+      } catch (_) {
+        // Um YAML indisponível não impede verificar os demais.
+      }
+    }
+    return null;
+  }
+
+  static bool _contentItemLooksLikeApkWorkflow(RepositoryContentItem item) {
+    final value = '${item.name} ${item.path}'.toLowerCase();
+    return value.contains('apk') || value.contains('android');
+  }
+
 
   Future<RepositoryWorkflow?> _selectApkDispatchWorkflow({
     required String repositoryFullName,
@@ -894,6 +1059,16 @@ class RepositoryGitService {
   }
 }
 
+
+class _WorkflowFileCandidate {
+  const _WorkflowFileCandidate({
+    required this.fileName,
+    required this.path,
+  });
+
+  final String fileName;
+  final String path;
+}
 
 class _WorkflowRunsPage {
   const _WorkflowRunsPage({

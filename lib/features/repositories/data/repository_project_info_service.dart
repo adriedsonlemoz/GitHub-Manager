@@ -136,9 +136,11 @@ class RepositoryProjectInfoService {
           }
           packageName ??= yamlName;
           if (yamlVersion?.isNotEmpty == true) {
-            version ??= yamlVersion!.split('+').first;
-            if (yamlVersion.contains('+')) {
-              versionCode ??= int.tryParse(yamlVersion.split('+').last);
+            final resolvedVersion = yamlVersion!;
+            version ??= resolvedVersion.split('+').first;
+            if (resolvedVersion.contains('+')) {
+              versionCode ??=
+                  int.tryParse(resolvedVersion.split('+').last);
             }
           }
         }

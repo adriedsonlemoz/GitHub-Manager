@@ -1390,53 +1390,6 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                       : null,
                 ),
               ),
-              if (failedJob != null) ...[
-                const SizedBox(height: 10),
-                _FailureSummaryCard(
-                  repositoryFullName: widget.repositoryFullName,
-                  job: failedJob,
-                ),
-              ],
-              const SizedBox(height: 12),
-              if (snapshot.connectionState == ConnectionState.waiting && jobs.isEmpty)
-                const LinearProgressIndicator()
-              else if (snapshot.hasError && jobs.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(
-                    snapshot.error is AppException
-                        ? (snapshot.error! as AppException).message
-                        : 'Não foi possível carregar jobs e etapas.',
-                  ),
-                )
-              else if (jobs.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Os jobs ainda não foram publicados pelo GitHub.'),
-                  ),
-                )
-              else
-                ...jobs.map(
-                  (job) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Card(
-                      child: ExpansionTile(
-                        leading: _JobIcon(job: job),
-                        title: Text(job.name),
-                        subtitle: Text(
-                          _RepositoryActionsScreenState._jobStatus(job),
-                        ),
-                        initiallyExpanded: job.status != 'completed' || job.failed,
-                        children: job.steps
-                            .map(
-                              (step) => _WorkflowStepTile(step: step),
-                            )
-                            .toList(),
-                      ),
-                    ),
-                  ),
-                ),
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -1491,6 +1444,55 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                   ],
                 ],
               ),
+              if (failedJob != null) ...[
+                const SizedBox(height: 10),
+                _FailureSummaryCard(
+                  repositoryFullName: widget.repositoryFullName,
+                  job: failedJob,
+                ),
+              ],
+              const SizedBox(height: 12),
+              if (snapshot.connectionState == ConnectionState.waiting && jobs.isEmpty)
+                const LinearProgressIndicator()
+              else if (snapshot.hasError && jobs.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    snapshot.error is AppException
+                        ? (snapshot.error! as AppException).message
+                        : 'Não foi possível carregar jobs e etapas.',
+                  ),
+                )
+              else if (jobs.isEmpty)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Os jobs ainda não foram publicados pelo GitHub.'),
+                  ),
+                )
+              else
+                ...jobs.map(
+                  (job) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Card(
+                      child: ExpansionTile(
+                        leading: _JobIcon(job: job),
+                        title: Text(job.name),
+                        subtitle: Text(
+                          _RepositoryActionsScreenState._jobStatus(job),
+                        ),
+                        initiallyExpanded: job.status != 'completed' || job.failed,
+                        children: job.steps
+                            .map(
+                              (step) => _WorkflowStepTile(step: step),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+
             ],
           );
         },

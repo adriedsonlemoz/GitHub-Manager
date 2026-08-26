@@ -162,9 +162,11 @@ class LocalProjectService {
                   ?.group(1)
                   ?.trim();
               if (version?.isNotEmpty == true) {
-                detectedVersion ??= version!.split('+').first;
-                if (version.contains('+')) {
-                  detectedVersionCode ??= int.tryParse(version.split('+').last);
+                final resolvedVersion = version!;
+                detectedVersion ??= resolvedVersion.split('+').first;
+                if (resolvedVersion.contains('+')) {
+                  detectedVersionCode ??=
+                      int.tryParse(resolvedVersion.split('+').last);
                 }
               }
             } else if (lowerPath.endsWith('/version') || lowerPath == 'version') {
