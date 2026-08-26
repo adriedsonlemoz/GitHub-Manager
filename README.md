@@ -4,7 +4,7 @@ GitHub Manager é um aplicativo Flutter/Dart para Android que administra reposit
 
 ## Identidade oficial
 
-- versão: `2.0.3+200017`;
+- versão: `2.0.5+200019`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
@@ -45,6 +45,8 @@ Artifacts expirados continuam visíveis no histórico e são marcados como expir
 ## Sincronização por ZIP
 
 O envio de ZIP é uma sincronização completa. A implementação compara a árvore atual do repositório com os caminhos presentes no ZIP e cria remoções Git (`sha: null`) para arquivos antigos que não existem mais no pacote antes de criar o novo commit.
+
+Se a árvore resultante for idêntica à árvore atual, o app não cria commit nem dispara build automaticamente. A tela informa que o projeto já está atualizado e oferece `Executar build mesmo assim` para uma recompilação manual do mesmo commit.
 
 ## Assinatura
 

@@ -59,7 +59,7 @@ No repositório oficial `adriedsonlemoz/GitHub-Manager`, o commit 2.0.1 demorou 
 
 ## Validação local desta entrega
 
-- versão canônica: `2.0.3+200017`;
+- versão canônica: `2.0.4+200018`;
 - JSON/YAML/XML e scripts serão validados antes do empacotamento;
 - a nova keystore e o arquivo contendo os Secrets permanecem fora do ZIP do projeto;
 - o ambiente local desta preparação não possui Flutter/Dart, portanto a confirmação de `flutter analyze`, testes e APK desta versão depende da próxima execução do GitHub Actions.

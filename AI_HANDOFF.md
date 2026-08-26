@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.3+200017`, com Builds/GitHub Actions, envio de build e Central de Downloads revisados.
+Estado atual: `2.0.5+200019`, com Builds/GitHub Actions, envio de build e Central de Downloads revisados.
 
 ## Arquitetura
 
@@ -36,3 +36,7 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 ## Segurança
 
 Nunca incluir keystore, `.env`, tokens ou key.properties no ZIP/repositório.
+
+## ZIP idêntico
+
+Se um ZIP gerar a mesma árvore Git já publicada, não criar commit nem build automática. Informar `Projeto já está atualizado` e permitir `Executar build mesmo assim` via `workflow_dispatch`.

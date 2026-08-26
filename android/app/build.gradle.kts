@@ -52,7 +52,8 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else null
+            // Sem Secrets, assina com a chave debug para gerar um APK de teste instalável.
+            signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 }

@@ -118,6 +118,17 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
               onProgress: (progress) => phase.value = progress.phase,
             );
         uploadResult = uploaded;
+        if (!uploaded.changed) {
+          if (!mounted) {
+            return;
+          }
+          Navigator.of(context, rootNavigator: true).pop();
+          await _showNoChangesDialog(
+            repository: repository,
+            uploadResult: uploaded,
+          );
+          return;
+        }
         phase.value = 'Confirmando o disparo da build';
         final launch = await ref
             .read(repositoryGitServiceProvider)
@@ -157,6 +168,73 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
       } finally {
         phase.dispose();
       }
+    } catch (error) {
+      if (mounted) {
+        _showError(error);
+      }
+    }
+  }
+
+  Future<void> _showNoChangesDialog({
+    required GitHubRepository repository,
+    required ProjectUploadResult uploadResult,
+  }) async {
+    final runAnyway = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Projeto já está atualizado'),
+        content: AdaptiveDialogBody(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'O ZIP enviado é idêntico ao conteúdo atual do repositório. Nenhuma alteração foi encontrada.',
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Commit atual: ${uploadResult.commitSha.substring(0, 7)}.',
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Nenhum novo commit foi criado e nenhuma build automática foi iniciada.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Fechar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.play_circle_outline_rounded),
+            label: const Text('Executar build mesmo assim'),
+          ),
+        ],
+      ),
+    );
+    if (runAnyway != true || !mounted) {
+      return;
+    }
+    try {
+      await ref.read(repositoryGitServiceProvider).dispatchWorkflowFile(
+            repositoryFullName: repository.fullName,
+            workflowFileName: 'android-apk.yml',
+            ref: repository.defaultBranch,
+          );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Build manual enviada. Ela pode levar alguns segundos para aparecer.'),
+        ),
+      );
+      context.push(
+        '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
+      );
     } catch (error) {
       if (mounted) {
         _showError(error);

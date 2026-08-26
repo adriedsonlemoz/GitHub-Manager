@@ -198,6 +198,21 @@ class GitProjectUploadService {
       throw const UnexpectedAppException('TREE_SHA_MISSING');
     }
 
+    if (newTreeSha == baseTreeSha) {
+      onProgress?.call(
+        ProjectUploadProgress(
+          phase: 'Nenhuma alteração encontrada',
+          current: project.fileCount,
+          total: project.fileCount,
+        ),
+      );
+      return ProjectUploadResult(
+        commitSha: parentCommitSha,
+        fileCount: project.fileCount,
+        changed: false,
+      );
+    }
+
     await Future<void>.delayed(const Duration(seconds: 1));
     onProgress?.call(const ProjectUploadProgress(phase: 'Criando commit'));
     final newCommitResponse = await _client.post<Map<String, dynamic>>(
@@ -232,6 +247,7 @@ class GitProjectUploadService {
     return ProjectUploadResult(
       commitSha: newCommitSha,
       fileCount: project.fileCount,
+      changed: true,
     );
   }
 

@@ -42,7 +42,8 @@ jobs:
           cache: true
           pub-cache: true
 
-      - name: Restaurar assinatura oficial
+      - name: Detectar assinatura disponível
+        id: signing
         shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -51,17 +52,26 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "${KEYSTORE_BASE64:-}" || { echo "KEYSTORE_BASE64 ausente"; exit 1; }
-          test -n "${KEYSTORE_PASSWORD:-}" || { echo "KEYSTORE_PASSWORD ausente"; exit 1; }
-          test -n "${KEY_ALIAS:-}" || { echo "KEY_ALIAS ausente"; exit 1; }
-          test -n "${KEY_PASSWORD:-}" || { echo "KEY_PASSWORD ausente"; exit 1; }
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
-          cat > android/key.properties <<KEYEOF
+          PRESENT=0
+          for value in "$KEYSTORE_BASE64" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD"; do
+            [ -n "$value" ] && PRESENT=$((PRESENT + 1))
+          done
+          if [ "$PRESENT" -eq 0 ]; then
+            echo "official=false" >> "$GITHUB_OUTPUT"
+            echo "Sem Secrets: será gerado APK de teste."
+          elif [ "$PRESENT" -ne 4 ]; then
+            echo "::error::Assinatura incompleta. Configure os 4 Secrets ou remova todos."
+            exit 1
+          else
+            echo "official=true" >> "$GITHUB_OUTPUT"
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+            cat > android/key.properties <<KEYEOF
           storePassword=$KEYSTORE_PASSWORD
           keyPassword=$KEY_PASSWORD
           keyAlias=$KEY_ALIAS
           storeFile=../upload-keystore.jks
           KEYEOF
+          fi
 
       - name: Dependências
         run: flutter pub get
@@ -73,12 +83,13 @@ jobs:
         run: bash tool/bootstrap_gradle_wrapper.sh
 
       - name: Validar assinatura oficial configurada
+        if: steps.signing.outputs.official == 'true'
         shell: bash
         run: |
           cd android
           bash gradlew :app:validateOfficialSigning
 
-      - name: Compilar APK oficial universal
+      - name: Compilar APK universal
         env:
           GRADLE_OPTS: -Dorg.gradle.vfs.watch=false
         run: flutter build apk --release --no-pub
@@ -103,19 +114,30 @@ jobs:
           EXPECTED_ID="$(sed -n 's/^applicationId=//p' android/release-signing.properties | head -n1)"
           EXPECTED_CERT="$(sed -n 's/^certificateSha256=//p' android/release-signing.properties | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           ACTUAL_ID="$("$APKANALYZER" manifest application-id "$SOURCE")"
-          ACTUAL_CERT="$("$APKSIGNER" verify --print-certs "$SOURCE" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           test "$ACTUAL_ID" = "$EXPECTED_ID" || { echo "applicationId incorreto: $ACTUAL_ID"; exit 1; }
-          if [ "$ACTUAL_CERT" != "$EXPECTED_CERT" ]; then
-            echo "APK assinado com certificado diferente da chave oficial"
-            echo "SHA-256 esperado: $EXPECTED_CERT"
-            echo "SHA-256 encontrado: $ACTUAL_CERT"
-            exit 1
+
+          SIGNING_MODE="test"
+          if [ "${{ steps.signing.outputs.official }}" = "true" ]; then
+            CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$SOURCE")"
+            ACTUAL_CERT="$(printf '%s\n' "$CERT_OUTPUT" | sed -nE 's/^Signer #[0-9]+ certificate SHA-256 digest:[[:space:]]*//p' | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+            test -n "$ACTUAL_CERT" || { echo "Não foi possível ler o SHA-256 do certificado."; printf '%s\n' "$CERT_OUTPUT"; exit 1; }
+            if [ "$ACTUAL_CERT" != "$EXPECTED_CERT" ]; then
+              echo "APK assinado com certificado diferente da chave oficial"
+              echo "SHA-256 esperado: $EXPECTED_CERT"
+              echo "SHA-256 encontrado: $ACTUAL_CERT"
+              exit 1
+            fi
+            SIGNING_MODE="official"
           fi
 
           VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1)"
           VERSION_NAME="${VERSION%%+*}"
           VERSION_CODE="${VERSION##*+}"
-          FILE="GitHub-Manager-${VERSION_NAME}-${VERSION_CODE}-universal-release.apk"
+          if [ "$SIGNING_MODE" = "official" ]; then
+            FILE="GitHub-Manager-${VERSION_NAME}-${VERSION_CODE}-universal-release.apk"
+          else
+            FILE="GitHub-Manager-${VERSION_NAME}-${VERSION_CODE}-test.apk"
+          fi
           BYTES="$(stat -c%s "$SOURCE")"
           MIB="$(awk -v b="$BYTES" 'BEGIN { printf "%.2f", b / 1048576 }')"
           mkdir -p dist
@@ -125,7 +147,7 @@ jobs:
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "size_mib=$MIB" >> "$GITHUB_OUTPUT"
 
-      - name: Publicar APK oficial
+      - name: Publicar APK
         uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ steps.package.outputs.file }}
@@ -138,7 +160,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## APK oficial gerado com sucesso"
+            echo "## APK gerado com sucesso"
             echo ""
             echo "- Arquivo: \`${{ steps.package.outputs.file }}\`"
             echo "- Tamanho: **${{ steps.package.outputs.size_mib }} MiB**"
@@ -146,7 +168,11 @@ jobs:
             echo "- versionCode: \`${{ steps.package.outputs.version_code }}\`"
             echo "- applicationId: \`br.com.githubmanager.app\`"
             echo "- Compatibilidade: **armeabi-v7a + arm64-v8a**"
-            echo "- Assinatura: **oficial definitiva**"
+            if [ "${{ steps.signing.outputs.official }}" = "true" ]; then
+              echo "- Assinatura: **oficial definitiva**"
+            else
+              echo "- Assinatura: **teste (debug)**"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Limpar material de assinatura

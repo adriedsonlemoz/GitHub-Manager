@@ -42,8 +42,10 @@ class ProjectUploadResult {
   const ProjectUploadResult({
     required this.commitSha,
     required this.fileCount,
+    required this.changed,
   });
 
   final String commitSha;
   final int fileCount;
+  final bool changed;
 }
