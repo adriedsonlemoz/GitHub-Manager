@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/app/theme/app_theme_controller.dart';
+import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
@@ -21,12 +22,14 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late ThemeMode _themeMode;
   Map<String, String>? _apiSettings;
+  bool? _buildNotificationsEnabled;
 
   @override
   void initState() {
     super.initState();
     _themeMode = AppThemeController.instance.value;
     _loadApiSettings();
+    _loadNotificationSettings();
   }
 
   Future<void> _loadApiSettings() async {
@@ -34,6 +37,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       setState(() => _apiSettings = values);
     }
+  }
+
+
+  Future<void> _loadNotificationSettings() async {
+    final enabled = await BuildMonitorService.isEnabled();
+    if (mounted) {
+      setState(() => _buildNotificationsEnabled = enabled);
+    }
+  }
+
+  Future<void> _setBuildNotifications(bool enabled) async {
+    final resolved = await BuildMonitorService.setEnabled(enabled);
+    if (!mounted) return;
+    setState(() => _buildNotificationsEnabled = resolved);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          resolved
+              ? 'Avisos de build ativados.'
+              : enabled
+                  ? 'Permissão de notificações não concedida.'
+                  : 'Avisos de build desativados.',
+        ),
+      ),
+    );
   }
 
   Future<void> _setTheme(ThemeMode mode) async {
@@ -446,6 +474,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 selected: {_themeMode},
                 onSelectionChanged: (value) => _setTheme(value.first),
               ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          const _SectionTitle('Notificações'),
+          Card(
+            child: SwitchListTile(
+              secondary: const Icon(Icons.notifications_active_outlined),
+              title: const Text('Avisar quando builds terminarem'),
+              subtitle: const Text(
+                'Verifica em segundo plano e avisa sobre sucesso, falha ou cancelamento. '
+                'O Android pode atrasar a consulta para economizar bateria.',
+              ),
+              value: _buildNotificationsEnabled ?? true,
+              onChanged: _buildNotificationsEnabled == null
+                  ? null
+                  : _setBuildNotifications,
             ),
           ),
           const SizedBox(height: 18),
