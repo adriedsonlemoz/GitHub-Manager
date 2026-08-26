@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.1+200015`, com Builds/GitHub Actions e Central de Downloads revisados.
+Estado atual: `2.0.2+200016`, com Builds/GitHub Actions, envio de build e Central de Downloads revisados.
 
 ## Arquitetura
 
@@ -8,6 +8,7 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 
 ## Identidade definitiva
 
+- repositório oficial: `adriedsonlemoz/GitHub-Manager`;
 - applicationId: `br.com.githubmanager.app`
 - assinatura própria e permanente;
 - Secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`;
@@ -21,6 +22,7 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 - navegação/edição/upload de arquivos;
 - ZIP com sincronização completa e remoção de arquivos obsoletos;
 - Actions: executar, acompanhar, cancelar, reexecutar, jobs/etapas/logs;
+- Enviar build sincroniza o ZIP e garante o disparo do Android APK sem duplicar runs;
 - artifacts/APK;
 - Commits;
 - Bugs via GitHub Issues sem reformulação adicional;

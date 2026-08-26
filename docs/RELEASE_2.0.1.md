@@ -67,7 +67,7 @@ A sincronização completa existente foi preservada. O serviço continua compara
 
 O ambiente usado para preparar este ZIP não possui Flutter/Dart instalados. Por isso `flutter analyze`, `flutter test` e uma nova compilação do código desta versão não puderam ser executados localmente e **não são declarados como aprovados** nesta entrega.
 
-O GitHub Actions remoto confirmado como bem-sucedido ainda corresponde ao commit anterior do repositório, não a este ZIP 2.0.1. A nova versão só pode ser considerada compilada depois que este código for sincronizado com o repositório e o Actions confirmar a execução correspondente.
+Correção documental posterior: a validação remota usada durante a preparação desta versão foi feita no repositório anterior e não deve ser tratada como validação do repositório oficial `adriedsonlemoz/GitHub-Manager`. No repositório oficial, o primeiro commit de importação contendo os workflows não gerou check-runs. A versão 2.0.2 passou a verificar o disparo pelo SHA do commit e usar `workflow_dispatch` como fallback.
 
 Também não existe atualmente um artifact expirado no repositório para reproduzir de forma real a resposta de expiração. O tratamento de 404/410 e do campo `expired` foi implementado, mas essa condição específica não foi marcada como teste real concluído.
 

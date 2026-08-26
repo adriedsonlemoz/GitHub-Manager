@@ -69,7 +69,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
     }
   }
 
-  Future<void> _importZip(GitHubRepository repository) async {
+  Future<void> _sendBuild(GitHubRepository repository) async {
     try {
       final project =
           await ref.read(localProjectServiceProvider).pickAndAnalyzeZip();
@@ -81,88 +81,181 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
         return;
       }
 
+      final phase = ValueNotifier<String>('Preparando sincronização');
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => const AlertDialog(
-          title: Text('Enviando build'),
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Enviando build'),
           content: AdaptiveDialogBody(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Validando o ZIP e publicando os arquivos em um único commit...'),
-                SizedBox(height: 14),
-                LinearProgressIndicator(),
-              ],
+            child: ValueListenableBuilder<String>(
+              valueListenable: phase,
+              builder: (context, value, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(value),
+                  const SizedBox(height: 14),
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'O projeto será sincronizado primeiro. Depois o GitHub Manager confirmará se o Android APK iniciou e usará workflow_dispatch somente se necessário.',
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       );
 
+      ProjectUploadResult? uploadResult;
       try {
-        final result = await ref.read(gitProjectUploadServiceProvider).uploadZip(
+        final uploaded = await ref.read(gitProjectUploadServiceProvider).uploadZip(
               project: project,
               repositoryFullName: repository.fullName,
               branch: repository.defaultBranch,
               commitMessage: '',
+              onProgress: (progress) => phase.value = progress.phase,
+            );
+        uploadResult = uploaded;
+        phase.value = 'Confirmando o disparo da build';
+        final launch = await ref
+            .read(repositoryGitServiceProvider)
+            .ensureBuildForCommit(
+              repositoryFullName: repository.fullName,
+              branch: repository.defaultBranch,
+              commitSha: uploaded.commitSha,
+              onStatus: (status) => phase.value = status,
             );
         if (!mounted) {
-        return;
-      }
+          return;
+        }
         Navigator.of(context, rootNavigator: true).pop();
         await _refresh();
         if (!mounted) {
-        return;
-      }
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Projeto enviado'),
-            content: AdaptiveDialogBody(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${result.fileCount} arquivos publicados no commit ${result.commitSha.substring(0, 7)}.',
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Se o repositório possui GitHub Actions configurado para push, a build deve aparecer em seguida.',
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Fechar'),
-              ),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  context.push(
-                    '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
-                  );
-                },
-                icon: const Icon(Icons.monitor_heart_outlined),
-                label: const Text('Acompanhar build'),
-              ),
-            ],
-          ),
+          return;
+        }
+        await _showBuildSentDialog(
+          repository: repository,
+          uploadResult: uploaded,
+          launch: launch,
         );
       } catch (error) {
-        if (mounted) {
-          Navigator.of(context, rootNavigator: true).pop();
+        if (!mounted) {
+          return;
+        }
+        Navigator.of(context, rootNavigator: true).pop();
+        if (uploadResult != null) {
+          await _showBuildStartFailure(
+            repository: repository,
+            uploadResult: uploadResult,
+            error: error,
+          );
+        } else {
           _showError(error);
         }
+      } finally {
+        phase.dispose();
       }
     } catch (error) {
       if (mounted) {
         _showError(error);
       }
     }
+  }
+
+  Future<void> _showBuildSentDialog({
+    required GitHubRepository repository,
+    required ProjectUploadResult uploadResult,
+    required RepositoryBuildLaunchResult launch,
+  }) async {
+    final workflowName = launch.workflow?.name ?? 'Android APK';
+    final statusText = launch.dispatchTriggered
+        ? launch.runs.isEmpty
+            ? 'O push não iniciou o APK automaticamente. O GitHub Manager enviou o comando manual para $workflowName; a execução pode levar alguns segundos para aparecer.'
+            : 'O push não iniciou o APK automaticamente. O GitHub Manager iniciou $workflowName por workflow_dispatch e a execução já apareceu no GitHub.'
+        : '$workflowName foi iniciado automaticamente pelo push deste commit. Nenhuma execução manual duplicada foi criada.';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Build enviada'),
+        content: AdaptiveDialogBody(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${uploadResult.fileCount} arquivos sincronizados no commit ${uploadResult.commitSha.substring(0, 7)}.',
+              ),
+              const SizedBox(height: 10),
+              Text(statusText),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Fechar'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.push(
+                '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
+              );
+            },
+            icon: const Icon(Icons.monitor_heart_outlined),
+            label: const Text('Acompanhar build'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showBuildStartFailure({
+    required GitHubRepository repository,
+    required ProjectUploadResult uploadResult,
+    required Object error,
+  }) async {
+    await _refresh();
+    if (!mounted) {
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Projeto atualizado, build não confirmada'),
+        content: AdaptiveDialogBody(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'O projeto foi sincronizado no commit ${uploadResult.commitSha.substring(0, 7)}, mas o GitHub Manager não conseguiu confirmar ou iniciar o Android APK.',
+              ),
+              const SizedBox(height: 10),
+              Text(_message(error)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Fechar'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.push(
+                '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
+              );
+            },
+            icon: const Icon(Icons.play_circle_outline_rounded),
+            label: const Text('Abrir Builds'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<bool?> _confirmZip(
@@ -195,7 +288,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    'O envio sincroniza completamente o repositório com o novo ZIP: atualiza arquivos existentes, adiciona os novos e remove automaticamente arquivos antigos que não fazem mais parte do projeto. Tudo é publicado em um único commit com data e hora.',
+                    'O envio sincroniza completamente o repositório com o novo ZIP: atualiza arquivos existentes, adiciona os novos e remove arquivos antigos que não fazem mais parte do projeto. Depois, o GitHub Manager confirma se o Android APK iniciou pelo push e só usa workflow_dispatch se não existir uma execução para o novo commit.',
                   ),
                 ],
               ),
@@ -415,7 +508,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                               icon: Icons.folder_zip_outlined,
                               label: 'Enviar build',
                               filled: true,
-                              onTap: () => _importZip(repository),
+                              onTap: () => _sendBuild(repository),
                             ),
                             _QuickActionButton(
                               width: width,

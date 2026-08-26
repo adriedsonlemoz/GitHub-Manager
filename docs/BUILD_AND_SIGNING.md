@@ -5,7 +5,7 @@ O novo GitHub Manager possui identidade própria e definitiva.
 ## Identidade Android
 
 - applicationId: `br.com.githubmanager.app`
-- versão atual: `2.0.1+200015`
+- versão atual: `2.0.2+200016`
 - build: Release AOT universal
 
 ## Secrets obrigatórios

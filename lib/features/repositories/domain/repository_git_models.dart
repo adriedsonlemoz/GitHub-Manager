@@ -355,6 +355,24 @@ class RepositoryActionsData {
       allRuns.where((run) => run.belongsTo(workflow)).length;
 }
 
+class RepositoryBuildLaunchResult {
+  const RepositoryBuildLaunchResult({
+    required this.commitSha,
+    required this.runs,
+    required this.workflow,
+    required this.dispatchTriggered,
+    this.workflowRunId,
+  });
+
+  final String commitSha;
+  final List<RepositoryWorkflowRun> runs;
+  final RepositoryWorkflow? workflow;
+  final bool dispatchTriggered;
+  final int? workflowRunId;
+
+  bool get pushTriggered => runs.isNotEmpty && !dispatchTriggered;
+}
+
 class RepositoryWorkflowFailure {
   const RepositoryWorkflowFailure({
     required this.jobName,
