@@ -130,7 +130,14 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
       if (project == null || !mounted) {
         return;
       }
-      final confirmed = await _confirmZip(project, repository);
+      final repositoryInfo = await ref
+          .read(repositoryProjectInfoServiceProvider)
+          .load(repository);
+      final confirmed = await _confirmZip(
+        project,
+        repository,
+        repositoryInfo,
+      );
       if (confirmed != true || !mounted) {
         return;
       }
@@ -486,52 +493,122 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
   Future<bool?> _confirmZip(
     ZipProjectPreview project,
     GitHubRepository repository,
-  ) =>
-      showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Enviar build'),
-          content: AdaptiveDialogBody(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    project.name,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
+    RepositoryProjectInfo repositoryInfo,
+  ) {
+    final check = _ProjectSafetyCheck.compare(
+      project: project,
+      repository: repository,
+      repositoryInfo: repositoryInfo,
+    );
+
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(check.blocked ? 'Envio bloqueado' : 'Conferir build'),
+        content: AdaptiveDialogBody(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _BuildSafetyRow(
+                  label: 'Projeto detectado',
+                  value: project.identityLabel,
+                  icon: Icons.inventory_2_outlined,
+                ),
+                _BuildSafetyRow(
+                  label: 'Versão do ZIP',
+                  value: project.versionLabel ?? 'Não identificada',
+                  icon: Icons.new_releases_outlined,
+                ),
+                _BuildSafetyRow(
+                  label: 'Repositório aberto',
+                  value: repositoryInfo.projectName,
+                  icon: Icons.cloud_outlined,
+                ),
+                _BuildSafetyRow(
+                  label: 'Versão no GitHub',
+                  value: repositoryInfo.versionLabel ?? 'Não identificada',
+                  icon: Icons.history_rounded,
+                ),
+                if (project.applicationId?.isNotEmpty == true ||
+                    repositoryInfo.applicationId?.isNotEmpty == true)
+                  _BuildSafetyRow(
+                    label: 'Identidade Android',
+                    value:
+                        '${project.applicationId ?? 'não identificada'} → ${repositoryInfo.applicationId ?? 'não identificada'}',
+                    icon: Icons.android_rounded,
+                  ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: check.blocked
+                        ? Theme.of(context).colorScheme.errorContainer
+                        : check.warning
+                            ? Theme.of(context).colorScheme.tertiaryContainer
+                            : Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        check.blocked
+                            ? Icons.block_rounded
+                            : check.warning
+                                ? Icons.warning_amber_rounded
+                                : Icons.verified_rounded,
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          check.message,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${project.projectType} • ${project.fileCount} arquivos • ${project.folderCount} pastas',
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Destino: ${repository.fullName}/${repository.defaultBranch}',
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'O envio sincroniza completamente o repositório com o novo ZIP: atualiza arquivos existentes, adiciona os novos e remove arquivos antigos que não fazem mais parte do projeto. Depois, o GitHub Manager confirma se o Android APK iniciou pelo push e só usa workflow_dispatch se não existir uma execução para o novo commit.',
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '${project.projectType} • ${project.fileCount} arquivos • ${project.folderCount} pastas',
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Destino: ${repository.fullName}/${repository.defaultBranch}',
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'O envio sincroniza completamente o repositório com o ZIP: arquivos antigos que não existem mais no projeto também são removidos.',
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.cloud_upload_outlined),
-              label: const Text('Enviar build'),
-            ),
-          ],
         ),
-      );
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: check.blocked
+                ? null
+                : () => Navigator.pop(dialogContext, true),
+            icon: Icon(
+              check.warning
+                  ? Icons.warning_amber_rounded
+                  : Icons.cloud_upload_outlined,
+            ),
+            label: Text(
+              check.warning ? 'Enviar mesmo assim' : 'Enviar build',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _downloadLatestApk(
     GitHubRepository repository,
@@ -992,6 +1069,169 @@ class _RepositoryHeader extends StatelessWidget {
       );
 }
 
+
+class _ProjectSafetyCheck {
+  const _ProjectSafetyCheck({
+    required this.blocked,
+    required this.warning,
+    required this.message,
+  });
+
+  final bool blocked;
+  final bool warning;
+  final String message;
+
+  static _ProjectSafetyCheck compare({
+    required ZipProjectPreview project,
+    required GitHubRepository repository,
+    required RepositoryProjectInfo repositoryInfo,
+  }) {
+    final zipAppId = _normalize(project.applicationId);
+    final repoAppId = _normalize(repositoryInfo.applicationId);
+    if (zipAppId.isNotEmpty && repoAppId.isNotEmpty && zipAppId != repoAppId) {
+      return _ProjectSafetyCheck(
+        blocked: true,
+        warning: false,
+        message:
+            'Este ZIP pertence a outro aplicativo. applicationId diferente: ${project.applicationId} ≠ ${repositoryInfo.applicationId}.',
+      );
+    }
+
+    final zipPackage = _normalize(project.packageName);
+    final repoPackage = _normalize(repositoryInfo.packageName);
+    if (zipPackage.isNotEmpty &&
+        repoPackage.isNotEmpty &&
+        zipPackage != repoPackage) {
+      return _ProjectSafetyCheck(
+        blocked: true,
+        warning: false,
+        message:
+            'Este ZIP parece ser de outro projeto. Pacote detectado: ${project.packageName}; esperado: ${repositoryInfo.packageName}.',
+      );
+    }
+
+    final zipName = _normalize(project.projectName ?? project.identityLabel);
+    final repoName = _normalize(repositoryInfo.projectName);
+    final repositoryName = _normalize(repository.name);
+    if (zipName.isNotEmpty &&
+        repoName.isNotEmpty &&
+        zipName != repoName &&
+        zipName != repositoryName) {
+      return _ProjectSafetyCheck(
+        blocked: true,
+        warning: false,
+        message:
+            'O projeto do ZIP (${project.identityLabel}) não corresponde ao repositório aberto (${repositoryInfo.projectName}).',
+      );
+    }
+
+    final versionCompare = _compareVersions(
+      project.version,
+      project.versionCode,
+      repositoryInfo.version,
+      repositoryInfo.versionCode,
+    );
+    if (versionCompare < 0) {
+      return _ProjectSafetyCheck(
+        blocked: true,
+        warning: false,
+        message:
+            'A versão do ZIP é anterior à versão atual do GitHub. O envio foi bloqueado para evitar substituir o projeto por uma versão antiga.',
+      );
+    }
+    if (versionCompare == 0 &&
+        project.version?.isNotEmpty == true &&
+        repositoryInfo.version?.isNotEmpty == true) {
+      return const _ProjectSafetyCheck(
+        blocked: false,
+        warning: true,
+        message:
+            'É o mesmo projeto e a mesma versão. Confira se você realmente quer reenviar esta build.',
+      );
+    }
+
+    final hasStrongIdentity = (zipAppId.isNotEmpty && repoAppId.isNotEmpty) ||
+        (zipPackage.isNotEmpty && repoPackage.isNotEmpty) ||
+        (zipName.isNotEmpty && (repoName.isNotEmpty || repositoryName.isNotEmpty));
+    if (!hasStrongIdentity) {
+      return const _ProjectSafetyCheck(
+        blocked: false,
+        warning: true,
+        message:
+            'Não foi possível confirmar totalmente a identidade deste ZIP. Confira o projeto e a versão antes de enviar.',
+      );
+    }
+
+    return const _ProjectSafetyCheck(
+      blocked: false,
+      warning: false,
+      message: 'Projeto compatível. A identidade e a versão foram conferidas.',
+    );
+  }
+
+  static int _compareVersions(
+    String? zipVersion,
+    int? zipCode,
+    String? repoVersion,
+    int? repoCode,
+  ) {
+    if (zipCode != null && repoCode != null && zipCode != repoCode) {
+      return zipCode.compareTo(repoCode);
+    }
+    if (zipVersion == null || repoVersion == null) return 1;
+    final a = RegExp(r'\d+').allMatches(zipVersion).map((m) => int.parse(m.group(0)!)).toList();
+    final b = RegExp(r'\d+').allMatches(repoVersion).map((m) => int.parse(m.group(0)!)).toList();
+    final max = a.length > b.length ? a.length : b.length;
+    for (var i = 0; i < max; i++) {
+      final av = i < a.length ? a[i] : 0;
+      final bv = i < b.length ? b[i] : 0;
+      if (av != bv) return av.compareTo(bv);
+    }
+    return 0;
+  }
+
+  static String _normalize(String? value) => (value ?? '')
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]'), '');
+}
+
+class _BuildSafetyRow extends StatelessWidget {
+  const _BuildSafetyRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.labelMedium),
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
 
 class _ProjectInfoBadge extends StatelessWidget {
   const _ProjectInfoBadge({

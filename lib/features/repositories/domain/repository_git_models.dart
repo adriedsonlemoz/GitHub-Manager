@@ -153,6 +153,7 @@ class RepositoryWorkflowRun {
     required this.startedAt,
     required this.updatedAt,
     required this.htmlUrl,
+    this.buildVersion,
   });
 
   final int id;
@@ -172,12 +173,46 @@ class RepositoryWorkflowRun {
   final DateTime? startedAt;
   final DateTime? updatedAt;
   final String htmlUrl;
+  final String? buildVersion;
 
   bool get isRunning =>
       status == 'queued' || status == 'in_progress' || status == 'waiting';
 
   String get shortSha =>
       headSha.length > 7 ? headSha.substring(0, 7) : headSha;
+
+  String? get detectedVersion {
+    if (buildVersion?.trim().isNotEmpty == true) return buildVersion!.trim();
+    for (final source in [commitMessage, title]) {
+      final match = RegExp(
+        r'(?:^|[\s•-])v?(\d+\.\d+\.\d+(?:[-._][A-Za-z0-9.-]+)?(?:\+\d+)?)',
+      ).firstMatch(source);
+      final value = match?.group(1)?.trim();
+      if (value?.isNotEmpty == true) return value;
+    }
+    return null;
+  }
+
+  RepositoryWorkflowRun withBuildVersion(String? version) => RepositoryWorkflowRun(
+        id: id,
+        workflowId: workflowId,
+        workflowPath: workflowPath,
+        name: name,
+        title: title,
+        status: status,
+        conclusion: conclusion,
+        branch: branch,
+        headSha: headSha,
+        commitMessage: commitMessage,
+        event: event,
+        runNumber: runNumber,
+        runAttempt: runAttempt,
+        createdAt: createdAt,
+        startedAt: startedAt,
+        updatedAt: updatedAt,
+        htmlUrl: htmlUrl,
+        buildVersion: version,
+      );
 
   bool belongsTo(RepositoryWorkflow workflow) {
     if (workflow.id > 0 && workflowId == workflow.id) {

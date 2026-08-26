@@ -730,6 +730,21 @@ class _RunGroupCard extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                             ),
                       ),
+                      if (group.runs.first.detectedVersion != null) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            const Icon(Icons.new_releases_outlined, size: 15),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Versão ${group.runs.first.detectedVersion}',
+                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 3),
                       Text(
                         '$sha • ${group.eventLabel} • ${group.runs.length} ${group.runs.length == 1 ? 'workflow' : 'workflows'}',
@@ -833,6 +848,7 @@ class _RunResultTile extends StatelessWidget {
           ),
         ),
         subtitle: Text(
+          '${run.detectedVersion == null ? '' : 'Versão ${run.detectedVersion} • '}'
           '${_RepositoryActionsScreenState._formatDate(run.createdAt)} • '
           'Tentativa ${run.runAttempt} • ${run.branch}\n'
           '${_RepositoryActionsScreenState._statusLabel(run)} • '
@@ -1316,6 +1332,21 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                         Text(
                           '${_run.name} #${_run.runNumber} • ${_run.branch} • ${_run.shortSha}',
                         ),
+                        if (_run.detectedVersion != null) ...[
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              const Icon(Icons.new_releases_outlined, size: 16),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Versão ${_run.detectedVersion}',
+                                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ],
                         if (_run.commitMessage.trim().isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Text(

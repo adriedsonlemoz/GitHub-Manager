@@ -221,7 +221,11 @@ class GitProjectUploadService {
       '/repos/$repositoryFullName/git/commits',
       data: {
         'message': commitMessage.trim().isEmpty
-            ? automaticCommitMessage('Atualização')
+            ? automaticCommitMessage(
+                'Atualização',
+                project: project.identityLabel,
+                version: project.versionLabel,
+              )
             : commitMessage.trim(),
         'tree': newTreeSha,
         'parents': [parentCommitSha],

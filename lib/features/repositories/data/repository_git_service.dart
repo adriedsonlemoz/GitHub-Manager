@@ -13,6 +13,7 @@ class RepositoryGitService {
   static const maxUploadBytes = 95 * 1024 * 1024;
 
   final GitHubApiClient _client;
+  final Map<String, String?> _runVersionCache = <String, String?>{};
 
   Future<List<RepositoryContentItem>> listContents({
     required String repositoryFullName,
@@ -505,7 +506,11 @@ class RepositoryGitService {
       repositoryFullName,
       '/repos/$repositoryFullName/actions/runs',
     );
-    final allRuns = repositoryPage.runs;
+    final allRuns = await _enrichRunVersions(
+      repositoryFullName,
+      repositoryPage.runs,
+      limit: 8,
+    );
 
     RepositoryWorkflow? selected;
     if (workflow != null) {
@@ -590,7 +595,100 @@ class RepositoryGitService {
       repositoryFullName,
       '/repos/$repositoryFullName/actions/runs',
     );
-    return result.runs;
+    return _enrichRunVersions(repositoryFullName, result.runs, limit: 3);
+  }
+
+  Future<List<RepositoryWorkflowRun>> _enrichRunVersions(
+    String repositoryFullName,
+    List<RepositoryWorkflowRun> runs, {
+    required int limit,
+  }) async {
+    final recentBySha = <String, RepositoryWorkflowRun>{};
+    for (final run in runs) {
+      if (run.headSha.trim().isEmpty) continue;
+      recentBySha.putIfAbsent(run.headSha, () => run);
+      if (recentBySha.length >= limit) break;
+    }
+    final versions = <String, String?>{};
+    await Future.wait(
+      recentBySha.values.map((run) async {
+        final parsed = run.detectedVersion;
+        if (parsed != null) {
+          versions[run.headSha] = parsed;
+          return;
+        }
+        if (run.headSha.trim().isEmpty) return;
+        final key = '$repositoryFullName@${run.headSha}';
+        if (_runVersionCache.containsKey(key)) {
+          versions[run.headSha] = _runVersionCache[key];
+          return;
+        }
+        final resolved = await _resolveVersionAtRef(
+          repositoryFullName,
+          run.headSha,
+        );
+        _runVersionCache[key] = resolved;
+        versions[run.headSha] = resolved;
+      }),
+    );
+
+    return runs
+        .map(
+          (run) => versions.containsKey(run.headSha)
+              ? run.withBuildVersion(versions[run.headSha])
+              : run,
+        )
+        .toList(growable: false);
+  }
+
+  Future<String?> _resolveVersionAtRef(
+    String repositoryFullName,
+    String ref,
+  ) async {
+    for (final path in const [
+      'github-manager.json',
+      'app.json',
+      'pubspec.yaml',
+      'VERSION',
+    ]) {
+      try {
+        final file = await readTextFile(
+          repositoryFullName: repositoryFullName,
+          branch: ref,
+          path: path,
+        );
+        final text = file.content;
+        if (path.endsWith('.json')) {
+          final raw = jsonDecode(text);
+          if (raw is Map) {
+            final map = Map<String, dynamic>.from(raw);
+            final android = map['android'];
+            if (android is Map) {
+              final androidMap = Map<String, dynamic>.from(android);
+              final name = androidMap['versionName']?.toString().trim();
+              final code = androidMap['versionCode']?.toString().trim();
+              if (name?.isNotEmpty == true) {
+                return code?.isNotEmpty == true ? '$name+$code' : name;
+              }
+            }
+            final version = (map['version'] ?? map['versionName'])?.toString().trim();
+            if (version?.isNotEmpty == true) return version;
+          }
+        } else if (path == 'pubspec.yaml') {
+          final version = RegExp(r'^version:\s*([^\s#]+)', multiLine: true)
+              .firstMatch(text)
+              ?.group(1)
+              ?.trim();
+          if (version?.isNotEmpty == true) return version;
+        } else {
+          final version = text.trim();
+          if (version.isNotEmpty) return version;
+        }
+      } catch (_) {
+        // Tenta a próxima fonte de versão.
+      }
+    }
+    return null;
   }
 
   Future<_WorkflowRunsPage> _listWorkflowRunsEndpoint(

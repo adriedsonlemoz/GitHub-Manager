@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -63,6 +64,11 @@ class LocalProjectService {
     final paths = <String>[];
     final seenPaths = <String>{};
     final important = <String>[];
+    String? detectedProjectName;
+    String? detectedPackageName;
+    String? detectedApplicationId;
+    String? detectedVersion;
+    int? detectedVersionCode;
 
     try {
       for (final entry in archive) {
@@ -110,6 +116,70 @@ class LocalProjectService {
         if (_isImportant(normalized)) {
           important.add(normalized);
         }
+
+        final lowerPath = normalized.toLowerCase();
+        if (_isIdentityFile(lowerPath)) {
+          final bytes = entry.readBytes();
+          if (bytes != null && bytes.length <= 1024 * 1024) {
+            final text = utf8.decode(bytes, allowMalformed: true);
+            if (lowerPath.endsWith('github-manager.json') ||
+                lowerPath.endsWith('app.json') ||
+                lowerPath.endsWith('project.json')) {
+              try {
+                final raw = jsonDecode(text);
+                if (raw is Map) {
+                  final map = Map<String, dynamic>.from(raw);
+                  detectedProjectName ??= _firstString([
+                    map['displayName'],
+                    map['product'],
+                    map['projectName'],
+                    map['appName'],
+                  ]);
+                  detectedPackageName ??= _firstString([map['name'], map['package']]);
+                  detectedVersion ??= _firstString([map['version'], map['versionName']]);
+                  final android = map['android'];
+                  if (android is Map) {
+                    final androidMap = Map<String, dynamic>.from(android);
+                    detectedApplicationId ??=
+                        _firstString([androidMap['applicationId'], androidMap['namespace']]);
+                    detectedVersion ??=
+                        _firstString([androidMap['versionName']]) ?? detectedVersion;
+                    final code = androidMap['versionCode'];
+                    if (code is num) detectedVersionCode ??= code.toInt();
+                    if (code is String) detectedVersionCode ??= int.tryParse(code);
+                  }
+                }
+              } catch (_) {
+                // Metadado opcional inválido não invalida o ZIP inteiro.
+              }
+            } else if (lowerPath.endsWith('pubspec.yaml')) {
+              detectedPackageName ??= RegExp(r'^name:\s*([^\s#]+)', multiLine: true)
+                  .firstMatch(text)
+                  ?.group(1)
+                  ?.trim();
+              final version = RegExp(r'^version:\s*([^\s#]+)', multiLine: true)
+                  .firstMatch(text)
+                  ?.group(1)
+                  ?.trim();
+              if (version?.isNotEmpty == true) {
+                detectedVersion ??= version!.split('+').first;
+                if (version.contains('+')) {
+                  detectedVersionCode ??= int.tryParse(version.split('+').last);
+                }
+              }
+            } else if (lowerPath.endsWith('/version') || lowerPath == 'version') {
+              detectedVersion ??= text.trim().split('+').first;
+            } else if (lowerPath.endsWith('build.gradle') ||
+                lowerPath.endsWith('build.gradle.kts')) {
+              detectedApplicationId ??= RegExp(
+                r'''applicationId\s*(?:=\s*)?["']([^"']+)["']''',
+              ).firstMatch(text)?.group(1)?.trim();
+              detectedApplicationId ??= RegExp(
+                r'''namespace\s*(?:=\s*)?["']([^"']+)["']''',
+              ).firstMatch(text)?.group(1)?.trim();
+            }
+          }
+        }
       }
     } finally {
       archive.clearSync();
@@ -131,6 +201,11 @@ class LocalProjectService {
       projectType: _detectProjectType(paths),
       importantFiles: important.take(12).toList(growable: false),
       commonRoot: commonRoot,
+      projectName: detectedProjectName,
+      packageName: detectedPackageName,
+      applicationId: detectedApplicationId,
+      version: detectedVersion,
+      versionCode: detectedVersionCode,
     );
   }
 
@@ -175,6 +250,23 @@ class LocalProjectService {
       return null;
     }
     return paths.every((path) => path.split('/').first == first) ? first : null;
+  }
+
+  static bool _isIdentityFile(String lowerPath) =>
+      lowerPath.endsWith('github-manager.json') ||
+      lowerPath.endsWith('app.json') ||
+      lowerPath.endsWith('project.json') ||
+      lowerPath.endsWith('pubspec.yaml') ||
+      lowerPath.endsWith('/version') ||
+      lowerPath == 'version' ||
+      lowerPath.endsWith('android/app/build.gradle') ||
+      lowerPath.endsWith('android/app/build.gradle.kts');
+
+  static String? _firstString(List<Object?> values) {
+    for (final value in values) {
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+    }
+    return null;
   }
 
   static bool _isImportant(String path) {

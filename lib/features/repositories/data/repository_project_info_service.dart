@@ -31,6 +31,9 @@ class RepositoryProjectInfoService {
 
       String projectName = repository.name;
       String? version;
+      String? packageName;
+      String? applicationId;
+      int? versionCode;
       final metadataTechnologies = <String>[];
 
       Future<String?> readRoot(String name) async {
@@ -72,12 +75,31 @@ class RepositoryProjectInfoService {
                   map['appName'] ??
                   map['name'];
               final candidateVersion = map['version'] ?? map['versionName'];
+              final candidatePackage = map['name'] ?? map['package'];
+              final android = map['android'];
               if (candidateName is String && candidateName.trim().isNotEmpty) {
                 projectName = candidateName.trim();
               }
               if (candidateVersion is String &&
                   candidateVersion.trim().isNotEmpty) {
-                version = candidateVersion.trim();
+                version = candidateVersion.trim().split('+').first;
+              }
+              if (candidatePackage is String && candidatePackage.trim().isNotEmpty) {
+                packageName = candidatePackage.trim();
+              }
+              if (android is Map) {
+                final androidMap = Map<String, dynamic>.from(android);
+                final id = androidMap['applicationId'] ?? androidMap['namespace'];
+                if (id is String && id.trim().isNotEmpty) {
+                  applicationId = id.trim();
+                }
+                final code = androidMap['versionCode'];
+                if (code is num) versionCode = code.toInt();
+                if (code is String) versionCode = int.tryParse(code);
+                final androidVersion = androidMap['versionName'];
+                if (androidVersion is String && androidVersion.trim().isNotEmpty) {
+                  version = androidVersion.trim().split('+').first;
+                }
               }
               for (final candidate in [
                 map['framework'],
@@ -112,7 +134,13 @@ class RepositoryProjectInfoService {
           if (projectName == repository.name && yamlName?.isNotEmpty == true) {
             projectName = _humanize(yamlName!);
           }
-          version ??= yamlVersion;
+          packageName ??= yamlName;
+          if (yamlVersion?.isNotEmpty == true) {
+            version ??= yamlVersion!.split('+').first;
+            if (yamlVersion.contains('+')) {
+              versionCode ??= int.tryParse(yamlVersion.split('+').last);
+            }
+          }
         }
       }
 
@@ -180,6 +208,9 @@ class RepositoryProjectInfoService {
         projectName: projectName,
         version: version,
         technologies: technologies.take(8).toList(growable: false),
+        packageName: packageName,
+        applicationId: applicationId,
+        versionCode: versionCode,
       );
     } on AppException {
       return RepositoryProjectInfo(

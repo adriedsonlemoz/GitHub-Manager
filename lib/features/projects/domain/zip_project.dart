@@ -9,6 +9,11 @@ class ZipProjectPreview {
     required this.projectType,
     required this.importantFiles,
     required this.commonRoot,
+    this.projectName,
+    this.packageName,
+    this.applicationId,
+    this.version,
+    this.versionCode,
   });
 
   final String path;
@@ -20,6 +25,25 @@ class ZipProjectPreview {
   final String projectType;
   final List<String> importantFiles;
   final String? commonRoot;
+  final String? projectName;
+  final String? packageName;
+  final String? applicationId;
+  final String? version;
+  final int? versionCode;
+
+  String get identityLabel =>
+      projectName?.trim().isNotEmpty == true
+          ? projectName!.trim()
+          : packageName?.trim().isNotEmpty == true
+              ? packageName!.trim()
+              : name.replaceFirst(RegExp(r'\.zip$', caseSensitive: false), '');
+
+  String? get versionLabel {
+    final value = version?.trim();
+    if (value == null || value.isEmpty) return null;
+    if (versionCode == null || value.contains('+')) return value;
+    return '$value+$versionCode';
+  }
 }
 
 class ProjectUploadProgress {

@@ -382,8 +382,18 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
             SliverAppBar(
               pinned: true,
               backgroundColor: Theme.of(context).colorScheme.surface,
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
               surfaceTintColor: Theme.of(context).colorScheme.surface,
-              scrolledUnderElevation: 2,
+              shadowColor: Theme.of(context).colorScheme.shadow,
+              scrolledUnderElevation: 4,
+              forceMaterialTransparency: false,
+              clipBehavior: Clip.hardEdge,
+              toolbarHeight: 64,
+              shape: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
               title: Text(
                 _showingFollowed ? 'Acompanhados' : 'Meus repositórios',
                 maxLines: 1,
