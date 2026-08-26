@@ -7,6 +7,7 @@ class RepositoryService {
 
   static const _cacheKey = 'github.repositories';
   static const _followedKey = 'followed.repositories';
+  static const _followedCacheKey = 'followed.repositories.cache';
   final GitHubApiClient _client;
   final LocalDatabase _database;
 
@@ -62,21 +63,80 @@ class RepositoryService {
   Future<List<GitHubRepository>> listFollowedRepositories() async {
     final stored = await _database.readJson(_followedKey);
     final names = stored is List
-        ? stored.whereType<String>().map((item) => item.trim()).where((item) => item.isNotEmpty).toList()
+        ? stored
+            .whereType<String>()
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList()
         : <String>[];
-    final repositories = <GitHubRepository>[];
-    for (final fullName in names) {
-      try {
-        repositories.add(await getRepository(fullName));
-      } catch (_) {
-        // Mantém referências locais mesmo se um repositório ficar temporariamente indisponível.
-      }
+    if (names.isEmpty) return const <GitHubRepository>[];
+
+    final cachedRaw = await _database.readJson(_followedCacheKey);
+    final cached = cachedRaw is List
+        ? cachedRaw
+            .whereType<Map>()
+            .map((json) => GitHubRepository.fromJson(Map<String, dynamic>.from(json)))
+            .where((repo) => names.contains(repo.fullName))
+            .toList()
+        : <GitHubRepository>[];
+
+    if (cached.length == names.length) {
+      cached.sort(
+        (a, b) => (b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+      );
+      return cached;
     }
+
+    return refreshFollowedRepositories();
+  }
+
+  Future<List<GitHubRepository>> refreshFollowedRepositories() async {
+    final stored = await _database.readJson(_followedKey);
+    final names = stored is List
+        ? stored
+            .whereType<String>()
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList()
+        : <String>[];
+    if (names.isEmpty) {
+      await _database.putJson(_followedCacheKey, const <Object>[]);
+      return const <GitHubRepository>[];
+    }
+
+    final results = await Future.wait(
+      names.map((fullName) async {
+        try {
+          return await getRepository(fullName);
+        } catch (_) {
+          return null;
+        }
+      }),
+    );
+    final repositories = results.whereType<GitHubRepository>().toList();
     repositories.sort(
       (a, b) => (b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
           .compareTo(a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
     );
+    await _database.putJson(
+      _followedCacheKey,
+      repositories.map((item) => item.toJson()).toList(),
+    );
     return repositories;
+  }
+
+  Future<GitHubRepository?> getFollowedRepository(String fullName) async {
+    final cachedRaw = await _database.readJson(_followedCacheKey);
+    if (cachedRaw is List) {
+      for (final raw in cachedRaw.whereType<Map>()) {
+        final repo = GitHubRepository.fromJson(Map<String, dynamic>.from(raw));
+        if (repo.fullName.toLowerCase() == fullName.toLowerCase()) {
+          return repo;
+        }
+      }
+    }
+    return null;
   }
 
   Future<GitHubRepository> followRepository(String input) async {
@@ -90,6 +150,17 @@ class RepositoryService {
       names.add(repository.fullName);
       await _database.putJson(_followedKey, names);
     }
+
+    final cachedRaw = await _database.readJson(_followedCacheKey);
+    final cached = cachedRaw is List
+        ? cachedRaw.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList()
+        : <Map<String, dynamic>>[];
+    cached.removeWhere(
+      (item) => (item['full_name'] as String? ?? '').toLowerCase() ==
+          repository.fullName.toLowerCase(),
+    );
+    cached.add(repository.toJson());
+    await _database.putJson(_followedCacheKey, cached);
     return repository;
   }
 
@@ -100,6 +171,15 @@ class RepositoryService {
         : <String>[];
     names.removeWhere((item) => item.toLowerCase() == fullName.toLowerCase());
     await _database.putJson(_followedKey, names);
+    final cachedRaw = await _database.readJson(_followedCacheKey);
+    if (cachedRaw is List) {
+      final cached = cachedRaw.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList()
+        ..removeWhere(
+          (item) => (item['full_name'] as String? ?? '').toLowerCase() ==
+              fullName.toLowerCase(),
+        );
+      await _database.putJson(_followedCacheKey, cached);
+    }
   }
 
   static String _normalizeRepositoryReference(String input) {
@@ -123,6 +203,15 @@ class RepositoryService {
 
   Future<GitHubRepository> getRepository(String fullName) async {
     final response = await _client.get<Map<String, dynamic>>('/repos/$fullName');
+    return GitHubRepository.fromJson(response.data ?? const <String, dynamic>{});
+  }
+
+  Future<GitHubRepository> forkRepository(String fullName) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      '/repos/$fullName/forks',
+      data: const {'default_branch_only': false},
+    );
+    await _database.clearGitHubCache();
     return GitHubRepository.fromJson(response.data ?? const <String, dynamic>{});
   }
 

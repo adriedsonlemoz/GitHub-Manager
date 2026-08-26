@@ -10,6 +10,7 @@ class RepositoryCard extends ConsumerWidget {
     this.onMenu,
     this.onOpenExternal,
     this.onCopyLink,
+    this.onFork,
     this.readOnly = false,
     super.key,
   });
@@ -19,24 +20,27 @@ class RepositoryCard extends ConsumerWidget {
   final VoidCallback? onMenu;
   final VoidCallback? onOpenExternal;
   final VoidCallback? onCopyLink;
+  final VoidCallback? onFork;
   final bool readOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final info = ref.watch(repositoryProjectInfoProvider(repository));
-    final projectName = info.maybeWhen(
-      data: (value) => value.projectName,
-      orElse: () => repository.name,
-    );
-    final version = info.maybeWhen(
+    final info = readOnly ? null : ref.watch(repositoryProjectInfoProvider(repository));
+    final projectName = info?.maybeWhen(
+          data: (value) => value.projectName,
+          orElse: () => repository.name,
+        ) ??
+        repository.name;
+    final version = info?.maybeWhen(
       data: (value) => value.version,
       orElse: () => null,
     );
-    final technologies = info.maybeWhen(
-      data: (value) => value.technologies,
-      orElse: () => [if (repository.language != null) repository.language!],
-    );
+    final technologies = info?.maybeWhen(
+          data: (value) => value.technologies,
+          orElse: () => [if (repository.language != null) repository.language!],
+        ) ??
+        [if (repository.language != null) repository.language!];
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -160,6 +164,12 @@ class RepositoryCard extends ConsumerWidget {
                     icon: const Icon(Icons.copy_rounded, size: 18),
                     label: const Text('Copiar link'),
                   ),
+                  if (readOnly && onFork != null)
+                    TextButton.icon(
+                      onPressed: onFork,
+                      icon: const Icon(Icons.call_split_rounded, size: 18),
+                      label: const Text('Fork'),
+                    ),
                   const Spacer(),
                   Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
                 ],

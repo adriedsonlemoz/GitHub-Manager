@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.10+200024`, com notificações de builds em segundo plano, repositórios acompanhados, Actions, exclusões e Central de Downloads revisados.
+Estado atual: `2.0.11+200025`, com notificações de builds em segundo plano, repositórios acompanhados, Actions, exclusões e Central de Downloads revisados.
 
 ## Arquitetura
 

@@ -133,7 +133,7 @@ class BuildMonitorService {
     const settings = InitializationSettings(
       android: AndroidInitializationSettings('ic_launcher'),
     );
-    await _notifications.initialize(settings);
+    await _notifications.initialize(settings: settings);
   }
 
   static Future<bool> runBackgroundCheck() async {
@@ -272,10 +272,10 @@ class BuildMonitorService {
 
     final number = runNumber == null ? '' : ' #$runNumber';
     await _notifications.show(
-      id & 0x7fffffff,
-      title,
-      '$repository • $workflowName$number $status.',
-      details,
+      id: id & 0x7fffffff,
+      title: title,
+      body: '$repository • $workflowName$number $status.',
+      notificationDetails: details,
       payload: repository,
     );
   }

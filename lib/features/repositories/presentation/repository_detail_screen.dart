@@ -41,21 +41,34 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
   void initState() {
     super.initState();
     _repositoryFuture = _loadRepository();
-    _runsFuture = _loadRuns();
+    _runsFuture = widget.readOnly
+        ? Future<List<RepositoryWorkflowRun>>.value(const [])
+        : _loadRuns();
   }
 
-  Future<GitHubRepository> _loadRepository() => ref
-      .read(repositoryServiceProvider)
-      .getRepository(widget.repositoryFullName);
+  Future<GitHubRepository> _loadRepository() async {
+    final service = ref.read(repositoryServiceProvider);
+    if (widget.readOnly) {
+      final cached = await service.getFollowedRepository(widget.repositoryFullName);
+      if (cached != null) return cached;
+    }
+    return service.getRepository(widget.repositoryFullName);
+  }
 
   Future<List<RepositoryWorkflowRun>> _loadRuns() => ref
       .read(repositoryGitServiceProvider)
       .listWorkflowRuns(widget.repositoryFullName);
 
   Future<void> _refresh() async {
-    ref.invalidate(repositoryArtifactsProvider(widget.repositoryFullName));
-    final repository = _loadRepository();
-    final runs = _loadRuns();
+    if (!widget.readOnly) {
+      ref.invalidate(repositoryArtifactsProvider(widget.repositoryFullName));
+    }
+    final repository = widget.readOnly
+        ? ref.read(repositoryServiceProvider).getRepository(widget.repositoryFullName)
+        : _loadRepository();
+    final runs = widget.readOnly
+        ? Future<List<RepositoryWorkflowRun>>.value(const [])
+        : _loadRuns();
     setState(() {
       _repositoryFuture = repository;
       _runsFuture = runs;
@@ -71,6 +84,49 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Link do repositório copiado.')),
       );
+    }
+  }
+
+  Future<void> _forkRepository(GitHubRepository repository) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Criar fork na minha conta?'),
+        content: Text(
+          'O GitHub criará uma cópia de ${repository.fullName} na sua conta. '
+          'A cópia aparecerá em Meus repositórios e poderá ser modificada normalmente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.call_split_rounded),
+            label: const Text('Criar fork'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final fork = await ref
+          .read(repositoryServiceProvider)
+          .forkRepository(repository.fullName);
+      ref.invalidate(repositoriesProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            fork.fullName.isEmpty
+                ? 'Fork solicitado. O GitHub pode levar alguns segundos para criar a cópia.'
+                : 'Fork criado: ${fork.fullName}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) _showError(error);
     }
   }
 
@@ -533,10 +589,10 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                 ],
               ),
             );
-            final artifactsAsync = ref.watch(
-              repositoryArtifactsProvider(repository.fullName),
-            );
-            final latestApk = artifactsAsync.maybeWhen<ActionArtifact?>(
+            final artifactsAsync = widget.readOnly
+                ? null
+                : ref.watch(repositoryArtifactsProvider(repository.fullName));
+            final latestApk = artifactsAsync?.maybeWhen<ActionArtifact?>(
               data: (items) => items
                   .where(
                     (artifact) => artifact.likelyContainsApk && !artifact.expired,
@@ -602,6 +658,14 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                               label: 'GitHub',
                               onTap: () => PlatformActions.openUri(repository.htmlUrl),
                             ),
+                            if (widget.readOnly)
+                              _QuickActionButton(
+                                width: width,
+                                icon: Icons.call_split_rounded,
+                                label: 'Fork',
+                                filled: true,
+                                onTap: () => _forkRepository(repository),
+                              ),
                             _QuickActionButton(
                               width: width,
                               icon: Icons.copy_rounded,
@@ -612,10 +676,14 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                               width: width,
                               icon: Icons.android_rounded,
                               label: 'APK',
-                              enabled: latestApk != null,
-                              onTap: latestApk == null
-                                  ? null
-                                  : () => _downloadLatestApk(repository, latestApk),
+                              enabled: widget.readOnly || latestApk != null,
+                              onTap: widget.readOnly
+                                  ? () => context.push(
+                                        '/repositories/${repository.fullName}/artifacts?readOnly=1',
+                                      )
+                                  : latestApk == null
+                                      ? null
+                                      : () => _downloadLatestApk(repository, latestApk),
                             ),
                           ],
                         );

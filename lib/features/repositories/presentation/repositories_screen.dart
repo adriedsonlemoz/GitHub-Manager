@@ -50,8 +50,15 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
 
   Future<void> _refresh() async {
     if (_showingFollowed) {
+      final refreshed =
+          await ref.read(repositoryServiceProvider).refreshFollowedRepositories();
       ref.invalidate(followedRepositoriesProvider);
-      await ref.read(followedRepositoriesProvider.future);
+      if (mounted) {
+        setState(() {});
+      }
+      if (refreshed.isEmpty) {
+        await ref.read(followedRepositoriesProvider.future);
+      }
     } else {
       ref.invalidate(repositoriesProvider);
       ref.invalidate(githubProfileProvider);
@@ -112,10 +119,23 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
                   controller: controller,
                   autofocus: true,
                   keyboardType: TextInputType.url,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Link ou owner/repo',
                     hintText: 'https://github.com/termux/termux-app',
-                    prefixIcon: Icon(Icons.link_rounded),
+                    prefixIcon: const Icon(Icons.link_rounded),
+                    suffixIcon: IconButton(
+                      tooltip: 'Colar URL',
+                      icon: const Icon(Icons.content_paste_rounded),
+                      onPressed: () async {
+                        final data = await Clipboard.getData(Clipboard.kTextPlain);
+                        final text = data?.text?.trim();
+                        if (text != null && text.isNotEmpty) {
+                          controller
+                            ..text = text
+                            ..selection = TextSelection.collapsed(offset: text.length);
+                        }
+                      },
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -151,8 +171,15 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
     if (value == null || !mounted) return;
     try {
       await ref.read(repositoryServiceProvider).followRepository(value);
+      final refreshed =
+          await ref.read(repositoryServiceProvider).refreshFollowedRepositories();
       ref.invalidate(followedRepositoriesProvider);
-      await ref.read(followedRepositoriesProvider.future);
+      if (mounted) {
+        setState(() {});
+      }
+      if (refreshed.isEmpty) {
+        await ref.read(followedRepositoriesProvider.future);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Repositório adicionado aos acompanhados.')),
@@ -191,6 +218,51 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
       } catch (error) {
         if (mounted) _showError(error);
       }
+    }
+  }
+
+  Future<void> _forkFollowed(GitHubRepository repository) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Criar fork na minha conta?'),
+        content: Text(
+          'O GitHub criará uma cópia de ${repository.fullName} na sua conta. '
+          'Depois ela aparecerá em Meus repositórios e poderá ser editada normalmente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.call_split_rounded),
+            label: const Text('Criar fork'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final fork = await ref.read(repositoryServiceProvider).forkRepository(
+            repository.fullName,
+          );
+      ref.invalidate(repositoriesProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            fork.fullName.isEmpty
+                ? 'Fork solicitado ao GitHub. Ele pode levar alguns segundos para aparecer.'
+                : 'Fork criado: ${fork.fullName}',
+          ),
+        ),
+      );
+      setState(() => _section = 0);
+    } catch (error) {
+      if (mounted) _showError(error);
     }
   }
 
@@ -413,6 +485,9 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
                             : () => _manageRepository(repository),
                         onOpenExternal: () => PlatformActions.openUri(repository.htmlUrl),
                         onCopyLink: () => _copyLink(repository),
+                        onFork: _showingFollowed
+                            ? () => _forkFollowed(repository)
+                            : null,
                       );
                     },
                   ),
