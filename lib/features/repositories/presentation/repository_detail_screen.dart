@@ -794,17 +794,17 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 22),
                   sliver: SliverList.list(
                     children: [
-                      if (!widget.readOnly) ...[
-                        _WorkspaceTile(
-                          icon: Icons.folder_open_rounded,
-                          title: 'Arquivos',
-                          subtitle: 'Navegar, editar, criar, excluir e enviar arquivos',
-                          onTap: () => context.push(
-                            '/repositories/${repository.fullName}/files?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
-                          ),
+                      _WorkspaceTile(
+                        icon: Icons.folder_open_rounded,
+                        title: 'Arquivos',
+                        subtitle: widget.readOnly
+                            ? 'Navegar pelas pastas e visualizar arquivos'
+                            : 'Navegar, editar, criar, excluir e enviar arquivos',
+                        onTap: () => context.push(
+                          '/repositories/${repository.fullName}/files?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}&readOnly=${widget.readOnly ? '1' : '0'}',
                         ),
-                        const SizedBox(height: 7),
-                      ],
+                      ),
+                      const SizedBox(height: 7),
                       _WorkspaceTile(
                         icon: Icons.play_circle_outline_rounded,
                         title: 'Builds',

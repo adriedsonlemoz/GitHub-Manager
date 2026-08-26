@@ -53,6 +53,7 @@ final appRouter = GoRouter(
             return RepositoryFilesScreen(
               repositoryFullName: fullName,
               defaultBranch: state.uri.queryParameters['branch'] ?? 'main',
+              readOnly: state.uri.queryParameters['readOnly'] == '1',
             );
           },
         ),

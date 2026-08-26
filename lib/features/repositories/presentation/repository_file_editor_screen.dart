@@ -12,6 +12,7 @@ class RepositoryFileEditorScreen extends ConsumerStatefulWidget {
     required this.branch,
     required this.directory,
     this.item,
+    this.readOnly = false,
   });
 
   factory RepositoryFileEditorScreen.newFile({
@@ -29,6 +30,7 @@ class RepositoryFileEditorScreen extends ConsumerStatefulWidget {
     required String repositoryFullName,
     required String branch,
     required RepositoryContentItem item,
+    bool readOnly = false,
   }) =>
       RepositoryFileEditorScreen._(
         repositoryFullName: repositoryFullName,
@@ -37,12 +39,14 @@ class RepositoryFileEditorScreen extends ConsumerStatefulWidget {
             ? item.path.substring(0, item.path.lastIndexOf('/'))
             : '',
         item: item,
+        readOnly: readOnly,
       );
 
   final String repositoryFullName;
   final String branch;
   final String directory;
   final RepositoryContentItem? item;
+  final bool readOnly;
 
   bool get isNew => item == null;
 
@@ -101,7 +105,7 @@ class _RepositoryFileEditorScreenState
   }
 
   Future<void> _save() async {
-    if (_saving) {
+    if (_saving || widget.readOnly) {
       return;
     }
     final service = ref.read(repositoryGitServiceProvider);
@@ -175,16 +179,19 @@ class _RepositoryFileEditorScreenState
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Center(
               child: Text(
-                _contentController.languageLabel,
+                widget.readOnly
+                    ? '${_contentController.languageLabel} • leitura'
+                    : _contentController.languageLabel,
                 style: Theme.of(context).textTheme.labelMedium,
               ),
             ),
           ),
           const SizedBox(width: 4),
-          TextButton(
-            onPressed: _saving || _loading || _loadError != null ? null : _save,
-            child: Text(_saving ? 'Salvando...' : 'Salvar'),
-          ),
+          if (!widget.readOnly)
+            TextButton(
+              onPressed: _saving || _loading || _loadError != null ? null : _save,
+              child: Text(_saving ? 'Salvando...' : 'Salvar'),
+            ),
         ],
       ),
       body: _loading
@@ -210,14 +217,16 @@ class _RepositoryFileEditorScreenState
                       ),
                       const SizedBox(height: 10),
                     ],
-                    TextField(
-                      controller: _messageController,
-                      decoration: const InputDecoration(
-                        labelText: 'Mensagem do commit (opcional)',
-                        helperText: 'Vazio = mensagem automática com data e hora.',
+                    if (!widget.readOnly) ...[
+                      TextField(
+                        controller: _messageController,
+                        decoration: const InputDecoration(
+                          labelText: 'Mensagem do commit (opcional)',
+                          helperText: 'Vazio = mensagem automática com data e hora.',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 10),
+                    ],
                     Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surfaceContainerLowest,
@@ -254,6 +263,7 @@ class _RepositoryFileEditorScreenState
                           ),
                           TextField(
                             controller: _contentController,
+                            readOnly: widget.readOnly,
                             minLines: 22,
                             maxLines: null,
                             keyboardType: TextInputType.multiline,
@@ -275,12 +285,14 @@ class _RepositoryFileEditorScreenState
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    FilledButton.icon(
-                      onPressed: _saving ? null : _save,
-                      icon: const Icon(Icons.save_rounded),
-                      label: Text(_saving ? 'Salvando...' : 'Salvar no GitHub'),
-                    ),
+                    if (!widget.readOnly) ...[
+                      const SizedBox(height: 14),
+                      FilledButton.icon(
+                        onPressed: _saving ? null : _save,
+                        icon: const Icon(Icons.save_rounded),
+                        label: Text(_saving ? 'Salvando...' : 'Salvar no GitHub'),
+                      ),
+                    ],
                   ],
                 ),
     );

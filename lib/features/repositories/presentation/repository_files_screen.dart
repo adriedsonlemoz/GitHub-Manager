@@ -11,11 +11,13 @@ class RepositoryFilesScreen extends ConsumerStatefulWidget {
   const RepositoryFilesScreen({
     required this.repositoryFullName,
     required this.defaultBranch,
+    this.readOnly = false,
     super.key,
   });
 
   final String repositoryFullName;
   final String defaultBranch;
+  final bool readOnly;
 
   @override
   ConsumerState<RepositoryFilesScreen> createState() => _RepositoryFilesScreenState();
@@ -126,6 +128,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
           repositoryFullName: widget.repositoryFullName,
           branch: widget.defaultBranch,
           item: item,
+          readOnly: widget.readOnly,
         ),
       ),
     );
@@ -187,10 +190,20 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(onPressed: _upOneLevel, icon: const Icon(Icons.arrow_back_rounded)),
-          title: const Text('Arquivos'),
+          title: Text(widget.readOnly ? 'Arquivos • somente leitura' : 'Arquivos'),
           actions: [
-            IconButton(onPressed: _uploading ? null : _createFile, tooltip: 'Novo arquivo', icon: const Icon(Icons.note_add_outlined)),
-            IconButton(onPressed: _uploading ? null : _uploadFiles, tooltip: 'Enviar arquivos', icon: const Icon(Icons.upload_file_rounded)),
+            if (!widget.readOnly)
+              IconButton(
+                onPressed: _uploading ? null : _createFile,
+                tooltip: 'Novo arquivo',
+                icon: const Icon(Icons.note_add_outlined),
+              ),
+            if (!widget.readOnly)
+              IconButton(
+                onPressed: _uploading ? null : _uploadFiles,
+                tooltip: 'Enviar arquivos',
+                icon: const Icon(Icons.upload_file_rounded),
+              ),
           ],
         ),
         body: RefreshIndicator(
@@ -235,7 +248,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
                           Card(
                             child: Padding(
                               padding: EdgeInsets.all(18),
-                              child: Text('Esta pasta está vazia. Use o botão de upload ou crie um arquivo.'),
+                              child: Text('Esta pasta está vazia.'),
                             ),
                           ),
                         ],
@@ -253,19 +266,27 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
                           title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                           subtitle: Text(item.isDirectory ? 'Pasta' : _formatBytes(item.size)),
                           trailing: item.isFile
-                              ? PopupMenuButton<String>(
-                                  onSelected: (value) {
-                                    if (value == 'open') {
-                                      _openFile(item);
-                                    } else if (value == 'delete') {
-                                      _delete(item);
-                                    }
-                                  },
-                                  itemBuilder: (_) => const [
-                                    PopupMenuItem(value: 'open', child: Text('Abrir / editar')),
-                                    PopupMenuItem(value: 'delete', child: Text('Excluir')),
-                                  ],
-                                )
+                              ? widget.readOnly
+                                  ? const Icon(Icons.visibility_outlined)
+                                  : PopupMenuButton<String>(
+                                      onSelected: (value) {
+                                        if (value == 'open') {
+                                          _openFile(item);
+                                        } else if (value == 'delete') {
+                                          _delete(item);
+                                        }
+                                      },
+                                      itemBuilder: (_) => const [
+                                        PopupMenuItem(
+                                          value: 'open',
+                                          child: Text('Abrir / editar'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text('Excluir'),
+                                        ),
+                                      ],
+                                    )
                               : const Icon(Icons.chevron_right_rounded),
                           onTap: item.isDirectory ? () => _openDirectory(item) : () => _openFile(item),
                         );
@@ -277,11 +298,13 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _uploading ? null : _uploadFiles,
-          icon: const Icon(Icons.upload_rounded),
-          label: const Text('Enviar arquivos'),
-        ),
+        floatingActionButton: widget.readOnly
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: _uploading ? null : _uploadFiles,
+                icon: const Icon(Icons.upload_rounded),
+                label: const Text('Enviar arquivos'),
+              ),
       ),
     );
   }

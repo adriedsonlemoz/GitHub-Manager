@@ -381,7 +381,14 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
           slivers: [
             SliverAppBar(
               pinned: true,
-              title: Text(_showingFollowed ? 'Acompanhados' : 'Projetos'),
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              surfaceTintColor: Theme.of(context).colorScheme.surface,
+              scrolledUnderElevation: 2,
+              title: Text(
+                _showingFollowed ? 'Acompanhados' : 'Meus repositórios',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               actions: [
                 if (!_showingFollowed)
                   profile.maybeWhen(

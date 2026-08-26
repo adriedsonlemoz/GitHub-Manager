@@ -151,27 +151,27 @@ class RepositoryCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              Row(
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  TextButton.icon(
+                  _RepositoryActionButton(
                     onPressed: onOpenExternal,
-                    icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                    label: const Text('GitHub'),
+                    icon: Icons.open_in_new_rounded,
+                    label: 'GitHub',
                   ),
-                  const SizedBox(width: 2),
-                  TextButton.icon(
+                  _RepositoryActionButton(
                     onPressed: onCopyLink,
-                    icon: const Icon(Icons.copy_rounded, size: 18),
-                    label: const Text('Copiar link'),
+                    icon: Icons.copy_rounded,
+                    label: 'Copiar link',
                   ),
                   if (readOnly && onFork != null)
-                    TextButton.icon(
+                    _RepositoryActionButton(
                       onPressed: onFork,
-                      icon: const Icon(Icons.call_split_rounded, size: 18),
-                      label: const Text('Fork'),
+                      icon: Icons.call_split_rounded,
+                      label: 'Fork',
                     ),
-                  const Spacer(),
-                  Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
                 ],
               ),
             ],
@@ -189,6 +189,32 @@ class RepositoryCard extends ConsumerWidget {
     String two(int number) => number.toString().padLeft(2, '0');
     return '${two(date.day)}/${two(date.month)} ${two(date.hour)}:${two(date.minute)}';
   }
+}
+
+class _RepositoryActionButton extends StatelessWidget {
+  const _RepositoryActionButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+  });
+
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        ),
+        icon: Icon(icon, size: 17),
+        label: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      );
 }
 
 class _InfoPill extends StatelessWidget {
