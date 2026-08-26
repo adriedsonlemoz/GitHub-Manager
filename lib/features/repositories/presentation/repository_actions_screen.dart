@@ -1340,23 +1340,3 @@ class _JobIcon extends StatelessWidget {
   }
 }
 
-class _StepIcon extends StatelessWidget {
-  const _StepIcon({required this.step});
-
-  final RepositoryWorkflowStep step;
-
-  @override
-  Widget build(BuildContext context) {
-    if (step.status != 'completed') {
-      return const Icon(Icons.radio_button_unchecked_rounded, size: 18);
-    }
-    if (step.conclusion == 'success') {
-      return const Icon(Icons.check_rounded, size: 18);
-    }
-    return Icon(
-      Icons.close_rounded,
-      size: 18,
-      color: Theme.of(context).colorScheme.error,
-    );
-  }
-}

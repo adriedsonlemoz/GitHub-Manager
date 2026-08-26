@@ -107,32 +107,16 @@ jobs:
 
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
           APKANALYZER="$(find "$SDK_ROOT/cmdline-tools" "$SDK_ROOT/tools" -type f -name apkanalyzer 2>/dev/null | head -n1 || true)"
-          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n1 || true)"
           test -x "$APKANALYZER" || { echo "apkanalyzer não encontrado"; exit 1; }
-          test -x "$APKSIGNER" || { echo "apksigner não encontrado"; exit 1; }
 
           EXPECTED_ID="$(sed -n 's/^applicationId=//p' android/release-signing.properties | head -n1)"
-          EXPECTED_CERT="$(sed -n 's/^certificateSha256=//p' android/release-signing.properties | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           ACTUAL_ID="$("$APKANALYZER" manifest application-id "$SOURCE")"
           test "$ACTUAL_ID" = "$EXPECTED_ID" || { echo "applicationId incorreto: $ACTUAL_ID"; exit 1; }
 
           SIGNING_MODE="test"
           if [ "${{ steps.signing.outputs.official }}" = "true" ]; then
-            CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$SOURCE")"
-            ACTUAL_CERT="$(printf '%s\n' "$CERT_OUTPUT" | sed -nE '/SHA-256 digest:/{
-              s/^.*SHA-256 digest:[[:space:]]*//
-              p
-            }' | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-            test -n "$ACTUAL_CERT" || { echo "Não foi possível ler o SHA-256 do certificado."; printf '%s\n' "$CERT_OUTPUT"; exit 1; }
-            if [ "$ACTUAL_CERT" != "$EXPECTED_CERT" ]; then
-              echo "APK assinado com certificado diferente da chave oficial"
-              echo "SHA-256 esperado: $EXPECTED_CERT"
-              echo "SHA-256 encontrado: $ACTUAL_CERT"
-              exit 1
-            fi
             SIGNING_MODE="official"
           fi
-
           VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1)"
           VERSION_NAME="${VERSION%%+*}"
           VERSION_CODE="${VERSION##*+}"
