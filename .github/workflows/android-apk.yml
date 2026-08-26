@@ -119,7 +119,10 @@ jobs:
           SIGNING_MODE="test"
           if [ "${{ steps.signing.outputs.official }}" = "true" ]; then
             CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$SOURCE")"
-            ACTUAL_CERT="$(printf '%s\n' "$CERT_OUTPUT" | sed -nE 's/^Signer #[0-9]+ certificate SHA-256 digest:[[:space:]]*//p' | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+            ACTUAL_CERT="$(printf '%s\n' "$CERT_OUTPUT" | sed -nE '/SHA-256 digest:/{
+              s/^.*SHA-256 digest:[[:space:]]*//
+              p
+            }' | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
             test -n "$ACTUAL_CERT" || { echo "Não foi possível ler o SHA-256 do certificado."; printf '%s\n' "$CERT_OUTPUT"; exit 1; }
             if [ "$ACTUAL_CERT" != "$EXPECTED_CERT" ]; then
               echo "APK assinado com certificado diferente da chave oficial"

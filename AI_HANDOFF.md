@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.5+200019`, com Builds/GitHub Actions, envio de build e Central de Downloads revisados.
+Estado atual: `2.0.7+200021`, com Builds/GitHub Actions, envio de build e Central de Downloads revisados.
 
 ## Arquitetura
 

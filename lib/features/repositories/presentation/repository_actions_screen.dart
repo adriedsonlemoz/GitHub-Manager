@@ -331,9 +331,41 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
           : 'run:${run.id}';
       grouped.putIfAbsent(key, () => <RepositoryWorkflowRun>[]).add(run);
     }
-    return grouped.values
-        .map((items) => _RunGroup(List<RepositoryWorkflowRun>.unmodifiable(items)))
-        .toList(growable: false);
+
+    final groups = grouped.values.map((items) {
+      items.sort((a, b) {
+        final aDate = a.createdAt ?? a.startedAt;
+        final bDate = b.createdAt ?? b.startedAt;
+        if (aDate == null && bDate == null) {
+          return b.id.compareTo(a.id);
+        }
+        if (aDate == null) {
+          return 1;
+        }
+        if (bDate == null) {
+          return -1;
+        }
+        return bDate.compareTo(aDate);
+      });
+      return _RunGroup(List<RepositoryWorkflowRun>.unmodifiable(items));
+    }).toList();
+
+    groups.sort((a, b) {
+      final aDate = a.latestAt;
+      final bDate = b.latestAt;
+      if (aDate == null && bDate == null) {
+        return b.primary.id.compareTo(a.primary.id);
+      }
+      if (aDate == null) {
+        return 1;
+      }
+      if (bDate == null) {
+        return -1;
+      }
+      return bDate.compareTo(aDate);
+    });
+
+    return List<_RunGroup>.unmodifiable(groups);
   }
 
   String _message(Object error) {
@@ -482,16 +514,18 @@ class _RunGroup {
 
   RepositoryWorkflowRun get primary => runs.first;
 
-  DateTime? get createdAt {
-    DateTime? earliest;
+  DateTime? get latestAt {
+    DateTime? latest;
     for (final run in runs) {
-      final value = run.createdAt;
-      if (value != null && (earliest == null || value.isBefore(earliest))) {
-        earliest = value;
+      final value = run.createdAt ?? run.startedAt;
+      if (value != null && (latest == null || value.isAfter(latest))) {
+        latest = value;
       }
     }
-    return earliest;
+    return latest;
   }
+
+  DateTime? get createdAt => latestAt;
 
   String get shortSha => primary.shortSha;
 
@@ -558,29 +592,158 @@ class _RunGroupCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             ...group.runs.map(
-              (run) => ListTile(
+              (run) => _RunResultTile(
+                run: run,
                 onTap: () => onRunTap(run),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                leading: _RunStatusIcon(run: run),
-                title: Text('${run.name} #${run.runNumber}'),
-                subtitle: Text(
-                  '${_RepositoryActionsScreenState._formatDate(run.createdAt)} • '
-                  'Tentativa ${run.runAttempt} • ${run.branch}\n'
-                  '${_RepositoryActionsScreenState._statusLabel(run)} • '
-                  '${_RepositoryActionsScreenState._formatDuration(run)}',
-                ),
-                isThreeLine: true,
-                trailing: run.isRunning
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.chevron_right_rounded),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _RunResultTile extends StatelessWidget {
+  const _RunResultTile({
+    required this.run,
+    required this.onTap,
+  });
+
+  final RepositoryWorkflowRun run;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSuccess =
+        run.status == 'completed' && run.conclusion == 'success';
+    final isFailure =
+        run.status == 'completed' && run.conclusion == 'failure';
+    final successColor = Colors.green.shade700;
+    final failureColor = Colors.red.shade700;
+    final foreground = isSuccess
+        ? Colors.white
+        : isFailure
+            ? failureColor
+            : Theme.of(context).colorScheme.onSurface;
+    final background = isSuccess
+        ? successColor
+        : isFailure
+            ? Colors.white
+            : Colors.transparent;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(12),
+        border: isFailure
+            ? Border.all(color: failureColor, width: 1.5)
+            : null,
+      ),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+        leading: Icon(
+          run.isRunning
+              ? Icons.sync_rounded
+              : isSuccess
+                  ? Icons.check_circle_rounded
+                  : isFailure
+                      ? Icons.error_rounded
+                      : Icons.schedule_rounded,
+          color: foreground,
+        ),
+        title: Text(
+          '${run.name} #${run.runNumber}',
+          style: TextStyle(
+            color: foreground,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        subtitle: Text(
+          '${_RepositoryActionsScreenState._formatDate(run.createdAt)} • '
+          'Tentativa ${run.runAttempt} • ${run.branch}\n'
+          '${_RepositoryActionsScreenState._statusLabel(run)} • '
+          '${_RepositoryActionsScreenState._formatDuration(run)}',
+          style: TextStyle(color: foreground),
+        ),
+        isThreeLine: true,
+        trailing: run.isRunning
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: foreground,
+                ),
+              )
+            : Icon(Icons.chevron_right_rounded, color: foreground),
+      ),
+    );
+  }
+}
+
+class _WorkflowStepTile extends StatelessWidget {
+  const _WorkflowStepTile({required this.step});
+
+  final RepositoryWorkflowStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSuccess =
+        step.status == 'completed' && step.conclusion == 'success';
+    final isFailure =
+        step.status == 'completed' && step.conclusion == 'failure';
+    final successColor = Colors.green.shade700;
+    final failureColor = Colors.red.shade700;
+    final foreground = isSuccess
+        ? Colors.white
+        : isFailure
+            ? failureColor
+            : Theme.of(context).colorScheme.onSurface;
+    final background = isSuccess
+        ? successColor
+        : isFailure
+            ? Colors.white
+            : Theme.of(context).colorScheme.surfaceContainerLow;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+        border: isFailure
+            ? Border.all(color: failureColor, width: 1.5)
+            : null,
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          step.status != 'completed'
+              ? Icons.radio_button_unchecked_rounded
+              : isSuccess
+                  ? Icons.check_rounded
+                  : isFailure
+                      ? Icons.close_rounded
+                      : Icons.remove_rounded,
+          size: 19,
+          color: foreground,
+        ),
+        title: Text(
+          step.name,
+          style: TextStyle(
+            color: foreground,
+            fontWeight: isFailure ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          '${_RepositoryActionsScreenState._stepExplanation(step.name)}\n'
+          'Status: ${_RepositoryActionsScreenState._stepStatus(step)}',
+          style: TextStyle(color: foreground),
+        ),
+        isThreeLine: true,
       ),
     );
   }
@@ -1019,16 +1182,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                         initiallyExpanded: job.status != 'completed' || job.failed,
                         children: job.steps
                             .map(
-                              (step) => ListTile(
-                                dense: true,
-                                leading: _StepIcon(step: step),
-                                title: Text(step.name),
-                                subtitle: Text(
-                                  '${_RepositoryActionsScreenState._stepExplanation(step.name)}\n'
-                                  'Status: ${_RepositoryActionsScreenState._stepStatus(step)}',
-                                ),
-                                isThreeLine: true,
-                              ),
+                              (step) => _WorkflowStepTile(step: step),
                             )
                             .toList(),
                       ),
@@ -1102,29 +1256,41 @@ class _FailureSummaryCard extends ConsumerWidget {
             break;
           }
         }
+        final errorColor = Colors.red.shade700;
         return Card(
-          color: Theme.of(context).colorScheme.errorContainer,
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: errorColor, width: 1.5),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Falha encontrada',
+                  'Erro principal',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: Theme.of(context).colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.w900,
+                        color: errorColor,
                       ),
                 ),
                 const SizedBox(height: 6),
-                Text('Job: ${failure?.jobName ?? job.name}'),
-                Text('Etapa: ${failure?.stepName ?? failedStep ?? '-'}'),
+                Text(
+                  'Job: ${failure?.jobName ?? job.name}',
+                  style: TextStyle(color: errorColor, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  'Etapa: ${failure?.stepName ?? failedStep ?? '-'}',
+                  style: TextStyle(color: errorColor, fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   failure?.message ??
                       (snapshot.connectionState == ConnectionState.waiting
                           ? 'Buscando a mensagem principal do erro no GitHub...'
                           : 'O GitHub não forneceu uma annotation detalhada para esta falha.'),
+                  style: TextStyle(color: errorColor),
                 ),
               ],
             ),
