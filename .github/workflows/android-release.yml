@@ -95,6 +95,8 @@ jobs:
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
           APKANALYZER="$(find "$SDK_ROOT/cmdline-tools" "$SDK_ROOT/tools" -type f -name apkanalyzer 2>/dev/null | head -n1 || true)"
           APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n1 || true)"
+          test -x "$APKANALYZER" || { echo "apkanalyzer não encontrado"; exit 1; }
+          test -x "$APKSIGNER" || { echo "apksigner não encontrado"; exit 1; }
           EXPECTED_ID="$(sed -n 's/^applicationId=//p' android/release-signing.properties | head -n1)"
           EXPECTED_CERT="$(sed -n 's/^certificateSha256=//p' android/release-signing.properties | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           ACTUAL_ID="$("$APKANALYZER" manifest application-id "$APK")"
@@ -102,14 +104,26 @@ jobs:
           test "$ACTUAL_ID" = "$EXPECTED_ID" || { echo "applicationId incorreto: $ACTUAL_ID"; exit 1; }
           test "$ACTUAL_CERT" = "$EXPECTED_CERT" || { echo "Certificado não corresponde à assinatura oficial"; exit 1; }
 
+      - name: Preparar nome oficial do APK
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="build/app/outputs/flutter-apk/app-release.apk"
+          VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1)"
+          VERSION_NAME="${VERSION%%+*}"
+          VERSION_CODE="${VERSION##*+}"
+          FILE="GitHub-Manager-${VERSION_NAME}-${VERSION_CODE}-universal-release.apk"
+          mkdir -p dist
+          cp "$SOURCE" "dist/$FILE"
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+
       - name: Publicar APK oficial
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: github-manager-android-release-universal
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: dist/${{ steps.package.outputs.file }}
           archive: false
           if-no-files-found: error
-          compression-level: 0
 
       - name: Limpar material de assinatura
         if: always()

@@ -222,22 +222,53 @@ class RepositoryGitService {
   Future<List<RepositoryWorkflow>> listWorkflows(
     String repositoryFullName,
   ) async {
-    final response = await _client.get<Map<String, dynamic>>(
-      '/repos/$repositoryFullName/actions/workflows',
-      queryParameters: {'per_page': 100},
-    );
-    final raw = response.data?['workflows'];
-    if (raw is! List) {
-      return const [];
+    final workflows = <RepositoryWorkflow>[];
+    for (var page = 1; page <= 5; page++) {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/actions/workflows',
+        queryParameters: {'per_page': 100, 'page': page},
+      );
+      final raw = response.data?['workflows'];
+      if (raw is! List) {
+        throw const RepositoryFileException(
+          'O GitHub retornou uma resposta inesperada ao listar workflows.',
+          code: 'ACTIONS_WORKFLOWS_RESPONSE_INVALID',
+        );
+      }
+      final pageItems = raw
+          .whereType<Map>()
+          .map(
+            (json) => RepositoryWorkflow.fromJson(
+              Map<String, dynamic>.from(json),
+            ),
+          )
+          .toList(growable: false);
+      workflows.addAll(pageItems);
+      if (pageItems.length < 100) {
+        break;
+      }
     }
-    return raw
-        .whereType<Map>()
-        .map(
-          (json) => RepositoryWorkflow.fromJson(
-            Map<String, dynamic>.from(json),
-          ),
-        )
-        .toList(growable: false);
+    workflows.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return workflows;
+  }
+
+  Future<bool> workflowSupportsDispatch({
+    required String repositoryFullName,
+    required String branch,
+    required RepositoryWorkflow workflow,
+  }) async {
+    if (workflow.path.trim().isEmpty) {
+      return false;
+    }
+    final file = await readTextFile(
+      repositoryFullName: repositoryFullName,
+      branch: branch,
+      path: workflow.path,
+    );
+    return RegExp(
+      r'^\s*workflow_dispatch\s*:',
+      multiLine: true,
+    ).hasMatch(file.content);
   }
 
   Future<int?> dispatchWorkflow({
@@ -252,25 +283,150 @@ class RepositoryGitService {
     return (response.data?['workflow_run_id'] as num?)?.toInt();
   }
 
+  Future<RepositoryActionsData> loadActions(
+    String repositoryFullName, {
+    RepositoryWorkflow? workflow,
+  }) async {
+    final workflows = await listWorkflows(repositoryFullName);
+    final repositoryPage = await _listWorkflowRunsEndpoint(
+      repositoryFullName,
+      '/repos/$repositoryFullName/actions/runs',
+    );
+    final allRuns = repositoryPage.runs;
+
+    RepositoryWorkflow? selected;
+    if (workflow != null) {
+      for (final item in workflows) {
+        if (item.id == workflow.id ||
+            (workflow.path.isNotEmpty && item.path == workflow.path)) {
+          selected = item;
+          break;
+        }
+      }
+      selected ??= workflow;
+    }
+
+    var visibleRuns = selected == null
+        ? List<RepositoryWorkflowRun>.from(allRuns)
+        : allRuns.where((run) => run.belongsTo(selected!)).toList();
+
+    String? fallbackEndpoint;
+    int? fallbackHttpStatus;
+    int? fallbackRunsReceived;
+    var reason = selected == null
+        ? (allRuns.isEmpty ? 'api_vazia' : 'todas_as_execucoes')
+        : (visibleRuns.isEmpty
+            ? (allRuns.isEmpty ? 'api_vazia' : 'filtro_sem_correspondencia')
+            : 'filtro_local');
+
+    if (selected != null && visibleRuns.isEmpty) {
+      final candidates = <String>[
+        if (selected.id > 0)
+          '/repos/$repositoryFullName/actions/workflows/${selected.id}/runs',
+        if (selected.fileName.trim().isNotEmpty)
+          '/repos/$repositoryFullName/actions/workflows/${Uri.encodeComponent(selected.fileName)}/runs',
+      ];
+      for (final endpoint in candidates.toSet()) {
+        try {
+          final fallback = await _listWorkflowRunsEndpoint(
+            repositoryFullName,
+            endpoint,
+          );
+          fallbackEndpoint = endpoint;
+          fallbackHttpStatus = fallback.httpStatus;
+          fallbackRunsReceived = fallback.runs.length;
+          if (fallback.runs.isNotEmpty) {
+            visibleRuns = fallback.runs;
+            reason = 'fallback_workflow_especifico';
+            break;
+          }
+        } on AppException {
+          fallbackEndpoint = endpoint;
+          reason = 'fallback_com_erro';
+        }
+      }
+    }
+
+    return RepositoryActionsData(
+      workflows: workflows,
+      allRuns: allRuns,
+      runs: visibleRuns,
+      selectedWorkflow: selected,
+      diagnostic: RepositoryActionsDiagnostic(
+        endpoint: '/repos/$repositoryFullName/actions/runs?per_page=100',
+        httpStatus: repositoryPage.httpStatus,
+        repositoryRunsReceived: allRuns.length,
+        runsAfterFilter: visibleRuns.length,
+        totalCountReported: repositoryPage.totalCount,
+        reason: reason,
+        workflowId: selected?.id,
+        workflowName: selected?.name,
+        workflowPath: selected?.path,
+        workflowState: selected?.state,
+        fallbackEndpoint: fallbackEndpoint,
+        fallbackHttpStatus: fallbackHttpStatus,
+        fallbackRunsReceived: fallbackRunsReceived,
+      ),
+    );
+  }
+
   Future<List<RepositoryWorkflowRun>> listWorkflowRuns(
     String repositoryFullName,
   ) async {
-    final response = await _client.get<Map<String, dynamic>>(
+    final result = await _listWorkflowRunsEndpoint(
+      repositoryFullName,
       '/repos/$repositoryFullName/actions/runs',
-      queryParameters: {'per_page': 50},
     );
-    final raw = response.data?['workflow_runs'];
-    if (raw is! List) {
-      return const [];
+    return result.runs;
+  }
+
+  Future<_WorkflowRunsPage> _listWorkflowRunsEndpoint(
+    String repositoryFullName,
+    String endpoint,
+  ) async {
+    final byId = <int, RepositoryWorkflowRun>{};
+    int? status;
+    int? totalCount;
+    for (var page = 1; page <= 5; page++) {
+      final response = await _client.get<Map<String, dynamic>>(
+        endpoint,
+        queryParameters: {'per_page': 100, 'page': page},
+      );
+      status = response.statusCode;
+      totalCount ??= (response.data?['total_count'] as num?)?.toInt();
+      final raw = response.data?['workflow_runs'];
+      if (raw is! List) {
+        throw const RepositoryFileException(
+          'O GitHub retornou uma resposta inesperada ao listar execuções.',
+          code: 'ACTIONS_RUNS_RESPONSE_INVALID',
+        );
+      }
+      final pageItems = raw
+          .whereType<Map>()
+          .map(
+            (json) => RepositoryWorkflowRun.fromJson(
+              Map<String, dynamic>.from(json),
+            ),
+          )
+          .toList(growable: false);
+      for (final item in pageItems) {
+        byId[item.id] = item;
+      }
+      if (pageItems.length < 100) {
+        break;
+      }
     }
-    return raw
-        .whereType<Map>()
-        .map(
-          (json) => RepositoryWorkflowRun.fromJson(
-            Map<String, dynamic>.from(json),
-          ),
-        )
-        .toList(growable: false);
+    final runs = byId.values.toList()
+      ..sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+    return _WorkflowRunsPage(
+      runs: runs,
+      httpStatus: status,
+      totalCount: totalCount,
+    );
   }
 
   Future<List<RepositoryWorkflowJob>> listWorkflowRunJobs({
@@ -283,7 +439,10 @@ class RepositoryGitService {
     );
     final raw = response.data?['jobs'];
     if (raw is! List) {
-      return const [];
+      throw const RepositoryFileException(
+        'O GitHub retornou uma resposta inesperada ao listar jobs.',
+        code: 'ACTIONS_JOBS_RESPONSE_INVALID',
+      );
     }
     return raw
         .whereType<Map>()
@@ -295,17 +454,60 @@ class RepositoryGitService {
         .toList(growable: false);
   }
 
+  Future<RepositoryWorkflowFailure?> loadWorkflowFailure({
+    required String repositoryFullName,
+    required RepositoryWorkflowJob job,
+  }) async {
+    if (!job.failed) {
+      return null;
+    }
+    RepositoryWorkflowStep? failedStep;
+    for (final step in job.steps) {
+      if (step.failed) {
+        failedStep = step;
+        break;
+      }
+    }
+    String? message;
+    try {
+      final response = await _client.get<List<dynamic>>(
+        '/repos/$repositoryFullName/check-runs/${job.id}/annotations',
+        queryParameters: {'per_page': 100},
+      );
+      final annotations = response.data ?? const <dynamic>[];
+      for (final raw in annotations.whereType<Map>()) {
+        if (raw['annotation_level'] == 'failure') {
+          final value = raw['message']?.toString().trim();
+          if (value != null && value.isNotEmpty) {
+            message = value;
+            break;
+          }
+        }
+      }
+    } on AppException {
+      // A ausência de annotations não esconde a etapa que falhou.
+    }
+    return RepositoryWorkflowFailure(
+      jobName: job.name,
+      stepName: failedStep?.name ?? 'Etapa não informada pelo GitHub',
+      message: message ??
+          'O GitHub marcou esta etapa como falha. Baixe os logs para ver a saída completa do comando.',
+    );
+  }
+
   Future<void> cancelWorkflowRun({
     required String repositoryFullName,
     required int runId,
-  }) => _client.post<void>(
+  }) =>
+      _client.post<void>(
         '/repos/$repositoryFullName/actions/runs/$runId/cancel',
       );
 
   Future<void> rerunWorkflowRun({
     required String repositoryFullName,
     required int runId,
-  }) => _client.post<void>(
+  }) =>
+      _client.post<void>(
         '/repos/$repositoryFullName/actions/runs/$runId/rerun',
       );
 
@@ -351,4 +553,17 @@ class RepositoryGitService {
     }
     return _normalizeRepositoryPath('$directory/$name');
   }
+}
+
+
+class _WorkflowRunsPage {
+  const _WorkflowRunsPage({
+    required this.runs,
+    required this.httpStatus,
+    required this.totalCount,
+  });
+
+  final List<RepositoryWorkflowRun> runs;
+  final int? httpStatus;
+  final int? totalCount;
 }

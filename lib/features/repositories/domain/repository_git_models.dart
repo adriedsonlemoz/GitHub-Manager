@@ -123,6 +123,7 @@ class RepositoryWorkflow {
   final String state;
 
   bool get isActive => state == 'active';
+  String get fileName => path.split('/').last;
 
   factory RepositoryWorkflow.fromJson(Map<String, dynamic> json) =>
       RepositoryWorkflow(
@@ -136,46 +137,88 @@ class RepositoryWorkflow {
 class RepositoryWorkflowRun {
   const RepositoryWorkflowRun({
     required this.id,
+    required this.workflowId,
+    required this.workflowPath,
     required this.name,
     required this.title,
     required this.status,
     required this.conclusion,
     required this.branch,
+    required this.headSha,
+    required this.commitMessage,
+    required this.event,
     required this.runNumber,
+    required this.runAttempt,
     required this.createdAt,
+    required this.startedAt,
     required this.updatedAt,
     required this.htmlUrl,
   });
 
   final int id;
+  final int workflowId;
+  final String workflowPath;
   final String name;
   final String title;
   final String status;
   final String? conclusion;
   final String branch;
+  final String headSha;
+  final String commitMessage;
+  final String event;
   final int runNumber;
+  final int runAttempt;
   final DateTime? createdAt;
+  final DateTime? startedAt;
   final DateTime? updatedAt;
   final String htmlUrl;
 
   bool get isRunning =>
       status == 'queued' || status == 'in_progress' || status == 'waiting';
 
-  factory RepositoryWorkflowRun.fromJson(Map<String, dynamic> json) =>
-      RepositoryWorkflowRun(
-        id: (json['id'] as num?)?.toInt() ?? 0,
-        name: json['name'] as String? ?? 'Workflow',
-        title: json['display_title'] as String? ??
-            json['name'] as String? ??
-            'Execução',
-        status: json['status'] as String? ?? 'unknown',
-        conclusion: json['conclusion'] as String?,
-        branch: json['head_branch'] as String? ?? '-',
-        runNumber: (json['run_number'] as num?)?.toInt() ?? 0,
-        createdAt: DateTime.tryParse(json['created_at'] as String? ?? ''),
-        updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? ''),
-        htmlUrl: json['html_url'] as String? ?? '',
-      );
+  String get shortSha =>
+      headSha.length > 7 ? headSha.substring(0, 7) : headSha;
+
+  bool belongsTo(RepositoryWorkflow workflow) {
+    if (workflow.id > 0 && workflowId == workflow.id) {
+      return true;
+    }
+    return _normalizePath(workflowPath) == _normalizePath(workflow.path) &&
+        workflowPath.trim().isNotEmpty;
+  }
+
+  static String _normalizePath(String value) =>
+      value.trim().replaceAll('\\', '/').toLowerCase();
+
+  factory RepositoryWorkflowRun.fromJson(Map<String, dynamic> json) {
+    final headCommit = json['head_commit'];
+    final commitMap = headCommit is Map<String, dynamic>
+        ? headCommit
+        : headCommit is Map
+            ? Map<String, dynamic>.from(headCommit)
+            : const <String, dynamic>{};
+    return RepositoryWorkflowRun(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      workflowId: (json['workflow_id'] as num?)?.toInt() ?? 0,
+      workflowPath: json['path'] as String? ?? '',
+      name: json['name'] as String? ?? 'Workflow',
+      title: json['display_title'] as String? ??
+          json['name'] as String? ??
+          'Execução',
+      status: json['status'] as String? ?? 'unknown',
+      conclusion: json['conclusion'] as String?,
+      branch: json['head_branch'] as String? ?? '-',
+      headSha: json['head_sha'] as String? ?? '',
+      commitMessage: commitMap['message'] as String? ?? '',
+      event: json['event'] as String? ?? '',
+      runNumber: (json['run_number'] as num?)?.toInt() ?? 0,
+      runAttempt: (json['run_attempt'] as num?)?.toInt() ?? 1,
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? ''),
+      startedAt: DateTime.tryParse(json['run_started_at'] as String? ?? ''),
+      updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? ''),
+      htmlUrl: json['html_url'] as String? ?? '',
+    );
+  }
 }
 
 class RepositoryWorkflowJob {
@@ -184,6 +227,8 @@ class RepositoryWorkflowJob {
     required this.name,
     required this.status,
     required this.conclusion,
+    required this.startedAt,
+    required this.completedAt,
     required this.steps,
   });
 
@@ -191,7 +236,11 @@ class RepositoryWorkflowJob {
   final String name;
   final String status;
   final String? conclusion;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
   final List<RepositoryWorkflowStep> steps;
+
+  bool get failed => conclusion == 'failure';
 
   factory RepositoryWorkflowJob.fromJson(Map<String, dynamic> json) {
     final rawSteps = json['steps'];
@@ -200,6 +249,8 @@ class RepositoryWorkflowJob {
       name: json['name'] as String? ?? 'Job',
       status: json['status'] as String? ?? 'unknown',
       conclusion: json['conclusion'] as String?,
+      startedAt: DateTime.tryParse(json['started_at'] as String? ?? ''),
+      completedAt: DateTime.tryParse(json['completed_at'] as String? ?? ''),
       steps: rawSteps is List
           ? rawSteps
               .whereType<Map>()
@@ -220,12 +271,18 @@ class RepositoryWorkflowStep {
     required this.status,
     required this.conclusion,
     required this.number,
+    required this.startedAt,
+    required this.completedAt,
   });
 
   final String name;
   final String status;
   final String? conclusion;
   final int number;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+
+  bool get failed => conclusion == 'failure';
 
   factory RepositoryWorkflowStep.fromJson(Map<String, dynamic> json) =>
       RepositoryWorkflowStep(
@@ -233,5 +290,79 @@ class RepositoryWorkflowStep {
         status: json['status'] as String? ?? 'unknown',
         conclusion: json['conclusion'] as String?,
         number: (json['number'] as num?)?.toInt() ?? 0,
+        startedAt: DateTime.tryParse(json['started_at'] as String? ?? ''),
+        completedAt: DateTime.tryParse(json['completed_at'] as String? ?? ''),
       );
+}
+
+class RepositoryActionsDiagnostic {
+  const RepositoryActionsDiagnostic({
+    required this.endpoint,
+    required this.httpStatus,
+    required this.repositoryRunsReceived,
+    required this.runsAfterFilter,
+    required this.totalCountReported,
+    required this.reason,
+    this.workflowId,
+    this.workflowName,
+    this.workflowPath,
+    this.workflowState,
+    this.fallbackEndpoint,
+    this.fallbackHttpStatus,
+    this.fallbackRunsReceived,
+  });
+
+  final String endpoint;
+  final int? httpStatus;
+  final int repositoryRunsReceived;
+  final int runsAfterFilter;
+  final int? totalCountReported;
+  final String reason;
+  final int? workflowId;
+  final String? workflowName;
+  final String? workflowPath;
+  final String? workflowState;
+  final String? fallbackEndpoint;
+  final int? fallbackHttpStatus;
+  final int? fallbackRunsReceived;
+}
+
+class RepositoryActionsData {
+  const RepositoryActionsData({
+    required this.workflows,
+    required this.allRuns,
+    required this.runs,
+    required this.diagnostic,
+    this.selectedWorkflow,
+  });
+
+  final List<RepositoryWorkflow> workflows;
+  final List<RepositoryWorkflowRun> allRuns;
+  final List<RepositoryWorkflowRun> runs;
+  final RepositoryWorkflow? selectedWorkflow;
+  final RepositoryActionsDiagnostic diagnostic;
+
+  RepositoryWorkflowRun? latestFor(RepositoryWorkflow workflow) {
+    for (final run in allRuns) {
+      if (run.belongsTo(workflow)) {
+        return run;
+      }
+    }
+    return null;
+  }
+
+  int countFor(RepositoryWorkflow workflow) =>
+      allRuns.where((run) => run.belongsTo(workflow)).length;
+}
+
+class RepositoryWorkflowFailure {
+  const RepositoryWorkflowFailure({
+    required this.jobName,
+    required this.stepName,
+    required this.message,
+  });
+
+  final String jobName;
+  final String stepName;
+  final String message;
 }

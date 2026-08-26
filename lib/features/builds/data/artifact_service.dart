@@ -24,7 +24,6 @@ class ArtifactService {
               Map<String, dynamic>.from(json),
             ),
           )
-          .where((item) => !item.expired)
           .toList(growable: false);
       artifacts.addAll(pageItems);
       if (raw.length < 100) {

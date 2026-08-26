@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
+import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
@@ -21,6 +22,7 @@ class DownloadManagerService {
   final _controller = StreamController<List<ManagedDownload>>.broadcast();
   final List<ManagedDownload> _items = [];
   final Map<String, CancelToken> _cancelTokens = {};
+  final Map<String, _ProgressSample> _progressSamples = {};
   int _sequence = 0;
 
   Stream<List<ManagedDownload>> get stream => _controller.stream;
@@ -35,9 +37,9 @@ class DownloadManagerService {
     final safeName = _safeName(
       projectName.isEmpty ? repositoryFullName.split('/').last : projectName,
     );
-    final fileName = '$safeName-${_safeName(branch)}-${_stamp()}.zip';
+    final fileName = '$safeName-${_safeName(branch)}.zip';
     return _startRedirected(
-      title: 'Projeto $projectName',
+      title: 'Projeto ${projectName.isEmpty ? safeName : projectName}',
       fileName: fileName,
       type: ManagedDownloadType.projectZip,
       repositoryFullName: repositoryFullName,
@@ -60,18 +62,59 @@ class DownloadManagerService {
     );
   }
 
+  ManagedDownload startArtifactZip({
+    required String repositoryFullName,
+    required ActionArtifact artifact,
+  }) {
+    final endpoint =
+        '/repos/$repositoryFullName/actions/artifacts/${artifact.id}/zip';
+    final artifactName = _safeName(artifact.name, keepExtension: true);
+    final fileName = p.extension(artifactName).isEmpty
+        ? '$artifactName.zip'
+        : artifactName;
+    final item = _createItem(
+      title: artifact.name,
+      fileName: fileName,
+      type: ManagedDownloadType.artifact,
+      repositoryFullName: repositoryFullName,
+      sourceEndpoint: endpoint,
+      artifactId: artifact.id,
+    );
+    unawaited(_runRedirected(item, endpoint));
+    return item;
+  }
+
   ManagedDownload startArtifactApk({
     required String repositoryFullName,
     required ActionArtifact artifact,
   }) {
+    final endpoint =
+        '/repos/$repositoryFullName/actions/artifacts/${artifact.id}/zip';
     final item = _createItem(
       title: artifact.name,
       fileName: '${_safeName(artifact.name)}.apk',
       type: ManagedDownloadType.apk,
       repositoryFullName: repositoryFullName,
+      sourceEndpoint: endpoint,
+      artifactId: artifact.id,
     );
-    unawaited(_runArtifactApk(item, repositoryFullName, artifact));
+    unawaited(_runArtifactApk(item, endpoint));
     return item;
+  }
+
+  ManagedDownload startGitHubFile({
+    required String title,
+    required String fileName,
+    required String repositoryFullName,
+    required String endpoint,
+  }) {
+    return _startRedirected(
+      title: title,
+      fileName: fileName,
+      type: ManagedDownloadType.file,
+      repositoryFullName: repositoryFullName,
+      endpoint: endpoint,
+    );
   }
 
   Future<void> cancel(String id) async {
@@ -80,13 +123,45 @@ class DownloadManagerService {
       return;
     }
     _cancelTokens[id]?.cancel('Cancelado pelo usuário');
-    item.status = ManagedDownloadStatus.cancelled;
-    item.errorMessage = null;
+    item
+      ..status = ManagedDownloadStatus.cancelled
+      ..failedAt = DateTime.now()
+      ..bytesPerSecond = 0
+      ..estimatedSecondsRemaining = null
+      ..errorMessage = 'Download cancelado pelo usuário.'
+      ..errorCode = 'DOWNLOAD_CANCELLED'
+      ..failureStage = 'download';
+    _progressSamples.remove(id);
     _emit();
     await _persistHistory();
   }
 
-  Future<void> delete(String id) async {
+  Future<void> retry(String id) async {
+    final item = _find(id);
+    final endpoint = item?.sourceEndpoint;
+    if (item == null || item.isActive || endpoint == null || endpoint.isEmpty) {
+      return;
+    }
+    item.resetForRetry();
+    _emit();
+    if (item.isApk && item.artifactId != null) {
+      unawaited(_runArtifactApk(item, endpoint));
+    } else {
+      unawaited(_runRedirected(item, endpoint));
+    }
+  }
+
+  Future<void> removeFromHistory(String id) async {
+    final item = _find(id);
+    if (item == null || item.isActive) {
+      return;
+    }
+    _items.remove(item);
+    _emit();
+    await _persistHistory();
+  }
+
+  Future<void> deleteFileAndHistory(String id) async {
     final item = _find(id);
     if (item == null || item.isActive) {
       return;
@@ -104,12 +179,15 @@ class DownloadManagerService {
     await _persistHistory();
   }
 
-  Future<void> clearFinished() async {
-    final finished = _items.where((item) => !item.isActive).toList();
-    for (final item in finished) {
-      await delete(item.id);
-    }
+  Future<void> clearFinishedHistory() async {
+    _items.removeWhere((item) => !item.isActive);
+    _emit();
+    await _persistHistory();
   }
+
+  // Compatibilidade com chamadas antigas dentro do projeto.
+  Future<void> delete(String id) => deleteFileAndHistory(id);
+  Future<void> clearFinished() => clearFinishedHistory();
 
   ManagedDownload _startRedirected({
     required String title,
@@ -123,6 +201,7 @@ class DownloadManagerService {
       fileName: fileName,
       type: type,
       repositoryFullName: repositoryFullName,
+      sourceEndpoint: endpoint,
     );
     unawaited(_runRedirected(item, endpoint));
     return item;
@@ -133,6 +212,8 @@ class DownloadManagerService {
     required String fileName,
     required ManagedDownloadType type,
     String? repositoryFullName,
+    String? sourceEndpoint,
+    int? artifactId,
   }) {
     final item = ManagedDownload(
       id: '${DateTime.now().microsecondsSinceEpoch}-${_sequence++}',
@@ -142,6 +223,8 @@ class DownloadManagerService {
       status: ManagedDownloadStatus.queued,
       createdAt: DateTime.now(),
       repositoryFullName: repositoryFullName,
+      sourceEndpoint: sourceEndpoint,
+      artifactId: artifactId,
     );
     _items.insert(0, item);
     _emit();
@@ -157,18 +240,16 @@ class DownloadManagerService {
       final directory = await _workingDirectory();
       completedFile = await _uniqueFile(directory, item.fileName);
       partialFile = File('${completedFile.path}.part');
-      item.fileName = p.basename(completedFile.path);
-      item.status = ManagedDownloadStatus.downloading;
-      _emit();
+      item
+        ..fileName = p.basename(completedFile.path)
+        ..sourceEndpoint = endpoint;
+      _markStarted(item);
       await _client.downloadRedirectedFile(
         endpoint,
         partialFile.path,
         cancelToken: cancelToken,
-        onReceiveProgress: (received, total) {
-          item.receivedBytes = received;
-          item.totalBytes = total;
-          _emit();
-        },
+        onReceiveProgress: (received, total) =>
+            _updateProgress(item, received, total),
       );
       if (item.status == ManagedDownloadStatus.cancelled) {
         return;
@@ -183,11 +264,15 @@ class DownloadManagerService {
       completedFile = null;
     } catch (error) {
       if (item.status != ManagedDownloadStatus.cancelled) {
-        item.status = ManagedDownloadStatus.failed;
-        item.errorMessage = _friendlyError(error);
+        _recordFailure(
+          item,
+          error,
+          fallbackStage: item.failureStage ?? 'download',
+        );
       }
     } finally {
       _cancelTokens.remove(item.id);
+      _progressSamples.remove(item.id);
       if (partialFile != null && await partialFile.exists()) {
         await partialFile.delete();
       }
@@ -201,36 +286,35 @@ class DownloadManagerService {
 
   Future<void> _runArtifactApk(
     ManagedDownload item,
-    String repositoryFullName,
-    ActionArtifact artifact,
+    String endpoint,
   ) async {
     final cancelToken = CancelToken();
     _cancelTokens[item.id] = cancelToken;
-    File? archiveFile;
-    File? extractedFile;
+    File? downloadedFile;
+    File? publishFile;
     try {
       final directory = await _workingDirectory();
-      archiveFile = File(
-        p.join(directory.path, '.artifact-${artifact.id}-${item.id}.zip.part'),
+      downloadedFile = File(
+        p.join(directory.path, '.artifact-${item.artifactId}-${item.id}.part'),
       );
-      item.status = ManagedDownloadStatus.downloading;
-      _emit();
+      item.sourceEndpoint = endpoint;
+      _markStarted(item);
       await _client.downloadRedirectedFile(
-        '/repos/$repositoryFullName/actions/artifacts/${artifact.id}/zip',
-        archiveFile.path,
+        endpoint,
+        downloadedFile.path,
         cancelToken: cancelToken,
-        onReceiveProgress: (received, total) {
-          item.receivedBytes = received;
-          item.totalBytes = total;
-          _emit();
-        },
+        onReceiveProgress: (received, total) =>
+            _updateProgress(item, received, total),
       );
       if (item.status == ManagedDownloadStatus.cancelled) {
         return;
       }
 
-      final input = InputFileStream(archiveFile.path);
+      item.failureStage = 'identificar_artifact';
+      final input = InputFileStream(downloadedFile.path);
       final archive = ZipDecoder().decodeStream(input, verify: true);
+      ArchiveFile? selectedApk;
+      var directApk = false;
       try {
         final apks = archive
             .where(
@@ -238,59 +322,145 @@ class DownloadManagerService {
                   entry.isFile && entry.name.toLowerCase().endsWith('.apk'),
             )
             .toList(growable: false);
-        if (apks.isEmpty) {
-          throw const FormatException('O artifact não contém APK.');
+        if (apks.isNotEmpty) {
+          selectedApk = apks.firstWhere(
+            (entry) {
+              final lower = entry.name.toLowerCase();
+              return lower.contains('universal') ||
+                  (!lower.contains('arm64') &&
+                      !lower.contains('armeabi') &&
+                      !lower.contains('x86'));
+            },
+            orElse: () => apks.reduce((a, b) => a.size >= b.size ? a : b),
+          );
+        } else {
+          final names = archive
+              .where((entry) => entry.isFile)
+              .map((entry) => entry.name.replaceAll('\\', '/').toLowerCase())
+              .toSet();
+          directApk = names.contains('androidmanifest.xml') &&
+              (names.contains('classes.dex') || names.contains('resources.arsc'));
         }
-        final selected = apks.firstWhere(
-          (entry) {
-            final lower = entry.name.toLowerCase();
-            return lower.contains('universal') ||
-                (!lower.contains('arm64') &&
-                    !lower.contains('armeabi') &&
-                    !lower.contains('x86'));
-          },
-          orElse: () => apks.reduce((a, b) => a.size >= b.size ? a : b),
-        );
-        final bytes = selected.readBytes();
-        if (bytes == null) {
-          throw const FormatException('Não foi possível extrair o APK.');
+
+        if (selectedApk == null && !directApk) {
+          throw const FormatException(
+            'O artifact foi baixado, mas não contém um APK reconhecível.',
+          );
         }
-        extractedFile = await _uniqueFile(
-          directory,
-          selected.name.split('/').last,
-        );
-        await extractedFile.writeAsBytes(bytes, flush: true);
-        item.fileName = p.basename(extractedFile.path);
-        item.receivedBytes = bytes.length;
-        item.totalBytes = bytes.length;
-        await _publishCompleted(item, extractedFile);
-        extractedFile = null;
+
+        if (selectedApk != null) {
+          item.failureStage = 'extrair_apk';
+          final bytes = selectedApk.readBytes();
+          if (bytes == null) {
+            throw const FormatException('Não foi possível extrair o APK.');
+          }
+          publishFile = await _uniqueFile(
+            directory,
+            selectedApk.name.split('/').last,
+          );
+          await publishFile.writeAsBytes(bytes, flush: true);
+          item
+            ..fileName = p.basename(publishFile.path)
+            ..receivedBytes = bytes.length
+            ..totalBytes = bytes.length;
+        }
       } finally {
         archive.clearSync();
         input.closeSync();
       }
+
+      if (directApk) {
+        item.failureStage = 'preparar_apk_direto';
+        final desiredName = item.fileName.toLowerCase().endsWith('.apk')
+            ? item.fileName
+            : '${_safeName(item.title)}.apk';
+        publishFile = await _uniqueFile(directory, desiredName);
+        publishFile = await downloadedFile.rename(publishFile.path);
+        downloadedFile = null;
+        final length = await publishFile.length();
+        item
+          ..fileName = p.basename(publishFile.path)
+          ..receivedBytes = length
+          ..totalBytes = length;
+      }
+
+      if (publishFile == null) {
+        throw const FormatException('Não foi possível preparar o APK baixado.');
+      }
+      await _publishCompleted(item, publishFile);
+      publishFile = null;
     } catch (error) {
       if (item.status != ManagedDownloadStatus.cancelled) {
-        item.status = ManagedDownloadStatus.failed;
-        item.errorMessage = _friendlyError(error);
+        _recordFailure(
+          item,
+          error,
+          fallbackStage: item.failureStage ?? 'identificar_artifact',
+        );
       }
     } finally {
       _cancelTokens.remove(item.id);
-      if (archiveFile != null && await archiveFile.exists()) {
-        await archiveFile.delete();
+      _progressSamples.remove(item.id);
+      if (downloadedFile != null && await downloadedFile.exists()) {
+        await downloadedFile.delete();
       }
-      if (extractedFile != null && await extractedFile.exists()) {
-        await extractedFile.delete();
+      if (publishFile != null && await publishFile.exists()) {
+        await publishFile.delete();
       }
       _emit();
       await _persistHistory();
     }
   }
 
+  void _markStarted(ManagedDownload item) {
+    final now = DateTime.now();
+    item
+      ..status = ManagedDownloadStatus.downloading
+      ..startedAt = now
+      ..failedAt = null
+      ..completedAt = null
+      ..errorMessage = null
+      ..errorCode = null
+      ..failureStage = null
+      ..httpStatus = null
+      ..responseMessage = null
+      ..bytesPerSecond = 0
+      ..estimatedSecondsRemaining = null;
+    _progressSamples[item.id] = _ProgressSample(now, 0, 0);
+    _emit();
+  }
+
+  void _updateProgress(ManagedDownload item, int received, int total) {
+    final now = DateTime.now();
+    final previous = _progressSamples[item.id];
+    var speed = item.bytesPerSecond;
+    if (previous != null) {
+      final elapsedMicros = now.difference(previous.at).inMicroseconds;
+      final deltaBytes = received - previous.bytes;
+      if (elapsedMicros > 0 && deltaBytes >= 0) {
+        final instantaneous = deltaBytes / (elapsedMicros / 1000000);
+        speed = previous.smoothedSpeed <= 0
+            ? instantaneous
+            : (previous.smoothedSpeed * 0.7) + (instantaneous * 0.3);
+      }
+    }
+    item
+      ..receivedBytes = received
+      ..totalBytes = total
+      ..bytesPerSecond = speed;
+    if (total > received && speed > 1) {
+      item.estimatedSecondsRemaining = ((total - received) / speed).ceil();
+    } else {
+      item.estimatedSecondsRemaining = null;
+    }
+    _progressSamples[item.id] = _ProgressSample(now, received, speed);
+    _emit();
+  }
+
   Future<void> _publishCompleted(
     ManagedDownload item,
     File source,
   ) async {
+    item.failureStage = 'salvar_downloads';
     Future<String> publish() => PlatformActions.publishToDownloads(
           sourcePath: source.path,
           fileName: item.fileName,
@@ -313,12 +483,134 @@ class DownloadManagerService {
       location = await publish();
     }
 
-    item.localPath = location;
-    item.status = ManagedDownloadStatus.completed;
-    item.errorMessage = null;
+    item
+      ..localPath = location
+      ..status = ManagedDownloadStatus.completed
+      ..completedAt = DateTime.now()
+      ..failedAt = null
+      ..errorMessage = null
+      ..errorCode = null
+      ..failureStage = null
+      ..httpStatus = null
+      ..responseMessage = null
+      ..bytesPerSecond = 0
+      ..estimatedSecondsRemaining = null;
     if (await source.exists()) {
       await source.delete();
     }
+  }
+
+  void _recordFailure(
+    ManagedDownload item,
+    Object error, {
+    required String fallbackStage,
+  }) {
+    item
+      ..status = ManagedDownloadStatus.failed
+      ..failedAt = DateTime.now()
+      ..completedAt = null
+      ..bytesPerSecond = 0
+      ..estimatedSecondsRemaining = null;
+
+    if (error is DownloadFailureException) {
+      item
+        ..errorMessage = error.message
+        ..errorCode = error.technicalCode
+        ..sourceEndpoint = error.endpoint
+        ..failureStage = error.stage
+        ..httpStatus = error.httpStatus
+        ..responseMessage = _cleanTechnicalMessage(error.apiMessage);
+      return;
+    }
+
+    if (error is PlatformException) {
+      item
+        ..errorMessage = _platformFriendlyError(error)
+        ..errorCode = error.code
+        ..failureStage = fallbackStage
+        ..responseMessage = _cleanTechnicalMessage(error.message);
+      return;
+    }
+
+    if (error is FileSystemException) {
+      final message = '${error.message} ${error.osError?.message ?? ''}'.trim();
+      final full = message.toLowerCase();
+      final fullStorage = full.contains('no space left') ||
+          full.contains('enospc') ||
+          full.contains('espaço insuficiente');
+      final permissionDenied = full.contains('permissão negada') ||
+          full.contains('permission denied');
+      item
+        ..errorMessage = fullStorage
+            ? 'Não há espaço suficiente no aparelho para concluir o download.'
+            : permissionDenied
+                ? 'Sem permissão para gravar o arquivo na pasta Downloads.'
+                : 'Erro ao gravar o arquivo na pasta Downloads.'
+        ..errorCode = fullStorage
+            ? 'STORAGE_FULL'
+            : permissionDenied
+                ? 'DOWNLOAD_STORAGE_PERMISSION'
+                : 'DOWNLOAD_WRITE_FAILED'
+        ..failureStage = fallbackStage
+        ..responseMessage = _cleanTechnicalMessage(message);
+      return;
+    }
+
+    if (error is FormatException) {
+      item
+        ..errorMessage = error.message
+        ..errorCode = 'DOWNLOAD_CONTENT_INVALID'
+        ..failureStage = fallbackStage
+        ..responseMessage = null;
+      return;
+    }
+
+    item
+      ..errorMessage = 'Erro desconhecido ao concluir o download.'
+      ..errorCode = 'DOWNLOAD_UNKNOWN'
+      ..failureStage = fallbackStage
+      ..responseMessage = _cleanTechnicalMessage(error.toString());
+  }
+
+  static String _platformFriendlyError(PlatformException error) {
+    final message = (error.message ?? '').toLowerCase();
+    if (error.code == 'STORAGE_FULL' ||
+        message.contains('no space left') ||
+        message.contains('enospc')) {
+      return 'Não há espaço suficiente no aparelho para concluir o download.';
+    }
+    if (error.code == 'STORAGE_PERMISSION_REQUIRED') {
+      return 'O Android não permitiu gravar o arquivo na pasta Downloads.';
+    }
+    if (error.code == 'DOWNLOAD_SOURCE_NOT_FOUND') {
+      return 'O arquivo temporário do download não foi encontrado.';
+    }
+    return 'Erro ao gravar o arquivo na pasta Downloads.';
+  }
+
+  static String? _cleanTechnicalMessage(String? value) {
+    if (value == null) {
+      return null;
+    }
+    var result = value.trim();
+    if (result.isEmpty) {
+      return null;
+    }
+    result = result.replaceAll(
+      RegExp(
+        r'authorization\s*[:=]\s*(bearer\s+)?[^\s,;]+',
+        caseSensitive: false,
+      ),
+      'Authorization=[REMOVIDO]',
+    );
+    result = result.replaceAllMapped(
+      RegExp(
+        r'(token|secret|api[_ -]?key|password)\s*[:=]\s*[^\s,;]+',
+        caseSensitive: false,
+      ),
+      (match) => '${match.group(1)}=[REMOVIDO]',
+    );
+    return result.length > 700 ? '${result.substring(0, 700)}…' : result;
   }
 
   Future<void> _restoreHistory() async {
@@ -441,29 +733,20 @@ class DownloadManagerService {
     return clean.replaceAll(RegExp(r'\.(zip|apk)$', caseSensitive: false), '');
   }
 
-  static String _stamp() {
-    final now = DateTime.now();
-    String two(int value) => value.toString().padLeft(2, '0');
-    return '${now.year}${two(now.month)}${two(now.day)}-'
-        '${two(now.hour)}${two(now.minute)}';
-  }
-
-  static String _friendlyError(Object error) {
-    final message = error.toString();
-    if (message.contains('REQUEST_CANCELLED')) {
-      return 'Download cancelado.';
-    }
-    if (message.contains('Permissão negada')) {
-      return 'Permissão negada para salvar na pasta Downloads.';
-    }
-    return 'Não foi possível concluir o download.';
-  }
-
   void dispose() {
     for (final token in _cancelTokens.values) {
       token.cancel('Download manager encerrado');
     }
     _cancelTokens.clear();
+    _progressSamples.clear();
     _controller.close();
   }
+}
+
+class _ProgressSample {
+  const _ProgressSample(this.at, this.bytes, this.smoothedSpeed);
+
+  final DateTime at;
+  final int bytes;
+  final double smoothedSpeed;
 }

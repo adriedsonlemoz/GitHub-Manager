@@ -18,4 +18,4 @@ Keystore não é commitado. GitHub Actions recebe apenas os quatro Secrets de as
 
 ## ZIP local
 
-Path traversal, caminhos absolutos, symlinks, ZIP inválido, arquivos individuais acima de 95 MB, mais de 5.000 arquivos e expansão acima de 500 MB são bloqueados antes do envio. Artifacts são baixados para diretório temporário e apagados após o seletor de salvamento.
+Path traversal, caminhos absolutos, symlinks, ZIP inválido, arquivos individuais acima de 95 MB, mais de 5.000 arquivos e expansão acima de 500 MB são bloqueados antes do envio. Downloads são preparados em diretório temporário privado, publicados na pasta pública Downloads pelo Android e o temporário é apagado no `finally`. URLs temporárias assinadas do GitHub não são persistidas.

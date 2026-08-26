@@ -20,6 +20,13 @@ abstract final class PlatformActions {
   static Future<String?> installApk(String location) =>
       _channel.invokeMethod<String>('installApk', {'path': location});
 
+  static Future<void> shareFile(String location, {String? mimeType}) async {
+    await _channel.invokeMethod<void>('shareFile', {
+      'path': location,
+      if (mimeType != null) 'mimeType': mimeType,
+    });
+  }
+
   static Future<String> publishToDownloads({
     required String sourcePath,
     required String fileName,

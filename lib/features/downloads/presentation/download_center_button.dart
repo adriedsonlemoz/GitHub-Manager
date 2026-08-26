@@ -84,7 +84,13 @@ class DownloadFloatingStatusButton extends ConsumerWidget {
               value: item.progress,
             ),
           ),
-          label: Text(active.length > 1 ? '${active.length} downloads' : 'Baixando'),
+          label: Text(
+            active.length > 1
+                ? '${active.length} downloads ativos'
+                : item.progress == null
+                    ? 'Baixando'
+                    : 'Baixando ${(item.progress! * 100).floor()}%',
+          ),
         );
       },
     );

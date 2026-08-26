@@ -43,6 +43,11 @@ class MainActivity : FlutterActivity() {
                     location = call.argument<String>("path"),
                     result = result,
                 )
+                "shareFile" -> shareFile(
+                    location = call.argument<String>("path"),
+                    mimeType = call.argument<String>("mimeType"),
+                    result = result,
+                )
                 "publishToDownloads" -> publishToDownloads(
                     sourcePath = call.argument<String>("sourcePath"),
                     fileName = call.argument<String>("fileName"),
@@ -98,6 +103,26 @@ class MainActivity : FlutterActivity() {
             result.success(null)
         } catch (error: Exception) {
             result.error("OPEN_FILE_FAILED", error.message, null)
+        }
+    }
+
+    private fun shareFile(location: String?, mimeType: String?, result: MethodChannel.Result) {
+        if (location.isNullOrBlank()) {
+            result.error("FILE_REQUIRED", "Arquivo inválido", null)
+            return
+        }
+        try {
+            val uri = resolveShareUri(location)
+            val resolvedMime = mimeType ?: contentResolver.getType(uri) ?: "application/octet-stream"
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = resolvedMime
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Compartilhar arquivo"))
+            result.success(null)
+        } catch (error: Exception) {
+            result.error("SHARE_FILE_FAILED", error.message, null)
         }
     }
 
@@ -195,7 +220,14 @@ class MainActivity : FlutterActivity() {
             }
             result.success(target.absolutePath)
         } catch (error: Exception) {
-            result.error("DOWNLOAD_PUBLISH_FAILED", error.message, null)
+            val message = error.message.orEmpty()
+            val storageFull = message.contains("ENOSPC", ignoreCase = true) ||
+                message.contains("No space left", ignoreCase = true)
+            result.error(
+                if (storageFull) "STORAGE_FULL" else "DOWNLOAD_PUBLISH_FAILED",
+                error.message,
+                null,
+            )
         }
     }
 

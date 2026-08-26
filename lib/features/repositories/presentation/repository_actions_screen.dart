@@ -24,12 +24,14 @@ class RepositoryActionsScreen extends ConsumerStatefulWidget {
       _RepositoryActionsScreenState();
 }
 
-class _RepositoryActionsScreenState
-    extends ConsumerState<RepositoryActionsScreen> with WidgetsBindingObserver {
-  late Future<List<RepositoryWorkflowRun>> _future;
+class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScreen>
+    with WidgetsBindingObserver {
+  late Future<RepositoryActionsData> _future;
+  RepositoryWorkflow? _selectedWorkflow;
   Timer? _timer;
   bool _hasRunning = false;
   bool _starting = false;
+  bool _showDiagnostics = false;
 
   @override
   void initState() {
@@ -43,12 +45,13 @@ class _RepositoryActionsScreenState
     });
   }
 
-  Future<List<RepositoryWorkflowRun>> _load() async {
-    final runs = await ref
-        .read(repositoryGitServiceProvider)
-        .listWorkflowRuns(widget.repositoryFullName);
-    _hasRunning = runs.any((run) => run.isRunning);
-    return runs;
+  Future<RepositoryActionsData> _load() async {
+    final data = await ref.read(repositoryGitServiceProvider).loadActions(
+          widget.repositoryFullName,
+          workflow: _selectedWorkflow,
+        );
+    _hasRunning = data.allRuns.any((run) => run.isRunning);
+    return data;
   }
 
   Future<void> _refresh({bool silent = false}) async {
@@ -65,12 +68,18 @@ class _RepositoryActionsScreenState
     }
   }
 
+  void _selectWorkflow(RepositoryWorkflow? workflow) {
+    setState(() {
+      _selectedWorkflow = workflow;
+      _future = _load();
+    });
+  }
+
   Future<void> _runWorkflow() async {
     try {
       setState(() => _starting = true);
-      final workflows = await ref
-          .read(repositoryGitServiceProvider)
-          .listWorkflows(widget.repositoryFullName);
+      final service = ref.read(repositoryGitServiceProvider);
+      final workflows = await service.listWorkflows(widget.repositoryFullName);
       if (!mounted) {
         return;
       }
@@ -116,11 +125,24 @@ class _RepositoryActionsScreenState
       if (selected == null || !mounted) {
         return;
       }
-      await ref.read(repositoryGitServiceProvider).dispatchWorkflow(
-            repositoryFullName: widget.repositoryFullName,
-            workflow: selected,
-            ref: widget.defaultBranch,
-          );
+
+      final supportsDispatch = await service.workflowSupportsDispatch(
+        repositoryFullName: widget.repositoryFullName,
+        branch: widget.defaultBranch,
+        workflow: selected,
+      );
+      if (!supportsDispatch) {
+        throw RepositoryFileException(
+          '${selected.name} não possui workflow_dispatch e não pode ser iniciado manualmente.',
+          code: 'WORKFLOW_DISPATCH_UNAVAILABLE',
+        );
+      }
+
+      await service.dispatchWorkflow(
+        repositoryFullName: widget.repositoryFullName,
+        workflow: selected,
+        ref: widget.defaultBranch,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -129,6 +151,7 @@ class _RepositoryActionsScreenState
             ),
           ),
         );
+        _selectedWorkflow = selected;
         await Future<void>.delayed(const Duration(seconds: 2));
         await _refresh();
       }
@@ -157,9 +180,7 @@ class _RepositoryActionsScreenState
         onChanged: () => _refresh(silent: true),
         onOpenArtifacts: () {
           if (mounted) {
-            context.push(
-              '/repositories/${widget.repositoryFullName}/artifacts',
-            );
+            context.push('/repositories/${widget.repositoryFullName}/artifacts');
           }
         },
       ),
@@ -181,16 +202,25 @@ class _RepositoryActionsScreenState
   }
 
   void _showError(Object error) {
-    final message = _message(error);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_message(error))),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenTitle = _selectedWorkflow == null
+        ? 'Builds'
+        : 'Execuções — ${_selectedWorkflow!.name}';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Builds'),
+        title: Text(screenTitle),
         actions: [
+          IconButton(
+            onPressed: () => setState(() => _showDiagnostics = !_showDiagnostics),
+            tooltip: 'Diagnóstico da API',
+            icon: const Icon(Icons.monitor_heart_outlined),
+          ),
           IconButton(
             onPressed: () => _refresh(),
             tooltip: 'Atualizar',
@@ -200,7 +230,7 @@ class _RepositoryActionsScreenState
             onPressed: () => context.push(
               '/repositories/${widget.repositoryFullName}/artifacts',
             ),
-            tooltip: 'APKs',
+            tooltip: 'APKs e artifacts',
             icon: const Icon(Icons.android_rounded),
           ),
           const DownloadCenterButton(),
@@ -219,7 +249,7 @@ class _RepositoryActionsScreenState
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
-        child: FutureBuilder<List<RepositoryWorkflowRun>>(
+        child: FutureBuilder<RepositoryActionsData>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -245,57 +275,69 @@ class _RepositoryActionsScreenState
                 ],
               );
             }
-            final runs = snapshot.data ?? const <RepositoryWorkflowRun>[];
-            if (runs.isEmpty) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                children: const [
-                  Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(18),
-                      child: Text(
-                        'Nenhuma execução encontrada. Use “Executar build” para iniciar um workflow com workflow_dispatch.',
+
+            final data = snapshot.data!;
+            final runs = data.runs;
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 104),
+              children: [
+                _WorkflowsPanel(
+                  data: data,
+                  selectedWorkflow: _selectedWorkflow,
+                  onSelected: _selectWorkflow,
+                ),
+                if (_showDiagnostics || runs.isEmpty) ...[
+                  const SizedBox(height: 10),
+                  _ActionsDiagnosticCard(diagnostic: data.diagnostic),
+                ],
+                const SizedBox(height: 16),
+                Text(
+                  data.selectedWorkflow == null
+                      ? 'Todas as execuções'
+                      : 'Execuções — ${data.selectedWorkflow!.name}',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                if (runs.isEmpty)
+                  _EmptyRunsCard(diagnostic: data.diagnostic)
+                else
+                  ...runs.map(
+                    (run) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Card(
+                        child: ListTile(
+                          onTap: () => _showRunDetails(run),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
+                          leading: _RunStatusIcon(run: run),
+                          title: Text(
+                            run.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            '${run.name} #${run.runNumber} • ${run.branch}\n'
+                            '${run.shortSha.isEmpty ? 'commit -' : run.shortSha} • ${_formatDate(run.createdAt)}\n'
+                            '${_statusLabel(run)} • ${_formatDuration(run)}',
+                          ),
+                          isThreeLine: true,
+                          trailing: run.isRunning
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.chevron_right_rounded),
+                        ),
                       ),
                     ),
                   ),
-                ],
-              );
-            }
-            return ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
-              itemCount: runs.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final run = runs[index];
-                return Card(
-                  child: ListTile(
-                    onTap: () => _showRunDetails(run),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 5,
-                    ),
-                    leading: _RunStatusIcon(run: run),
-                    title: Text(
-                      run.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      '${run.name} #${run.runNumber}\n${run.branch} • ${_statusLabel(run)} • ${_formatDuration(run)}',
-                    ),
-                    isThreeLine: true,
-                    trailing: run.isRunning
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.chevron_right_rounded),
-                  ),
-                );
-              },
+              ],
             );
           },
         ),
@@ -319,8 +361,9 @@ class _RepositoryActionsScreenState
     if (run.status != 'completed') {
       return switch (run.status) {
         'queued' => 'Na fila',
-        'in_progress' => 'Compilando',
+        'in_progress' => 'Em andamento',
         'waiting' => 'Aguardando',
+        'pending' => 'Pendente',
         _ => run.status,
       };
     }
@@ -329,12 +372,14 @@ class _RepositoryActionsScreenState
       'failure' => 'Falhou',
       'cancelled' => 'Cancelada',
       'skipped' => 'Ignorada',
+      'timed_out' => 'Tempo esgotado',
+      'action_required' => 'Ação necessária',
       _ => run.conclusion ?? 'Concluída',
     };
   }
 
   static String _formatDuration(RepositoryWorkflowRun run) {
-    final start = run.createdAt;
+    final start = run.startedAt ?? run.createdAt;
     if (start == null) {
       return '-';
     }
@@ -347,6 +392,16 @@ class _RepositoryActionsScreenState
       return '${duration.inMinutes}min ${duration.inSeconds.remainder(60)}s';
     }
     return '${duration.inSeconds}s';
+  }
+
+  static String _formatDate(DateTime? value) {
+    if (value == null) {
+      return 'data -';
+    }
+    final date = value.toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${two(date.day)}/${two(date.month)}/${date.year} '
+        '${two(date.hour)}:${two(date.minute)}';
   }
 
   static String _jobStatus(RepositoryWorkflowJob job) {
@@ -388,22 +443,22 @@ class _RepositoryActionsScreenState
   static String _stepExplanation(String name) {
     final value = name.toLowerCase();
     if (value.contains('checkout')) {
-      return 'Baixando o código do repositório para o servidor de compilação.';
+      return 'Baixando os arquivos do projeto.';
     }
     if (value.contains('java')) {
       return 'Preparando o Java necessário para compilar o aplicativo Android.';
     }
     if (value.contains('flutter')) {
-      return 'Preparando o Flutter e as ferramentas usadas pelo projeto.';
+      return 'Preparando o Flutter para compilar o aplicativo.';
     }
     if (value.contains('depend') || value.contains('pub get')) {
-      return 'Baixando e conferindo as bibliotecas usadas pelo aplicativo.';
+      return 'Baixando as bibliotecas necessárias.';
     }
     if (value.contains('analis') || value.contains('analyze')) {
-      return 'Verificando o código em busca de erros antes da compilação.';
+      return 'Verificando o código em busca de erros.';
     }
     if (value.contains('test')) {
-      return 'Executando testes automáticos do projeto.';
+      return 'Executando os testes automáticos.';
     }
     if (value.contains('gradle') || value.contains('wrapper')) {
       return 'Preparando o sistema de compilação do Android.';
@@ -412,21 +467,180 @@ class _RepositoryActionsScreenState
         value.contains('gerar apk') ||
         value.contains('build apk') ||
         value.contains('assemble')) {
-      return 'Transformando o código em um APK instalável.';
+      return 'Compilando o aplicativo Android.';
     }
     if (value.contains('assin') || value.contains('sign')) {
-      return 'Aplicando a assinatura necessária para instalar ou atualizar o APK.';
+      return 'Assinando o APK.';
+    }
+    if (value.contains('artifact') ||
+        value.contains('publicar') ||
+        value.contains('upload')) {
+      return 'Enviando o APK ou resultado para o GitHub.';
     }
     if (value.contains('valid')) {
-      return 'Conferindo se a versão e o arquivo gerado estão corretos.';
-    }
-    if (value.contains('artifact') || value.contains('publicar') || value.contains('upload')) {
-      return 'Publicando o resultado no GitHub para poder baixar depois.';
-    }
-    if (value.contains('prepar')) {
-      return 'Organizando os arquivos necessários para a próxima etapa.';
+      return 'Conferindo se os arquivos e configurações estão corretos.';
     }
     return 'Etapa técnica executada pelo GitHub Actions.';
+  }
+}
+
+class _WorkflowsPanel extends StatelessWidget {
+  const _WorkflowsPanel({
+    required this.data,
+    required this.selectedWorkflow,
+    required this.onSelected,
+  });
+
+  final RepositoryActionsData data;
+  final RepositoryWorkflow? selectedWorkflow;
+  final ValueChanged<RepositoryWorkflow?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Workflows (${data.workflows.length})',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                Text('${data.allRuns.length} runs recebidos'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _WorkflowTile(
+              selected: selectedWorkflow == null,
+              icon: Icons.all_inclusive_rounded,
+              title: 'Todas as execuções',
+              subtitle: '${data.allRuns.length} execuções recentes',
+              onTap: () => onSelected(null),
+            ),
+            ...data.workflows.map((workflow) {
+              final latest = data.latestFor(workflow);
+              final status = latest == null
+                  ? 'Sem execução no histórico carregado'
+                  : '${_RepositoryActionsScreenState._statusLabel(latest)} • #${latest.runNumber}';
+              return _WorkflowTile(
+                selected: selectedWorkflow?.id == workflow.id,
+                icon: workflow.isActive
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.pause_circle_outline_rounded,
+                title: workflow.name,
+                subtitle:
+                    '${workflow.isActive ? 'Ativo' : workflow.state} • ${data.countFor(workflow)} runs\n${workflow.path}\nÚltimo: $status',
+                onTap: () => onSelected(workflow),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkflowTile extends StatelessWidget {
+  const _WorkflowTile({
+    required this.selected,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      selected: selected,
+      selectedTileColor: Theme.of(context).colorScheme.secondaryContainer.withAlpha(115),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      isThreeLine: subtitle.contains('\n'),
+      trailing: const Icon(Icons.chevron_right_rounded),
+      onTap: onTap,
+    );
+  }
+}
+
+class _ActionsDiagnosticCard extends StatelessWidget {
+  const _ActionsDiagnosticCard({required this.diagnostic});
+
+  final RepositoryActionsDiagnostic diagnostic;
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = <String>[
+      if (diagnostic.workflowName != null) 'Workflow: ${diagnostic.workflowName}',
+      if (diagnostic.workflowId != null) 'Workflow ID: ${diagnostic.workflowId}',
+      if (diagnostic.workflowPath != null) 'Arquivo: ${diagnostic.workflowPath}',
+      if (diagnostic.workflowState != null)
+        'Status: ${diagnostic.workflowState == 'active' ? 'Ativo' : diagnostic.workflowState}',
+      'Runs recebidos: ${diagnostic.repositoryRunsReceived}',
+      'Após filtro: ${diagnostic.runsAfterFilter}',
+      if (diagnostic.totalCountReported != null)
+        'Total informado pelo GitHub: ${diagnostic.totalCountReported}',
+      'Endpoint principal: ${diagnostic.endpoint}',
+      'HTTP principal: ${diagnostic.httpStatus ?? '-'}',
+      'Diagnóstico: ${diagnostic.reason}',
+      if (diagnostic.fallbackEndpoint != null)
+        'Fallback: ${diagnostic.fallbackEndpoint}',
+      if (diagnostic.fallbackHttpStatus != null)
+        'HTTP fallback: ${diagnostic.fallbackHttpStatus}',
+      if (diagnostic.fallbackRunsReceived != null)
+        'Runs no fallback: ${diagnostic.fallbackRunsReceived}',
+    ];
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.monitor_heart_outlined),
+        title: const Text('Diagnóstico do GitHub Actions'),
+        subtitle: const Text('Nenhum token ou Authorization é exibido.'),
+        initiallyExpanded: diagnostic.runsAfterFilter == 0,
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SelectableText(lines.join('\n')),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyRunsCard extends StatelessWidget {
+  const _EmptyRunsCard({required this.diagnostic});
+
+  final RepositoryActionsDiagnostic diagnostic;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = diagnostic.repositoryRunsReceived > 0
+        ? 'O GitHub retornou ${diagnostic.repositoryRunsReceived} execuções, mas nenhuma correspondeu ao workflow selecionado. O diagnóstico acima mostra o ID, arquivo e fallback consultados.'
+        : diagnostic.httpStatus == 200
+            ? 'A API respondeu HTTP 200, mas retornou zero execuções. Isso é diferente de um erro de filtro; confira o diagnóstico acima.'
+            : 'Não foi possível confirmar execuções para esta seleção. Confira o diagnóstico da API.';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Text(message),
+      ),
+    );
   }
 }
 
@@ -461,12 +675,11 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
     _updateTimer();
   }
 
-  Future<List<RepositoryWorkflowJob>> _loadJobs() => ref
-      .read(repositoryGitServiceProvider)
-      .listWorkflowRunJobs(
-        repositoryFullName: widget.repositoryFullName,
-        runId: _run.id,
-      );
+  Future<List<RepositoryWorkflowJob>> _loadJobs() =>
+      ref.read(repositoryGitServiceProvider).listWorkflowRunJobs(
+            repositoryFullName: widget.repositoryFullName,
+            runId: _run.id,
+          );
 
   void _updateTimer() {
     _timer?.cancel();
@@ -559,7 +772,9 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Download dos logs iniciado. Acompanhe pelo botão de Downloads.'),
+          content: Text(
+            'Download dos logs iniciado. Acompanhe pela Central de Downloads.',
+          ),
         ),
       );
     }
@@ -584,13 +799,21 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: .76,
+      initialChildSize: .78,
       minChildSize: .48,
-      maxChildSize: .94,
+      maxChildSize: .95,
       builder: (context, scrollController) => FutureBuilder<
           List<RepositoryWorkflowJob>>(
         future: _jobsFuture,
         builder: (context, snapshot) {
+          final jobs = snapshot.data ?? const <RepositoryWorkflowJob>[];
+          RepositoryWorkflowJob? failedJob;
+          for (final job in jobs) {
+            if (job.failed) {
+              failedJob = job;
+              break;
+            }
+          }
           return ListView(
             controller: scrollController,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -609,7 +832,21 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${_run.name} #${_run.runNumber} • ${_run.branch}',
+                          '${_run.name} #${_run.runNumber} • ${_run.branch} • ${_run.shortSha}',
+                        ),
+                        if (_run.commitMessage.trim().isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            _run.commitMessage.split('\n').first,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                        const SizedBox(height: 2),
+                        Text(
+                          'Início: ${_RepositoryActionsScreenState._formatDate(_run.startedAt ?? _run.createdAt)}',
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ),
@@ -640,6 +877,13 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                       : null,
                 ),
               ),
+              if (failedJob != null) ...[
+                const SizedBox(height: 10),
+                _FailureSummaryCard(
+                  repositoryFullName: widget.repositoryFullName,
+                  job: failedJob,
+                ),
+              ],
               const SizedBox(height: 12),
               if (snapshot.connectionState == ConnectionState.waiting)
                 const LinearProgressIndicator()
@@ -652,7 +896,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                         : 'Não foi possível carregar jobs e etapas.',
                   ),
                 )
-              else if ((snapshot.data ?? const <RepositoryWorkflowJob>[]).isEmpty)
+              else if (jobs.isEmpty)
                 const Card(
                   child: Padding(
                     padding: EdgeInsets.all(16),
@@ -660,7 +904,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                   ),
                 )
               else
-                ...(snapshot.data ?? const <RepositoryWorkflowJob>[]).map(
+                ...jobs.map(
                   (job) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Card(
@@ -670,7 +914,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                         subtitle: Text(
                           _RepositoryActionsScreenState._jobStatus(job),
                         ),
-                        initiallyExpanded: job.status != 'completed',
+                        initiallyExpanded: job.status != 'completed' || job.failed,
                         children: job.steps
                             .map(
                               (step) => ListTile(
@@ -678,7 +922,8 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                                 leading: _StepIcon(step: step),
                                 title: Text(step.name),
                                 subtitle: Text(
-                                  '${_RepositoryActionsScreenState._stepExplanation(step.name)}\nStatus: ${_RepositoryActionsScreenState._stepStatus(step)}',
+                                  '${_RepositoryActionsScreenState._stepExplanation(step.name)}\n'
+                                  'Status: ${_RepositoryActionsScreenState._stepStatus(step)}',
                                 ),
                                 isThreeLine: true,
                               ),
@@ -729,6 +974,65 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
   }
 }
 
+class _FailureSummaryCard extends ConsumerWidget {
+  const _FailureSummaryCard({
+    required this.repositoryFullName,
+    required this.job,
+  });
+
+  final String repositoryFullName;
+  final RepositoryWorkflowJob job;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final future = ref.read(repositoryGitServiceProvider).loadWorkflowFailure(
+          repositoryFullName: repositoryFullName,
+          job: job,
+        );
+    return FutureBuilder<RepositoryWorkflowFailure?>(
+      future: future,
+      builder: (context, snapshot) {
+        final failure = snapshot.data;
+        String? failedStep;
+        for (final step in job.steps) {
+          if (step.failed) {
+            failedStep = step.name;
+            break;
+          }
+        }
+        return Card(
+          color: Theme.of(context).colorScheme.errorContainer,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Falha encontrada',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                Text('Job: ${failure?.jobName ?? job.name}'),
+                Text('Etapa: ${failure?.stepName ?? failedStep ?? '-'}'),
+                const SizedBox(height: 6),
+                Text(
+                  failure?.message ??
+                      (snapshot.connectionState == ConnectionState.waiting
+                          ? 'Buscando a mensagem principal do erro no GitHub...'
+                          : 'O GitHub não forneceu uma annotation detalhada para esta falha.'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _RunStatusIcon extends StatelessWidget {
   const _RunStatusIcon({required this.run});
 
@@ -761,7 +1065,10 @@ class _JobIcon extends StatelessWidget {
     }
     return job.conclusion == 'success'
         ? const Icon(Icons.check_circle_outline_rounded)
-        : const Icon(Icons.error_outline_rounded);
+        : Icon(
+            Icons.error_outline_rounded,
+            color: Theme.of(context).colorScheme.error,
+          );
   }
 }
 
@@ -778,9 +1085,10 @@ class _StepIcon extends StatelessWidget {
     if (step.conclusion == 'success') {
       return const Icon(Icons.check_rounded, size: 18);
     }
-    if (step.conclusion == 'skipped') {
-      return const Icon(Icons.remove_rounded, size: 18);
-    }
-    return const Icon(Icons.close_rounded, size: 18);
+    return Icon(
+      Icons.close_rounded,
+      size: 18,
+      color: Theme.of(context).colorScheme.error,
+    );
   }
 }

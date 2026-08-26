@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.0+200014`, primeira versão oficial da nova geração.
+Estado atual: `2.0.1+200015`, com Builds/GitHub Actions e Central de Downloads revisados.
 
 ## Arquitetura
 

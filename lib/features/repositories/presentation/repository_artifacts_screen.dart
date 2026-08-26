@@ -37,13 +37,29 @@ class _RepositoryArtifactsScreenState
   }
 
   void _download(ActionArtifact artifact) {
-    ref.read(downloadManagerProvider).startArtifactApk(
-          repositoryFullName: widget.repositoryFullName,
-          artifact: artifact,
-        );
+    if (artifact.expired) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Este artifact expirou no GitHub e não está mais disponível para download.'),
+        ),
+      );
+      return;
+    }
+    final manager = ref.read(downloadManagerProvider);
+    if (artifact.likelyContainsApk) {
+      manager.startArtifactApk(
+        repositoryFullName: widget.repositoryFullName,
+        artifact: artifact,
+      );
+    } else {
+      manager.startArtifactZip(
+        repositoryFullName: widget.repositoryFullName,
+        artifact: artifact,
+      );
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Download iniciado. Acompanhe pelo botão de Downloads.'),
+        content: Text('Download iniciado. Acompanhe pela Central de Downloads.'),
       ),
     );
   }
@@ -133,18 +149,32 @@ class _RepositoryArtifactsScreenState
                         Text(
                           '${_formatBytes(artifact.sizeBytes)} • ${_formatDate(artifact.createdAt)}',
                         ),
+                        if (artifact.expired) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Expirado — o GitHub removeu os arquivos deste artifact.',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 10),
                         Align(
                           alignment: Alignment.centerRight,
                           child: FilledButton.tonalIcon(
-                            onPressed: artifact.likelyContainsApk
-                                ? () => _download(artifact)
-                                : null,
-                            icon: const Icon(Icons.download_rounded),
+                            onPressed: artifact.expired ? null : () => _download(artifact),
+                            icon: Icon(
+                              artifact.expired
+                                  ? Icons.history_toggle_off_rounded
+                                  : Icons.download_rounded,
+                            ),
                             label: Text(
-                              artifact.likelyContainsApk
-                                  ? 'Baixar APK'
-                                  : 'Sem APK detectado',
+                              artifact.expired
+                                  ? 'Artifact expirado'
+                                  : artifact.likelyContainsApk
+                                      ? 'Baixar APK'
+                                      : 'Baixar artifact',
                             ),
                           ),
                         ),

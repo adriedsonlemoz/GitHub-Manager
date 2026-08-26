@@ -62,13 +62,28 @@ final class GitHubValidationException extends AppException {
         );
 }
 
+final class DownloadFailureException extends AppException {
+  const DownloadFailureException(
+    super.message, {
+    required String code,
+    required this.endpoint,
+    required this.stage,
+    this.httpStatus,
+    this.apiMessage,
+  }) : super(technicalCode: code);
+
+  final String endpoint;
+  final String stage;
+  final int? httpStatus;
+  final String? apiMessage;
+}
+
 final class InvalidZipException extends AppException {
   // A mensagem e o código têm nomes públicos diferentes de AppException.
   // ignore: use_super_parameters
   const InvalidZipException(String message, {String code = 'INVALID_ZIP'})
       : super(message, technicalCode: code);
 }
-
 
 final class RepositoryFileException extends AppException {
   // ignore: use_super_parameters

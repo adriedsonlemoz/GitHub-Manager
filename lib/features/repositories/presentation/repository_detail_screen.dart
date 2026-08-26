@@ -362,7 +362,9 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
             );
             final latestApk = artifactsAsync.maybeWhen<ActionArtifact?>(
               data: (items) => items
-                  .where((artifact) => artifact.likelyContainsApk)
+                  .where(
+                    (artifact) => artifact.likelyContainsApk && !artifact.expired,
+                  )
                   .firstOrNull,
               orElse: () => null,
             );
