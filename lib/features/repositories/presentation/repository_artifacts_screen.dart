@@ -6,6 +6,7 @@ import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
+import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 
 class RepositoryArtifactsScreen extends ConsumerStatefulWidget {
   const RepositoryArtifactsScreen({
@@ -109,6 +110,172 @@ class _RepositoryArtifactsScreenState
         content: Text('Download da Release iniciado. Acompanhe pela Central de Downloads.'),
       ),
     );
+  }
+
+  Future<void> _publishRelease(ActionArtifact artifact) async {
+    final versionMatch = RegExp(r'(\d+\.\d+\.\d+(?:[-+][A-Za-z0-9._-]+)?)')
+        .firstMatch(artifact.name);
+    final suggestedVersion = versionMatch?.group(1);
+    final now = DateTime.now();
+    String two(int value) => value.toString().padLeft(2, '0');
+    final fallbackTag =
+        'build-${now.year}${two(now.month)}${two(now.day)}-${two(now.hour)}${two(now.minute)}';
+    final tag = TextEditingController(
+      text: suggestedVersion == null ? fallbackTag : 'v$suggestedVersion',
+    );
+    final title = TextEditingController(
+      text: suggestedVersion == null
+          ? 'Versão ${artifact.name}'
+          : 'Versão $suggestedVersion',
+    );
+    final notes = TextEditingController(
+      text: suggestedVersion == null
+          ? 'APK publicado pelo GitHub Manager.'
+          : 'GitHub Manager $suggestedVersion',
+    );
+    var latest = true;
+    var prerelease = false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Publicar GitHub Release'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: tag,
+                  decoration: const InputDecoration(
+                    labelText: 'Tag da versão',
+                    hintText: 'v2.0.15',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: title,
+                  decoration: const InputDecoration(labelText: 'Título'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: notes,
+                  minLines: 3,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                    labelText: 'Novidades / descrição',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: latest,
+                  onChanged: (value) => setDialogState(() => latest = value),
+                  title: const Text('Definir como versão mais recente'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: prerelease,
+                  onChanged: (value) => setDialogState(() => prerelease = value),
+                  title: const Text('Pré-lançamento'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                if (tag.text.trim().isEmpty || title.text.trim().isEmpty) return;
+                Navigator.pop(dialogContext, true);
+              },
+              icon: const Icon(Icons.rocket_launch_outlined),
+              label: const Text('Publicar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      tag.dispose();
+      title.dispose();
+      notes.dispose();
+      return;
+    }
+
+    final phase = ValueNotifier<String>('Preparando publicação');
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Publicando Release'),
+        content: ValueListenableBuilder<String>(
+          valueListenable: phase,
+          builder: (context, value, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(value),
+              const SizedBox(height: 14),
+              const LinearProgressIndicator(),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final repository =
+          await ref.read(repositoryServiceProvider).getRepository(widget.repositoryFullName);
+      final result = await ref.read(artifactServiceProvider).publishArtifactAsRelease(
+            repositoryFullName: widget.repositoryFullName,
+            targetCommitish: repository.defaultBranch,
+            artifact: artifact,
+            tagName: tag.text,
+            releaseName: title.text,
+            notes: notes.text,
+            makeLatest: latest,
+            prerelease: prerelease,
+            onProgress: (value) => phase.value = value,
+          );
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      await _refresh();
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Release publicada'),
+          content: Text(
+            '${result.releaseName}\n\n'
+            'Tag: ${result.tagName}\n'
+            'APK: ${result.assetName}\n\n'
+            'Agora o APK fica disponível na área Releases do GitHub.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_message(error))),
+        );
+      }
+    } finally {
+      phase.dispose();
+      tag.dispose();
+      title.dispose();
+      notes.dispose();
+    }
   }
 
   Future<void> _deleteOlderApks() async {
@@ -489,6 +656,14 @@ class _RepositoryArtifactsScreenState
                                           : 'Baixar artifact',
                                 ),
                               ),
+                              if (!widget.readOnly &&
+                                  artifact.likelyContainsApk &&
+                                  !artifact.expired)
+                                FilledButton.icon(
+                                  onPressed: () => _publishRelease(artifact),
+                                  icon: const Icon(Icons.rocket_launch_outlined),
+                                  label: const Text('Publicar versão'),
+                                ),
                               if (!widget.readOnly)
                                 OutlinedButton.icon(
                                   onPressed: () => _deleteArtifact(artifact),

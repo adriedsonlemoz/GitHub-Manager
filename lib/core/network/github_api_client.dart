@@ -69,6 +69,39 @@ class GitHubApiClient {
   }) =>
       _request<T>('DELETE', path, data: data, cancelToken: cancelToken);
 
+  Future<Response<T>> uploadBinary<T>({
+    required String url,
+    required Stream<List<int>> stream,
+    required int contentLength,
+    required String contentType,
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+  }) async {
+    final token = await _secureStorage.readGitHubToken();
+    if (token == null) {
+      throw const AuthenticationRequiredException();
+    }
+    try {
+      return await _dio.post<T>(
+        url,
+        data: stream,
+        queryParameters: queryParameters,
+        cancelToken: cancelToken,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': contentType,
+            'Content-Length': contentLength,
+            'Accept': GitHubApi.accept,
+            'X-GitHub-Api-Version': GitHubApi.apiVersion,
+          },
+        ),
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<void> downloadRedirectedFile(
     String path,
     String savePath, {
