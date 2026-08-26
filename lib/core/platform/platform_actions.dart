@@ -4,27 +4,30 @@ abstract final class PlatformActions {
   static const _channel = MethodChannel('br.com.githubmanager.app/platform');
 
   static Future<void> openUri(String uri, {String? mimeType}) async {
-    await _channel.invokeMethod<void>('openUri', {
-      'uri': uri,
-      if (mimeType != null) 'mimeType': mimeType,
-    });
+    final arguments = <String, dynamic>{'uri': uri};
+    if (mimeType != null) {
+      arguments['mimeType'] = mimeType;
+    }
+    await _channel.invokeMethod<void>('openUri', arguments);
   }
 
   static Future<void> openFile(String location, {String? mimeType}) async {
-    await _channel.invokeMethod<void>('openFile', {
-      'path': location,
-      if (mimeType != null) 'mimeType': mimeType,
-    });
+    final arguments = <String, dynamic>{'path': location};
+    if (mimeType != null) {
+      arguments['mimeType'] = mimeType;
+    }
+    await _channel.invokeMethod<void>('openFile', arguments);
   }
 
   static Future<String?> installApk(String location) =>
       _channel.invokeMethod<String>('installApk', {'path': location});
 
   static Future<void> shareFile(String location, {String? mimeType}) async {
-    await _channel.invokeMethod<void>('shareFile', {
-      'path': location,
-      if (mimeType != null) 'mimeType': mimeType,
-    });
+    final arguments = <String, dynamic>{'path': location};
+    if (mimeType != null) {
+      arguments['mimeType'] = mimeType;
+    }
+    await _channel.invokeMethod<void>('shareFile', arguments);
   }
 
   static Future<String> publishToDownloads({

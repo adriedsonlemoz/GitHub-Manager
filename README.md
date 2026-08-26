@@ -1,10 +1,10 @@
-# GitHub Manager 2.0.2
+# GitHub Manager 2.0.3
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
 ## Identidade oficial
 
-- versão: `2.0.2+200016`;
+- versão: `2.0.3+200017`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
@@ -19,7 +19,7 @@ O desenvolvimento oficial usa `adriedsonlemoz/GitHub-Manager`. Validações de A
 
 A tela Builds usa `GET /repos/{owner}/{repo}/actions/runs` como fonte principal das execuções recentes. Cada run preserva `workflow_id` e `path`; ao abrir um workflow específico, o filtro é feito localmente. Se o resultado filtrado for vazio, o app consulta também o endpoint específico por workflow ID/arquivo e exibe diagnóstico em vez de transformar automaticamente a resposta em “nenhuma execução”.
 
-A tela mostra workflow, número, branch, commit, data/hora, status e duração. Runs em andamento são atualizados automaticamente. Jobs e steps exibem explicações simples e, em falhas, o app tenta recuperar a annotation principal do check run para destacar job, etapa e mensagem.
+A tela agrupa execuções pelo mesmo commit/envio. Cada grupo mostra data e hora com segundos, SHA curto e origem (`push`, manual ou ambos); dentro dele ficam os workflows relacionados, com número, tentativa, branch, status e duração. Runs em andamento são atualizados automaticamente. Jobs e steps exibem explicações simples e, em falhas, o app tenta recuperar a annotation principal do check run para destacar job, etapa e mensagem.
 
 O botão `Enviar build` da tela do projeto sincroniza o ZIP e verifica as execuções pelo SHA do novo commit. Se o `push` já iniciou o workflow Android APK, nenhuma execução duplicada é criada. Se não iniciou, o app aguarda a indexação e usa `workflow_dispatch`; em repositório recém-criado, também pode disparar por `android-apk.yml` quando a listagem de workflows ainda estiver vazia.
 
@@ -55,4 +55,4 @@ Os workflows `Android APK` e `Android Release` usam os mesmos Secrets oficiais:
 - `KEY_ALIAS`
 - `KEY_PASSWORD`
 
-O certificado público esperado fica em `android/release-signing.properties`. Keystore, `.env` e `key.properties` não fazem parte do projeto entregue.
+A chave oficial desta geração usa o alias `github_manager_release`. O certificado público esperado fica em `android/release-signing.properties`. Keystore, arquivo de Secrets, `.env` e `key.properties` não fazem parte do ZIP do projeto.

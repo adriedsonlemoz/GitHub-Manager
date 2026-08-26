@@ -278,6 +278,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
 
             final data = snapshot.data!;
             final runs = data.runs;
+            final runGroups = _groupRuns(runs);
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 104),
@@ -304,36 +305,12 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                 if (runs.isEmpty)
                   _EmptyRunsCard(diagnostic: data.diagnostic)
                 else
-                  ...runs.map(
-                    (run) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Card(
-                        child: ListTile(
-                          onTap: () => _showRunDetails(run),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 7,
-                          ),
-                          leading: _RunStatusIcon(run: run),
-                          title: Text(
-                            run.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            '${run.name} #${run.runNumber} • ${run.branch}\n'
-                            '${run.shortSha.isEmpty ? 'commit -' : run.shortSha} • ${_formatDate(run.createdAt)}\n'
-                            '${_statusLabel(run)} • ${_formatDuration(run)}',
-                          ),
-                          isThreeLine: true,
-                          trailing: run.isRunning
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.chevron_right_rounded),
-                        ),
+                  ...runGroups.map(
+                    (group) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _RunGroupCard(
+                        group: group,
+                        onRunTap: _showRunDetails,
                       ),
                     ),
                   ),
@@ -343,6 +320,20 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
         ),
       ),
     );
+  }
+
+  static List<_RunGroup> _groupRuns(List<RepositoryWorkflowRun> runs) {
+    final grouped = <String, List<RepositoryWorkflowRun>>{};
+    for (final run in runs) {
+      final hasSha = run.headSha.trim().isNotEmpty;
+      final key = run.event == 'push' && hasSha
+          ? 'push:${run.headSha}'
+          : 'run:${run.id}';
+      grouped.putIfAbsent(key, () => <RepositoryWorkflowRun>[]).add(run);
+    }
+    return grouped.values
+        .map((items) => _RunGroup(List<RepositoryWorkflowRun>.unmodifiable(items)))
+        .toList(growable: false);
   }
 
   String _message(Object error) {
@@ -401,7 +392,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
     final date = value.toLocal();
     String two(int value) => value.toString().padLeft(2, '0');
     return '${two(date.day)}/${two(date.month)}/${date.year} '
-        '${two(date.hour)}:${two(date.minute)}';
+        '${two(date.hour)}:${two(date.minute)}:${two(date.second)}';
   }
 
   static String _jobStatus(RepositoryWorkflowJob job) {
@@ -481,6 +472,117 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
       return 'Conferindo se os arquivos e configurações estão corretos.';
     }
     return 'Etapa técnica executada pelo GitHub Actions.';
+  }
+}
+
+class _RunGroup {
+  const _RunGroup(this.runs);
+
+  final List<RepositoryWorkflowRun> runs;
+
+  RepositoryWorkflowRun get primary => runs.first;
+
+  DateTime? get createdAt {
+    DateTime? earliest;
+    for (final run in runs) {
+      final value = run.createdAt;
+      if (value != null && (earliest == null || value.isBefore(earliest))) {
+        earliest = value;
+      }
+    }
+    return earliest;
+  }
+
+  String get shortSha => primary.shortSha;
+
+  String get title {
+    if (primary.event == 'push') {
+      return 'Atualização';
+    }
+    if (primary.event == 'workflow_dispatch') {
+      return 'Build manual';
+    }
+    return primary.title.trim().isEmpty ? 'Execução' : primary.title;
+  }
+
+  String get eventLabel {
+    if (primary.event == 'workflow_dispatch') {
+      return 'manual';
+    }
+    final event = primary.event.trim();
+    return event.isEmpty ? 'evento -' : event;
+  }
+}
+
+class _RunGroupCard extends StatelessWidget {
+  const _RunGroupCard({
+    required this.group,
+    required this.onRunTap,
+  });
+
+  final _RunGroup group;
+  final ValueChanged<RepositoryWorkflowRun> onRunTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final timestamp = _RepositoryActionsScreenState._formatDate(group.createdAt);
+    final sha = group.shortSha.isEmpty ? 'commit -' : group.shortSha;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${group.title} • $timestamp',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$sha • ${group.eventLabel} • ${group.runs.length} ${group.runs.length == 1 ? 'workflow' : 'workflows'}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...group.runs.map(
+              (run) => ListTile(
+                onTap: () => onRunTap(run),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                leading: _RunStatusIcon(run: run),
+                title: Text('${run.name} #${run.runNumber}'),
+                subtitle: Text(
+                  '${_RepositoryActionsScreenState._formatDate(run.createdAt)} • '
+                  'Tentativa ${run.runAttempt} • ${run.branch}\n'
+                  '${_RepositoryActionsScreenState._statusLabel(run)} • '
+                  '${_RepositoryActionsScreenState._formatDuration(run)}',
+                ),
+                isThreeLine: true,
+                trailing: run.isRunning
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.chevron_right_rounded),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

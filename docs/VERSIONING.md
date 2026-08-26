@@ -4,11 +4,11 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.2+200016`
+`version: 2.0.3+200017`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.2+200016` mantém as correções de Builds/Downloads da 2.0.1 e acrescenta a verificação do disparo de Actions após sincronização, fallback de `workflow_dispatch` para repositórios recém-criados e commit automático `Atualização` com segundos.
+A versão `2.0.3+200017` mantém as correções anteriores e acrescenta a nova assinatura oficial do GitHub Manager, correção dos avisos do analyzer e agrupamento visual das execuções por commit/envio com horário até segundos e número da tentativa.

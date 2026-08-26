@@ -105,7 +105,12 @@ jobs:
           ACTUAL_ID="$("$APKANALYZER" manifest application-id "$SOURCE")"
           ACTUAL_CERT="$("$APKSIGNER" verify --print-certs "$SOURCE" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           test "$ACTUAL_ID" = "$EXPECTED_ID" || { echo "applicationId incorreto: $ACTUAL_ID"; exit 1; }
-          test "$ACTUAL_CERT" = "$EXPECTED_CERT" || { echo "APK assinado com certificado diferente da chave oficial"; exit 1; }
+          if [ "$ACTUAL_CERT" != "$EXPECTED_CERT" ]; then
+            echo "APK assinado com certificado diferente da chave oficial"
+            echo "SHA-256 esperado: $EXPECTED_CERT"
+            echo "SHA-256 encontrado: $ACTUAL_CERT"
+            exit 1
+          fi
 
           VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1)"
           VERSION_NAME="${VERSION%%+*}"

@@ -5,7 +5,7 @@ O novo GitHub Manager possui identidade própria e definitiva.
 ## Identidade Android
 
 - applicationId: `br.com.githubmanager.app`
-- versão atual: `2.0.2+200016`
+- versão atual: `2.0.3+200017`
 - build: Release AOT universal
 
 ## Secrets obrigatórios
@@ -17,11 +17,11 @@ Os dois workflows que geram APK restauram a mesma keystore através de:
 - `KEY_ALIAS`
 - `KEY_PASSWORD`
 
-Não existem Secrets de teste no fluxo oficial.
+Não existem Secrets de teste no fluxo oficial. A chave oficial atual usa o alias `github_manager_release`.
 
 ## Certificado
 
-O SHA-256 público do certificado oficial está em `android/release-signing.properties`.
+O SHA-256 público do certificado oficial está em `android/release-signing.properties` e corresponde à nova keystore criada especificamente para GitHub Manager.
 Depois da compilação, o GitHub Actions extrai o certificado do APK e compara com esse valor. Uma chave diferente faz a build falhar.
 
 ## Regra permanente
