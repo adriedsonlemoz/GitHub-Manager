@@ -1,0 +1,384 @@
+import 'package:flutter/material.dart';
+import 'package:github_manager/core/widgets/adaptive_dialog.dart';
+import 'package:github_manager/features/repositories/domain/github_repository.dart';
+
+class RepositoryDraft {
+  const RepositoryDraft({
+    required this.name,
+    required this.description,
+    required this.isPrivate,
+    required this.homepage,
+    this.isArchived = false,
+  });
+
+  final String name;
+  final String description;
+  final String homepage;
+  final bool isPrivate;
+  final bool isArchived;
+}
+
+enum RepositoryAction { edit, delete }
+
+Future<RepositoryDraft?> showCreateRepositoryDialog(BuildContext context) =>
+    showDialog<RepositoryDraft>(
+      context: context,
+      builder: (context) => const _CreateRepositoryDialog(),
+    );
+
+Future<RepositoryDraft?> showEditRepositoryDialog(
+  BuildContext context,
+  GitHubRepository repository,
+) =>
+    showDialog<RepositoryDraft>(
+      context: context,
+      builder: (context) => _EditRepositoryDialog(repository: repository),
+    );
+
+Future<bool?> showDeleteRepositoryDialog(
+  BuildContext context,
+  GitHubRepository repository,
+) =>
+    showDialog<bool>(
+      context: context,
+      builder: (context) => _DeleteRepositoryDialog(repository: repository),
+    );
+
+Future<RepositoryAction?> showRepositoryActionsSheet(
+  BuildContext context,
+  GitHubRepository repository,
+) =>
+    showModalBottomSheet<RepositoryAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => _RepositoryActionsSheet(repository: repository),
+    );
+
+class _CreateRepositoryDialog extends StatefulWidget {
+  const _CreateRepositoryDialog();
+
+  @override
+  State<_CreateRepositoryDialog> createState() => _CreateRepositoryDialogState();
+}
+
+class _CreateRepositoryDialogState extends State<_CreateRepositoryDialog> {
+  final _name = TextEditingController();
+  final _description = TextEditingController();
+  final _homepage = TextEditingController();
+  bool _private = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _description.dispose();
+    _homepage.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(
+                        Icons.create_new_folder_outlined,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Novo repositório',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Fechar',
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _name,
+                  autofocus: true,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome',
+                    hintText: 'meu-projeto',
+                    prefixIcon: Icon(Icons.folder_outlined),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _description,
+                  decoration: const InputDecoration(
+                    labelText: 'Descrição',
+                    prefixIcon: Icon(Icons.notes_rounded),
+                  ),
+                  minLines: 2,
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _homepage,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    labelText: 'Site / link relacionado',
+                    hintText: 'https://exemplo.com',
+                    prefixIcon: Icon(Icons.link_rounded),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 2),
+                  title: const Text('Repositório privado'),
+                  subtitle: Text(_private ? 'Somente pessoas autorizadas' : 'Visível publicamente'),
+                  value: _private,
+                  onChanged: (value) => setState(() => _private = value),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'O repositório será inicializado e ficará pronto para receber arquivos e builds.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: () {
+                        if (_name.text.trim().isEmpty) {
+                          return;
+                        }
+                        Navigator.pop(
+                          context,
+                          RepositoryDraft(
+                            name: _name.text.trim(),
+                            description: _description.text.trim(),
+                            homepage: _homepage.text.trim(),
+                            isPrivate: _private,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Criar'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+}
+
+class _EditRepositoryDialog extends StatefulWidget {
+  const _EditRepositoryDialog({required this.repository});
+  final GitHubRepository repository;
+
+  @override
+  State<_EditRepositoryDialog> createState() => _EditRepositoryDialogState();
+}
+
+class _EditRepositoryDialogState extends State<_EditRepositoryDialog> {
+  late final TextEditingController _name;
+  late final TextEditingController _description;
+  late final TextEditingController _homepage;
+  late bool _private;
+  late bool _archived;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.repository.name);
+    _description = TextEditingController(text: widget.repository.description ?? '');
+    _homepage = TextEditingController(text: widget.repository.homepage ?? '');
+    _private = widget.repository.isPrivate;
+    _archived = widget.repository.isArchived;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _description.dispose();
+    _homepage.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Editar repositório'),
+        content: AdaptiveDialogBody(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _name,
+                  decoration: const InputDecoration(labelText: 'Nome do repositório'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _description,
+                  decoration: const InputDecoration(labelText: 'Descrição'),
+                  maxLines: 4,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _homepage,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    labelText: 'Site / link relacionado',
+                    helperText: 'A API permite editar homepage. A URL github.com/owner/repo é gerada automaticamente pelo GitHub.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SelectableText(
+                  'URL do repositório: ${widget.repository.htmlUrl}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Privado'),
+                  value: _private,
+                  onChanged: (value) => setState(() => _private = value),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Arquivado'),
+                  value: _archived,
+                  onChanged: (value) => setState(() => _archived = value),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () {
+              if (_name.text.trim().isEmpty) {
+                return;
+              }
+              Navigator.pop(
+                context,
+                RepositoryDraft(
+                  name: _name.text.trim(),
+                  description: _description.text.trim(),
+                  homepage: _homepage.text.trim(),
+                  isPrivate: _private,
+                  isArchived: _archived,
+                ),
+              );
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      );
+}
+
+class _RepositoryActionsSheet extends StatelessWidget {
+  const _RepositoryActionsSheet({required this.repository});
+  final GitHubRepository repository;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(repository.fullName),
+                subtitle: Text(repository.isPrivate ? 'Privado' : 'Público'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Editar repositório'),
+                onTap: () => Navigator.pop(context, RepositoryAction.edit),
+              ),
+              ListTile(
+                leading: Icon(Icons.delete_forever_outlined, color: Theme.of(context).colorScheme.error),
+                title: const Text('Excluir permanentemente'),
+                onTap: () => Navigator.pop(context, RepositoryAction.delete),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _DeleteRepositoryDialog extends StatefulWidget {
+  const _DeleteRepositoryDialog({required this.repository});
+  final GitHubRepository repository;
+
+  @override
+  State<_DeleteRepositoryDialog> createState() => _DeleteRepositoryDialogState();
+}
+
+class _DeleteRepositoryDialogState extends State<_DeleteRepositoryDialog> {
+  final _confirmation = TextEditingController();
+
+  @override
+  void dispose() {
+    _confirmation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Excluir repositório?'),
+        content: AdaptiveDialogBody(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Esta ação é permanente. Digite o nome abaixo para confirmar:'),
+              const SizedBox(height: 8),
+              SelectableText(widget.repository.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _confirmation,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(labelText: 'Nome do repositório'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: _confirmation.text.trim() == widget.repository.name
+                ? () => Navigator.pop(context, true)
+                : null,
+            child: const Text('Excluir'),
+          ),
+        ],
+      );
+}

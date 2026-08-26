@@ -1,0 +1,33 @@
+name: github_manager
+description: GitHub Manager - gerenciador local-first de projetos, builds e repositórios GitHub para Android.
+publish_to: "none"
+
+# Fonte canônica de versionName/versionCode.
+# Nunca duplicar a versão manualmente em Gradle, UI ou workflows.
+version: 2.0.0+200014
+
+environment:
+  sdk: ">=3.13.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.11.0
+  flutter_riverpod: ^3.4.2
+  go_router: ^18.0.0
+  flutter_secure_storage: 10.0.0
+  sqflite: ^2.4.3
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  file_picker: 12.0.0
+  archive: 4.1.0
+  pinenacl: 0.6.0
+  xml: ^7.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

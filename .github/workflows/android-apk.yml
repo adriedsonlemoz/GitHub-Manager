@@ -1,0 +1,149 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build APK oficial universal
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Java 17 + cache Gradle
+        uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            android/*.gradle*
+            android/app/*.gradle*
+            android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Flutter 3.47.1
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: "3.47.1"
+          channel: stable
+          cache: true
+          pub-cache: true
+
+      - name: Restaurar assinatura oficial
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${KEYSTORE_BASE64:-}" || { echo "KEYSTORE_BASE64 ausente"; exit 1; }
+          test -n "${KEYSTORE_PASSWORD:-}" || { echo "KEYSTORE_PASSWORD ausente"; exit 1; }
+          test -n "${KEY_ALIAS:-}" || { echo "KEY_ALIAS ausente"; exit 1; }
+          test -n "${KEY_PASSWORD:-}" || { echo "KEY_PASSWORD ausente"; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+          cat > android/key.properties <<KEYEOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=../upload-keystore.jks
+          KEYEOF
+
+      - name: Dependências
+        run: flutter pub get
+
+      - name: Validar versão canônica
+        run: bash tool/check_version_sync.sh
+
+      - name: Materializar Gradle Wrapper
+        run: bash tool/bootstrap_gradle_wrapper.sh
+
+      - name: Validar assinatura oficial configurada
+        shell: bash
+        run: |
+          cd android
+          bash gradlew :app:validateOfficialSigning
+
+      - name: Compilar APK oficial universal
+        env:
+          GRADLE_OPTS: -Dorg.gradle.vfs.watch=false
+        run: flutter build apk --release --no-pub
+
+      - name: Validar APK, assinatura e compatibilidade
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="build/app/outputs/flutter-apk/app-release.apk"
+          test -f "$SOURCE" || { echo "APK não foi gerado em $SOURCE" >&2; exit 1; }
+
+          unzip -l "$SOURCE" | grep -q 'lib/armeabi-v7a/libflutter.so' || { echo "APK sem armeabi-v7a (32-bit)" >&2; exit 1; }
+          unzip -l "$SOURCE" | grep -q 'lib/arm64-v8a/libflutter.so' || { echo "APK sem arm64-v8a (64-bit)" >&2; exit 1; }
+
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          APKANALYZER="$(find "$SDK_ROOT/cmdline-tools" "$SDK_ROOT/tools" -type f -name apkanalyzer 2>/dev/null | head -n1 || true)"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n1 || true)"
+          test -x "$APKANALYZER" || { echo "apkanalyzer não encontrado"; exit 1; }
+          test -x "$APKSIGNER" || { echo "apksigner não encontrado"; exit 1; }
+
+          EXPECTED_ID="$(sed -n 's/^applicationId=//p' android/release-signing.properties | head -n1)"
+          EXPECTED_CERT="$(sed -n 's/^certificateSha256=//p' android/release-signing.properties | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          ACTUAL_ID="$("$APKANALYZER" manifest application-id "$SOURCE")"
+          ACTUAL_CERT="$("$APKSIGNER" verify --print-certs "$SOURCE" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          test "$ACTUAL_ID" = "$EXPECTED_ID" || { echo "applicationId incorreto: $ACTUAL_ID"; exit 1; }
+          test "$ACTUAL_CERT" = "$EXPECTED_CERT" || { echo "APK assinado com certificado diferente da chave oficial"; exit 1; }
+
+          VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1)"
+          VERSION_NAME="${VERSION%%+*}"
+          VERSION_CODE="${VERSION##*+}"
+          FILE="GitHub-Manager-${VERSION_NAME}-${VERSION_CODE}-universal-release.apk"
+          BYTES="$(stat -c%s "$SOURCE")"
+          MIB="$(awk -v b="$BYTES" 'BEGIN { printf "%.2f", b / 1048576 }')"
+          mkdir -p dist
+          cp "$SOURCE" "dist/$FILE"
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "size_mib=$MIB" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar APK oficial
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: ${{ steps.package.outputs.file }}
+          path: dist/${{ steps.package.outputs.file }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Resumo
+        shell: bash
+        run: |
+          {
+            echo "## APK oficial gerado com sucesso"
+            echo ""
+            echo "- Arquivo: \`${{ steps.package.outputs.file }}\`"
+            echo "- Tamanho: **${{ steps.package.outputs.size_mib }} MiB**"
+            echo "- versionName: \`${{ steps.package.outputs.version_name }}\`"
+            echo "- versionCode: \`${{ steps.package.outputs.version_code }}\`"
+            echo "- applicationId: \`br.com.githubmanager.app\`"
+            echo "- Compatibilidade: **armeabi-v7a + arm64-v8a**"
+            echo "- Assinatura: **oficial definitiva**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Limpar material de assinatura
+        if: always()
+        run: rm -f android/upload-keystore.jks android/key.properties
