@@ -66,6 +66,13 @@ class UploadProgressDialog extends ConsumerWidget {
                 if (item.isActive) ...[
                   const SizedBox(height: 10),
                   LinearProgressIndicator(value: progress),
+                  if (item.analyzedFiles > 0) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      item.syncSummaryLabel,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 14),
                 Container(
@@ -79,13 +86,13 @@ class UploadProgressDialog extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Processo',
+                        'Etapas recentes',
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
                               fontWeight: FontWeight.w800,
                             ),
                       ),
                       const SizedBox(height: 5),
-                      ...item.logLines.reversed.take(6).toList().reversed.map(
+                      ...item.timelineLines.reversed.take(6).toList().reversed.map(
                             (line) => Padding(
                               padding: const EdgeInsets.only(bottom: 2),
                               child: Text(

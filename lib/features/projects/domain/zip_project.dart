@@ -46,20 +46,37 @@ class ZipProjectPreview {
   }
 }
 
+enum ProjectUploadProgressKind {
+  stage,
+  unchanged,
+  changed,
+  resumed,
+  transferStarted,
+  removed,
+}
+
 class ProjectUploadProgress {
   const ProjectUploadProgress({
     required this.phase,
     this.current = 0,
     this.total = 0,
     this.fileName,
+    this.kind = ProjectUploadProgressKind.stage,
+    this.affectedCount = 0,
   });
 
   final String phase;
   final int current;
   final int total;
   final String? fileName;
+  final ProjectUploadProgressKind kind;
+  final int affectedCount;
 
   double? get fraction => total <= 0 ? null : current / total;
+
+  bool get isFileActivity =>
+      kind != ProjectUploadProgressKind.stage &&
+      kind != ProjectUploadProgressKind.removed;
 }
 
 class ProjectUploadResult {

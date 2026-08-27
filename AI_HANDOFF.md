@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.23+200037`, com Central de Envios global/minimizável, serviço Android em primeiro plano, notificação persistente de progresso, checkpoints de blobs e retomada automática de envios interrompidos pelo processo.
+Estado atual: `2.0.24+200038`, com Central de Envios global/minimizável, serviço Android em primeiro plano, retomada por checkpoint e relatório de envio visual/textual resumido por métricas e etapas.
 
 ## Arquitetura
 
@@ -27,6 +27,7 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 - Builds agrupadas por commit/envio, com horário até segundos e número da tentativa;
 - Enviar build sincroniza o ZIP e garante o disparo do Android APK sem duplicar runs;
 - Central de Envios permite minimizar a sincronização, navegar no app, acompanhar fila/histórico e repetir interrupções;
+- relatório de envio separa resumo, arquivos alterados, GitHub/build e linha do tempo, evitando logs repetitivos por arquivo;
 - upload reutiliza blobs cujo SHA Git já corresponde ao conteúdo do ZIP e serializa envios para reduzir chamadas mutativas concorrentes;
 - artifacts/APK;
 - Commits;

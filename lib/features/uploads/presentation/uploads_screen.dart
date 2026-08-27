@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
+import 'package:github_manager/features/uploads/presentation/upload_details_dialog.dart';
 import 'package:github_manager/features/uploads/presentation/upload_providers.dart';
 import 'package:go_router/go_router.dart';
 
@@ -282,6 +282,15 @@ class _UploadCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
+            if (!item.isActive &&
+                (item.status == ManagedUploadStatus.completed ||
+                    item.status == ManagedUploadStatus.noChanges)) ...[
+              const SizedBox(height: 5),
+              Text(
+                item.syncSummaryLabel,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             if (item.errorMessage?.isNotEmpty == true) ...[
               const SizedBox(height: 9),
               Text(
@@ -340,7 +349,7 @@ class _UploadCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: () => _showDetails(context, item),
                   icon: const Icon(Icons.receipt_long_outlined),
-                  label: const Text('Detalhes'),
+                  label: const Text('Relatório'),
                 ),
                 if (onRemove != null)
                   IconButton(
@@ -361,25 +370,7 @@ class _UploadCard extends StatelessWidget {
   static Future<void> _showDetails(BuildContext context, ManagedUpload item) async {
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Detalhes do envio'),
-        content: SingleChildScrollView(
-          child: SelectableText(item.technicalLog),
-        ),
-        actions: [
-          TextButton.icon(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: item.technicalLog));
-            },
-            icon: const Icon(Icons.copy_rounded),
-            label: const Text('Copiar log'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
+      builder: (_) => UploadDetailsDialog(item: item),
     );
   }
 }

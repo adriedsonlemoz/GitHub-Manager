@@ -279,6 +279,7 @@ class UploadManagerService {
       ..current = 0
       ..total = item.fileCount
       ..currentFile = null;
+    item.resetFileSummary();
     item.addLog('Preparando arquivo durável para o envio');
     _emit();
     await _persistHistory();
@@ -298,7 +299,6 @@ class UploadManagerService {
         reusableBlobShas: Map<String, String>.from(item.uploadedBlobShas),
         onBlobUploaded: (path, sha) {
           item.uploadedBlobShas[path] = sha;
-          item.addLog('Checkpoint salvo: $path');
           _emit();
           unawaited(_persistHistory());
         },
@@ -309,10 +309,10 @@ class UploadManagerService {
             ..current = progress.current
             ..total = progress.total > 0 ? progress.total : item.fileCount
             ..currentFile = progress.fileName;
-          final detail = progress.fileName?.trim().isNotEmpty == true
-              ? '${progress.phase}: ${progress.fileName}'
-              : progress.phase;
-          item.addLog(detail);
+          item.recordProgress(progress);
+          if (!progress.isFileActivity) {
+            item.addLog(progress.phase);
+          }
           _emit();
           _schedulePersist();
         },
@@ -421,6 +421,7 @@ class UploadManagerService {
 
   void _fail(ManagedUpload item, Object error, {required String stage}) {
     final appError = error is AppException ? error : null;
+    final failedFile = item.currentFile;
     item
       ..status = ManagedUploadStatus.failed
       ..failedAt = DateTime.now()
@@ -428,6 +429,7 @@ class UploadManagerService {
       ..errorMessage = appError?.message ?? 'Não foi possível concluir o envio.'
       ..errorCode = appError?.technicalCode ?? error.runtimeType.toString()
       ..failureStage = stage
+      ..failedFilePath = failedFile
       ..currentFile = null;
     item.addLog('${item.phase}: ${item.errorMessage}');
     _emit();

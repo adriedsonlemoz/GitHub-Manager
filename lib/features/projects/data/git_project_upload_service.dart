@@ -143,6 +143,7 @@ class GitProjectUploadService {
               current: processed,
               total: project.fileCount,
               fileName: gitPath,
+              kind: ProjectUploadProgressKind.unchanged,
             ),
           );
           continue;
@@ -163,6 +164,7 @@ class GitProjectUploadService {
               current: processed,
               total: project.fileCount,
               fileName: gitPath,
+              kind: ProjectUploadProgressKind.resumed,
             ),
           );
           continue;
@@ -188,6 +190,7 @@ class GitProjectUploadService {
               current: processed,
               total: project.fileCount,
               fileName: gitPath,
+              kind: ProjectUploadProgressKind.transferStarted,
             ),
           );
           final blobResponse = await _client.post<Map<String, dynamic>>(
@@ -220,6 +223,7 @@ class GitProjectUploadService {
             current: processed,
             total: project.fileCount,
             fileName: gitPath,
+            kind: ProjectUploadProgressKind.changed,
           ),
         );
       }
@@ -247,6 +251,10 @@ class GitProjectUploadService {
             : 'Removendo ${stalePaths.length} arquivo(s) antigo(s)',
         current: project.fileCount,
         total: project.fileCount,
+        kind: stalePaths.isEmpty
+            ? ProjectUploadProgressKind.stage
+            : ProjectUploadProgressKind.removed,
+        affectedCount: stalePaths.length,
       ),
     );
     final treeResponse = await _client.post<Map<String, dynamic>>(
