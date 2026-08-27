@@ -91,11 +91,11 @@ class _RepositoryArtifactsScreenState
   }
 
   void _downloadRelease(ReleaseAsset asset) {
-    ref.read(downloadManagerProvider).startPublicUrl(
+    ref.read(downloadManagerProvider).startReleaseAsset(
           title: '${asset.tagName} • ${asset.name}',
           fileName: asset.name,
           repositoryFullName: widget.repositoryFullName,
-          url: asset.downloadUrl,
+          assetId: asset.id,
           isApk: asset.isApk,
         );
     showCenteredNotice(context, 'Download da Release iniciado. Acompanhe pela Central de Downloads.');
@@ -524,7 +524,7 @@ class _RepositoryArtifactsScreenState
                         child: ExpansionTile(
                           initiallyExpanded: widget.readOnly,
                           leading: const Icon(Icons.new_releases_outlined),
-                          title: const Text('Releases públicas'),
+                          title: const Text('Releases'),
                           subtitle: Text('${releases.length} arquivo(s) disponível(is)'),
                           children: releases.take(20).map(
                             (asset) => ListTile(

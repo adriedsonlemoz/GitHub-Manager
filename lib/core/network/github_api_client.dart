@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:github_manager/core/constants/github_api.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
@@ -172,6 +174,122 @@ class GitHubApiClient {
         error,
         endpoint: path,
         stage: 'baixar_arquivo',
+        temporaryUrl: true,
+      );
+    }
+  }
+
+  Future<void> downloadReleaseAssetFile(
+    String path,
+    String savePath, {
+    ProgressCallback? onReceiveProgress,
+    CancelToken? cancelToken,
+  }) async {
+    final token = await _secureStorage.readGitHubToken();
+    if (token == null) {
+      throw const AuthenticationRequiredException();
+    }
+
+    Response<ResponseBody> response;
+    try {
+      response = await _dio.get<ResponseBody>(
+        path,
+        cancelToken: cancelToken,
+        options: Options(
+          followRedirects: false,
+          validateStatus: (_) => true,
+          responseType: ResponseType.stream,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/octet-stream',
+          },
+        ),
+      );
+    } on DioException catch (error) {
+      throw _mapDownloadDioException(
+        error,
+        endpoint: path,
+        stage: 'obter_release_asset',
+      );
+    }
+
+    final status = response.statusCode;
+    if (status == 200) {
+      final body = response.data;
+      if (body == null) {
+        throw DownloadFailureException(
+          'O GitHub não retornou o conteúdo do arquivo da Release.',
+          code: 'RELEASE_ASSET_EMPTY',
+          endpoint: path,
+          stage: 'baixar_release_asset',
+          httpStatus: status,
+        );
+      }
+      final file = File(savePath);
+      final sink = file.openWrite();
+      var received = 0;
+      final total =
+          int.tryParse(response.headers.value('content-length') ?? '') ?? -1;
+      try {
+        await for (final chunk in body.stream) {
+          if (cancelToken?.isCancelled == true) {
+            throw DownloadFailureException(
+              'Download cancelado.',
+              code: 'DOWNLOAD_CANCELLED',
+              endpoint: path,
+              stage: 'baixar_release_asset',
+            );
+          }
+          sink.add(chunk);
+          received += chunk.length;
+          onReceiveProgress?.call(received, total);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+      return;
+    }
+
+    if (!_isRedirect(status)) {
+      throw _downloadHttpFailure(
+        endpoint: path,
+        stage: 'obter_release_asset',
+        status: status,
+        data: null,
+        remaining: response.headers.value('x-ratelimit-remaining'),
+      );
+    }
+
+    final location = response.headers.value('location');
+    if (location == null || location.isEmpty) {
+      throw DownloadFailureException(
+        'O GitHub não retornou a URL temporária do arquivo da Release.',
+        code: 'RELEASE_ASSET_REDIRECT_MISSING',
+        endpoint: path,
+        stage: 'obter_release_asset',
+        httpStatus: status,
+      );
+    }
+
+    final downloadDio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(minutes: 10),
+      ),
+    );
+    try {
+      await downloadDio.download(
+        location,
+        savePath,
+        cancelToken: cancelToken,
+        onReceiveProgress: onReceiveProgress,
+      );
+    } on DioException catch (error) {
+      throw _mapDownloadDioException(
+        error,
+        endpoint: path,
+        stage: 'baixar_release_asset',
         temporaryUrl: true,
       );
     }

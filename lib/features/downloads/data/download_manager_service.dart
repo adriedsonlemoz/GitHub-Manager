@@ -126,6 +126,23 @@ class DownloadManagerService {
     );
   }
 
+  ManagedDownload startReleaseAsset({
+    required String title,
+    required String fileName,
+    required String repositoryFullName,
+    required int assetId,
+    required bool isApk,
+  }) {
+    final endpoint = '/repos/$repositoryFullName/releases/assets/$assetId';
+    return _startRedirected(
+      title: title,
+      fileName: fileName,
+      type: isApk ? ManagedDownloadType.apk : ManagedDownloadType.file,
+      repositoryFullName: repositoryFullName,
+      endpoint: endpoint,
+    );
+  }
+
   ManagedDownload startPublicUrl({
     required String title,
     required String fileName,
@@ -257,6 +274,7 @@ class DownloadManagerService {
     );
     _items.insert(0, item);
     _emit();
+    unawaited(_persistHistory());
     return item;
   }
 
@@ -339,13 +357,23 @@ class DownloadManagerService {
         ..fileName = p.basename(completedFile.path)
         ..sourceEndpoint = endpoint;
       _markStarted(item);
-      await _client.downloadRedirectedFile(
-        endpoint,
-        partialFile.path,
-        cancelToken: cancelToken,
-        onReceiveProgress: (received, total) =>
-            _updateProgress(item, received, total),
-      );
+      final onProgress = (int received, int total) =>
+          _updateProgress(item, received, total);
+      if (endpoint.contains('/releases/assets/')) {
+        await _client.downloadReleaseAssetFile(
+          endpoint,
+          partialFile.path,
+          cancelToken: cancelToken,
+          onReceiveProgress: onProgress,
+        );
+      } else {
+        await _client.downloadRedirectedFile(
+          endpoint,
+          partialFile.path,
+          cancelToken: cancelToken,
+          onReceiveProgress: onProgress,
+        );
+      }
       if (item.status == ManagedDownloadStatus.cancelled) {
         return;
       }
@@ -522,6 +550,7 @@ class DownloadManagerService {
       ..estimatedSecondsRemaining = null;
     _progressSamples[item.id] = _ProgressSample(now, 0, 0);
     _emit();
+    unawaited(_persistHistory());
   }
 
   void _updateProgress(ManagedDownload item, int received, int total) {
@@ -729,19 +758,30 @@ class DownloadManagerService {
       if (decoded is! List) {
         return;
       }
+      final restored = decoded
+          .whereType<Map>()
+          .map(
+            (json) => ManagedDownload.fromJson(
+              Map<String, dynamic>.from(json),
+            ),
+          )
+          .toList(growable: false);
+      for (final item in restored) {
+        if (item.isActive) {
+          item.markInterruptedByAppExit();
+        }
+      }
+      final liveItems = List<ManagedDownload>.from(_items);
+      final liveIds = liveItems.map((item) => item.id).toSet();
+      final merged = <ManagedDownload>[
+        ...liveItems,
+        ...restored.where((item) => !liveIds.contains(item.id)),
+      ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _items
         ..clear()
-        ..addAll(
-          decoded
-              .whereType<Map>()
-              .map(
-                (json) => ManagedDownload.fromJson(
-                  Map<String, dynamic>.from(json),
-                ),
-              )
-              .where((item) => !item.isActive),
-        );
+        ..addAll(merged);
       _emit();
+      await _persistHistory();
     } catch (_) {
       // Histórico é auxiliar e nunca bloqueia o restante do aplicativo.
     }
@@ -751,7 +791,6 @@ class DownloadManagerService {
     try {
       final file = await _historyFile();
       final history = _items
-          .where((item) => !item.isActive)
           .take(100)
           .map((item) => item.toJson())
           .toList(growable: false);

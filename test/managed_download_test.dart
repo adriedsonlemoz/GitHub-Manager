@@ -28,4 +28,25 @@ void main() {
     expect(restored.technicalLog, contains('HTTP: 410'));
     expect(restored.technicalLog, isNot(contains('Authorization')));
   });
+
+  test('active download can be restored as interrupted and retried', () {
+    final item = ManagedDownload(
+      id: '2',
+      title: 'Release privada',
+      fileName: 'app-release.apk',
+      type: ManagedDownloadType.apk,
+      status: ManagedDownloadStatus.downloading,
+      createdAt: DateTime.utc(2026, 8, 26),
+      repositoryFullName: 'owner/private',
+      sourceEndpoint: '/repos/owner/private/releases/assets/77',
+    );
+
+    item.markInterruptedByAppExit();
+    final restored = ManagedDownload.fromJson(item.toJson());
+
+    expect(restored.status, ManagedDownloadStatus.interrupted);
+    expect(restored.statusLabel, 'Interrompido');
+    expect(restored.canRetry, isTrue);
+    expect(restored.errorCode, 'DOWNLOAD_APP_INTERRUPTED');
+  });
 }

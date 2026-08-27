@@ -1,6 +1,13 @@
 enum ManagedDownloadType { apk, projectZip, logs, artifact, file }
 
-enum ManagedDownloadStatus { queued, downloading, completed, failed, cancelled }
+enum ManagedDownloadStatus {
+  queued,
+  downloading,
+  completed,
+  failed,
+  interrupted,
+  cancelled,
+}
 
 class ManagedDownload {
   ManagedDownload({
@@ -62,6 +69,7 @@ class ManagedDownload {
 
   bool get canRetry =>
       (status == ManagedDownloadStatus.failed ||
+          status == ManagedDownloadStatus.interrupted ||
           status == ManagedDownloadStatus.cancelled) &&
       sourceEndpoint != null &&
       sourceEndpoint!.isNotEmpty;
@@ -87,6 +95,7 @@ class ManagedDownload {
         ManagedDownloadStatus.downloading => 'Baixando',
         ManagedDownloadStatus.completed => 'Concluído',
         ManagedDownloadStatus.failed => 'Falhou',
+        ManagedDownloadStatus.interrupted => 'Interrompido',
         ManagedDownloadStatus.cancelled => 'Cancelado',
       };
 
@@ -108,6 +117,16 @@ class ManagedDownload {
       if (responseMessage != null) 'Mensagem da API: $responseMessage',
     ];
     return lines.join('\n');
+  }
+
+  void markInterruptedByAppExit() {
+    status = ManagedDownloadStatus.interrupted;
+    failedAt = DateTime.now();
+    bytesPerSecond = 0;
+    estimatedSecondsRemaining = null;
+    errorMessage = 'Download interrompido porque o aplicativo foi encerrado.';
+    errorCode = 'DOWNLOAD_APP_INTERRUPTED';
+    failureStage = 'download';
   }
 
   void resetForRetry() {

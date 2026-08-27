@@ -92,7 +92,7 @@ class ArtifactService {
             tagName: tag,
             publishedAt: published,
           );
-          if (asset.downloadUrl.isNotEmpty) result.add(asset);
+          if (asset.id > 0) result.add(asset);
         }
       }
     }

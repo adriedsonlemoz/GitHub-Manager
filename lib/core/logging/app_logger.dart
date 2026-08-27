@@ -6,12 +6,12 @@ abstract final class AppLogger {
     RegExp(r'((token|api[_-]?key|password|secret)\s*[=:]\s*)[^\s,}]+', caseSensitive: false),
   ];
 
-  static void info(String message) => developer.log(_sanitize(message), name: 'AL.Sistemas');
+  static void info(String message) => developer.log(_sanitize(message), name: 'GitHubManager');
 
   static void error(String message, {Object? error, StackTrace? stackTrace}) {
     developer.log(
       _sanitize(message),
-      name: 'AL.Sistemas',
+      name: 'GitHubManager',
       error: error == null ? null : _sanitize(error.toString()),
       stackTrace: stackTrace,
       level: 1000,

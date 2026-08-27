@@ -24,9 +24,9 @@ A interface diferencia API vazia, filtro sem correspondência e erro de consulta
 
 O fluxo `Enviar build` não assume mais que atualizar `refs/heads/{branch}` significa que o Actions iniciou. Depois do commit, o app consulta `GET /repos/{owner}/{repo}/actions/runs?head_sha={sha}` e procura especificamente a execução do workflow de APK.
 
-Se o APK não aparecer após algumas verificações, o app lista os workflows e inicia o `Android APK` por `workflow_dispatch`. Em um repositório recém-criado, caso a listagem de workflows ainda esteja vazia mas `.github/workflows/android-apk.yml` já exista na branch padrão, o app tenta o dispatch pelo nome do arquivo. O GitHub aceita ID ou nome do arquivo no endpoint de dispatch.
+Se o APK não aparecer após algumas verificações, o app inspeciona o conteúdo dos workflows ativos. A seleção manual exige duas evidências estruturais: `workflow_dispatch` no bloco `on` e uma etapa em `jobs` que realmente gere ou publique APK. O nome do arquivo serve apenas para priorizar a busca. Em repositórios recém-criados, o fallback examina todos os YAMLs de `.github/workflows`, sem depender de `android-apk.yml`.
 
-Isso evita dois erros: considerar CI como se fosse build de APK e criar uma segunda execução quando o `push` já iniciou o Android APK normalmente.
+Isso evita três erros: considerar CI como se fosse build de APK, escolher um workflow apenas pelo nome e criar uma segunda execução quando o `push` já iniciou a build normalmente. A checagem pelo SHA é repetida imediatamente antes do `workflow_dispatch`.
 
 O token precisa ter permissão de escrita em Actions para o fallback manual. Falhas de permissão são exibidas como erro real, sem esconder o commit já sincronizado.
 
@@ -36,9 +36,9 @@ Jobs são obtidos por `GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs`. Pa
 
 ## Downloads
 
-Downloads de logs, artifacts e ZIP do repositório usam o endpoint autenticado do GitHub apenas para obter o redirecionamento. A URL temporária assinada é consumida em memória e não é persistida nem exibida no log.
+Downloads de logs, artifacts e ZIP do repositório usam endpoints autenticados do GitHub para obter o redirecionamento. Release Assets usam `/repos/{owner}/{repo}/releases/assets/{asset_id}` com `Accept: application/octet-stream`, aceitando resposta direta ou redirecionamento; por isso também funcionam em repositórios privados. URLs temporárias assinadas não são persistidas nem exibidas no log.
 
-Falhas são classificadas, quando possível, em rede, autenticação, permissão, rate limit, 404, artifact expirado/410, URL temporária expirada, interrupção e falha de gravação em Downloads.
+Falhas são classificadas, quando possível, em rede, autenticação, permissão, rate limit, 404, artifact expirado/410, URL temporária expirada, interrupção e falha de gravação em Downloads. Downloads ativos são persistidos; se o processo for encerrado, reaparecem como `Interrompido` e podem ser repetidos.
 
 ## Upload de ZIP
 

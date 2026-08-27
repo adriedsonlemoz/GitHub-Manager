@@ -57,6 +57,7 @@ class DownloadsScreen extends ConsumerWidget {
               .where(
                 (item) =>
                     item.status == ManagedDownloadStatus.failed ||
+                    item.status == ManagedDownloadStatus.interrupted ||
                     item.status == ManagedDownloadStatus.cancelled,
               )
               .toList();
@@ -614,6 +615,8 @@ class _StatusIcon extends StatelessWidget {
           Icons.error_outline_rounded,
           color: Theme.of(context).colorScheme.error,
         ),
+      ManagedDownloadStatus.interrupted =>
+        const Icon(Icons.pause_circle_outline_rounded),
       ManagedDownloadStatus.cancelled => const Icon(Icons.cancel_outlined),
     };
   }

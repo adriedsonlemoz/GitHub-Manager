@@ -8,6 +8,7 @@ import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
+import 'package:github_manager/features/projects/domain/project_safety_check.dart';
 import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/projects/presentation/project_providers.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
@@ -377,15 +378,19 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
       return;
     }
     try {
-      await ref.read(repositoryGitServiceProvider).dispatchWorkflowFile(
+      final workflowName = await ref
+          .read(repositoryGitServiceProvider)
+          .dispatchBestApkWorkflow(
             repositoryFullName: repository.fullName,
-            workflowFileName: 'android-apk.yml',
-            ref: repository.defaultBranch,
+            branch: repository.defaultBranch,
           );
       if (!mounted) {
         return;
       }
-      showCenteredNotice(context, 'Build manual enviada. Ela pode levar alguns segundos para aparecer.');
+      showCenteredNotice(
+        context,
+        'Build manual enviada por $workflowName. Ela pode levar alguns segundos para aparecer.',
+      );
       context.push(
         '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
       );
@@ -502,7 +507,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
     GitHubRepository repository,
     RepositoryProjectInfo repositoryInfo,
   ) {
-    final check = _ProjectSafetyCheck.compare(
+    final check = ProjectSafetyCheck.compare(
       project: project,
       repository: repository,
       repositoryInfo: repositoryInfo,
@@ -522,6 +527,11 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                   label: 'Projeto detectado',
                   value: project.identityLabel,
                   icon: Icons.inventory_2_outlined,
+                ),
+                _BuildSafetyRow(
+                  label: 'Identidade usada',
+                  value: check.identitySource,
+                  icon: Icons.fingerprint_rounded,
                 ),
                 _BuildSafetyRow(
                   label: 'Versão do ZIP',
@@ -1076,131 +1086,6 @@ class _RepositoryHeader extends StatelessWidget {
       );
 }
 
-
-class _ProjectSafetyCheck {
-  const _ProjectSafetyCheck({
-    required this.blocked,
-    required this.warning,
-    required this.message,
-  });
-
-  final bool blocked;
-  final bool warning;
-  final String message;
-
-  static _ProjectSafetyCheck compare({
-    required ZipProjectPreview project,
-    required GitHubRepository repository,
-    required RepositoryProjectInfo repositoryInfo,
-  }) {
-    final zipAppId = _normalize(project.applicationId);
-    final repoAppId = _normalize(repositoryInfo.applicationId);
-    if (zipAppId.isNotEmpty && repoAppId.isNotEmpty && zipAppId != repoAppId) {
-      return _ProjectSafetyCheck(
-        blocked: true,
-        warning: false,
-        message:
-            'Este ZIP pertence a outro aplicativo. applicationId diferente: ${project.applicationId} ≠ ${repositoryInfo.applicationId}.',
-      );
-    }
-
-    final zipPackage = _normalize(project.packageName);
-    final repoPackage = _normalize(repositoryInfo.packageName);
-    if (zipPackage.isNotEmpty &&
-        repoPackage.isNotEmpty &&
-        zipPackage != repoPackage) {
-      return _ProjectSafetyCheck(
-        blocked: true,
-        warning: false,
-        message:
-            'Este ZIP parece ser de outro projeto. Pacote detectado: ${project.packageName}; esperado: ${repositoryInfo.packageName}.',
-      );
-    }
-
-    final zipName = _normalize(project.projectName ?? project.identityLabel);
-    final repoName = _normalize(repositoryInfo.projectName);
-    final repositoryName = _normalize(repository.name);
-    if (zipName.isNotEmpty &&
-        repoName.isNotEmpty &&
-        zipName != repoName &&
-        zipName != repositoryName) {
-      return _ProjectSafetyCheck(
-        blocked: true,
-        warning: false,
-        message:
-            'O projeto do ZIP (${project.identityLabel}) não corresponde ao repositório aberto (${repositoryInfo.projectName}).',
-      );
-    }
-
-    final versionCompare = _compareVersions(
-      project.version,
-      project.versionCode,
-      repositoryInfo.version,
-      repositoryInfo.versionCode,
-    );
-    if (versionCompare < 0) {
-      return _ProjectSafetyCheck(
-        blocked: true,
-        warning: false,
-        message:
-            'A versão do ZIP é anterior à versão atual do GitHub. O envio foi bloqueado para evitar substituir o projeto por uma versão antiga.',
-      );
-    }
-    if (versionCompare == 0 &&
-        project.version?.isNotEmpty == true &&
-        repositoryInfo.version?.isNotEmpty == true) {
-      return const _ProjectSafetyCheck(
-        blocked: false,
-        warning: true,
-        message:
-            'É o mesmo projeto e a mesma versão. Confira se você realmente quer reenviar esta build.',
-      );
-    }
-
-    final hasStrongIdentity = (zipAppId.isNotEmpty && repoAppId.isNotEmpty) ||
-        (zipPackage.isNotEmpty && repoPackage.isNotEmpty) ||
-        (zipName.isNotEmpty && (repoName.isNotEmpty || repositoryName.isNotEmpty));
-    if (!hasStrongIdentity) {
-      return const _ProjectSafetyCheck(
-        blocked: false,
-        warning: true,
-        message:
-            'Não foi possível confirmar totalmente a identidade deste ZIP. Confira o projeto e a versão antes de enviar.',
-      );
-    }
-
-    return const _ProjectSafetyCheck(
-      blocked: false,
-      warning: false,
-      message: 'Projeto compatível. A identidade e a versão foram conferidas.',
-    );
-  }
-
-  static int _compareVersions(
-    String? zipVersion,
-    int? zipCode,
-    String? repoVersion,
-    int? repoCode,
-  ) {
-    if (zipCode != null && repoCode != null && zipCode != repoCode) {
-      return zipCode.compareTo(repoCode);
-    }
-    if (zipVersion == null || repoVersion == null) return 1;
-    final a = RegExp(r'\d+').allMatches(zipVersion).map((m) => int.parse(m.group(0)!)).toList();
-    final b = RegExp(r'\d+').allMatches(repoVersion).map((m) => int.parse(m.group(0)!)).toList();
-    final max = a.length > b.length ? a.length : b.length;
-    for (var i = 0; i < max; i++) {
-      final av = i < a.length ? a[i] : 0;
-      final bv = i < b.length ? b[i] : 0;
-      if (av != bv) return av.compareTo(bv);
-    }
-    return 0;
-  }
-
-  static String _normalize(String? value) => (value ?? '')
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^a-z0-9]'), '');
-}
 
 class _BuildSafetyRow extends StatelessWidget {
   const _BuildSafetyRow({

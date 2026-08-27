@@ -36,8 +36,8 @@ jobs:
       - name: Validar versão canônica
         run: bash tool/check_version_sync.sh
 
-      - name: Normalizar formatação
-        run: dart format lib test
+      - name: Verificar formatação
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Analisar código
         run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
