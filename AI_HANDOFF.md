@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.28+200042`, com pré-checagem em cache das permissões antes de Enviar build, gerenciar Secrets e excluir repositórios; mantém o diagnóstico seguro por repositório, Secrets reforçados, Central de Envios global/minimizável e downloads em foreground com retomada.
+Estado atual: `2.0.29+200043`, com pré-checagem em cache das permissões antes de Enviar build, gerenciar Secrets e excluir repositórios; mantém o diagnóstico seguro por repositório, Secrets reforçados, Central de Envios global/minimizável e downloads em foreground com retomada.
 
 ## Arquitetura
 
@@ -40,6 +40,12 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 - instalação de APK iniciada pelo usuário via FileProvider/instalador Android.
 
 
+
+## Hotfix 2.0.29
+
+- corrigida compilação do importador de Secrets com `file_picker 12`, usando `PlatformFile.length()` em vez do getter removido `size`;
+- CI normaliza a formatação no runner e avisa sobre diferenças sem interromper o pipeline somente por formatação;
+- `flutter analyze` e `flutter test` continuam sendo gates reais da CI.
 
 ## Pré-checagem de permissões 2.0.28
 

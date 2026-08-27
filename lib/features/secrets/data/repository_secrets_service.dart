@@ -218,9 +218,10 @@ class RepositorySecretsService {
       );
 
   Future<Map<String, String>> parseImportFile(PlatformFile file) async {
-    if (file.size > maxImportFileBytes) {
+    final fileLength = await file.length();
+    if (fileLength > maxImportFileBytes) {
       throw FormatException(
-        'O arquivo tem ${_formatBytes(file.size)}. Para evitar consumo excessivo de memória, '
+        'O arquivo tem ${_formatBytes(fileLength)}. Para evitar consumo excessivo de memória, '
         'o limite de importação é ${_formatBytes(maxImportFileBytes)}.',
       );
     }
