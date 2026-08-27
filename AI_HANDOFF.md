@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.29+200043`, com pré-checagem em cache das permissões antes de Enviar build, gerenciar Secrets e excluir repositórios; mantém o diagnóstico seguro por repositório, Secrets reforçados, Central de Envios global/minimizável e downloads em foreground com retomada.
+Estado atual: `2.0.30+200044`, com pré-checagem em cache das permissões antes de Enviar build, gerenciar Secrets e excluir repositórios; mantém o diagnóstico seguro por repositório, Secrets reforçados, Central de Envios global/minimizável e downloads em foreground com retomada.
 
 ## Arquitetura
 
@@ -40,6 +40,15 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 - instalação de APK iniciada pelo usuário via FileProvider/instalador Android.
 
 
+
+
+## UI e identidade de projeto 2.0.30
+
+- novo padrão visual azul-preto/índigo aplicado no tema compartilhado, cards de repositório, busca, filtros e navegação inferior;
+- componentes globais de cards, campos, botões, diálogos e navegação levam a mesma identidade às demais telas sem arquitetura paralela;
+- comparação de projeto normaliza diacríticos, evitando falso bloqueio entre nomes equivalentes como `Tática Manager` e `TaticaManager`;
+- identidade Android do repositório tenta ler `android/app/build.gradle.kts` e `android/app/build.gradle` quando os metadados não trazem `applicationId`;
+- divergência real de `applicationId` continua sendo bloqueio forte.
 
 ## Hotfix 2.0.29
 

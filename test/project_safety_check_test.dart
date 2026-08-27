@@ -107,6 +107,37 @@ void main() {
     expect(result.warning, isFalse);
   });
 
+  test('accented display name matches repository without accents', () {
+    const taticaRepository = GitHubRepository(
+      id: 2,
+      name: 'TaticaManager',
+      fullName: 'owner/TaticaManager',
+      isPrivate: false,
+      isArchived: false,
+      defaultBranch: 'main',
+      updatedAt: null,
+      htmlUrl: 'https://github.com/owner/TaticaManager',
+    );
+
+    final result = ProjectSafetyCheck.compare(
+      project: preview(
+        name: 'tatica-manager.zip',
+        projectName: 'Tática Manager',
+        packageName: null,
+        applicationId: null,
+      ),
+      repository: taticaRepository,
+      repositoryInfo: info(
+        projectName: 'TaticaManager',
+        packageName: null,
+        applicationId: null,
+      ),
+    );
+
+    expect(result.blocked, isFalse);
+    expect(result.identitySource, 'metadados do projeto');
+  });
+
   test('different applicationId remains blocked', () {
     final result = ProjectSafetyCheck.compare(
       project: preview(applicationId: 'com.example.sociallite'),

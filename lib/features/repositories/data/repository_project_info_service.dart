@@ -175,6 +175,36 @@ class RepositoryProjectInfoService {
         }
       }
 
+      // Nem todo projeto mantém applicationId nos metadados de raiz.
+      // Em Flutter/Android, o Gradle do módulo app é a fonte mais confiável.
+      if (applicationId == null && names.containsKey('android')) {
+        for (final gradlePath in const [
+          'android/app/build.gradle.kts',
+          'android/app/build.gradle',
+        ]) {
+          try {
+            final response = await _client.get<Map<String, dynamic>>(
+              '/repos/${repository.fullName}/contents/${gradlePath.split('/').map(Uri.encodeComponent).join('/')}',
+              queryParameters: {'ref': repository.defaultBranch},
+            );
+            final json = response.data ?? const <String, dynamic>{};
+            if (json['encoding'] != 'base64') continue;
+            final encoded = (json['content'] as String? ?? '').replaceAll('\n', '');
+            if (encoded.isEmpty) continue;
+            final raw = utf8.decode(base64.decode(encoded), allowMalformed: true);
+            applicationId = RegExp(
+              r'''applicationId\s*(?:=\s*)?["']([^"']+)["']''',
+            ).firstMatch(raw)?.group(1)?.trim();
+            applicationId ??= RegExp(
+              r'''namespace\s*(?:=\s*)?["']([^"']+)["']''',
+            ).firstMatch(raw)?.group(1)?.trim();
+            if (applicationId?.isNotEmpty == true) break;
+          } catch (_) {
+            // Gradle opcional/indisponível: a verificação continua com as demais pistas.
+          }
+        }
+      }
+
       final technologies = <String>[...metadataTechnologies];
       if (names.containsKey('pubspec.yaml')) {
         technologies.add('Flutter');

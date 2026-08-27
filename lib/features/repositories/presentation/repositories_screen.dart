@@ -495,29 +495,52 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
         ? ref.watch(followedRepositoriesProvider)
         : ref.watch(repositoriesProvider);
     final profile = ref.watch(githubProfileProvider);
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _section,
-        onDestinationSelected: (value) {
-          setState(() {
-            _section = value;
-            _query = '';
-            _searchController.clear();
-            _filter = 'Todos';
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.folder_copy_outlined),
-            selectedIcon: Icon(Icons.folder_copy_rounded),
-            label: 'Meus repositórios',
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: scheme.outlineVariant),
+            boxShadow: dark
+                ? const []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .07),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.bookmarks_outlined),
-            selectedIcon: Icon(Icons.bookmarks_rounded),
-            label: 'Acompanhados',
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(21),
+            child: NavigationBar(
+              selectedIndex: _section,
+              onDestinationSelected: (value) {
+                setState(() {
+                  _section = value;
+                  _query = '';
+                  _searchController.clear();
+                  _filter = 'Todos';
+                });
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.folder_outlined),
+                  selectedIcon: Icon(Icons.folder_rounded),
+                  label: 'Meus repositórios',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.groups_outlined),
+                  selectedIcon: Icon(Icons.groups_rounded),
+                  label: 'Acompanhados',
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -526,24 +549,36 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
           slivers: [
             SliverAppBar(
               pinned: true,
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              foregroundColor: Theme.of(context).colorScheme.onSurface,
-              surfaceTintColor: Theme.of(context).colorScheme.surface,
-              shadowColor: Theme.of(context).colorScheme.shadow,
-              scrolledUnderElevation: 4,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              foregroundColor: scheme.onSurface,
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              scrolledUnderElevation: 0,
               forceMaterialTransparency: false,
               clipBehavior: Clip.hardEdge,
-              toolbarHeight: 64,
-              shape: Border(
-                bottom: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
-              ),
-              title: Text(
-                _showingFollowed ? 'Acompanhados' : 'Meus repositórios',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              toolbarHeight: 68,
+              titleSpacing: 18,
+              title: _showingFollowed
+                  ? const Text('Acompanhados')
+                  : Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Meus ',
+                            style: TextStyle(color: scheme.onSurface),
+                          ),
+                          TextSpan(
+                            text: 'repositórios',
+                            style: TextStyle(
+                              color: dark ? const Color(0xFF8B80FF) : scheme.primary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
               actions: [
                 if (!_showingFollowed)
                   profile.maybeWhen(
@@ -584,7 +619,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
               ],
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
               sliver: SliverToBoxAdapter(
                 child: Column(
                   children: [
@@ -605,23 +640,24 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
                             ],
                       onChanged: (value) => setState(() => _query = value),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     SizedBox(
-                      height: 38,
-                      child: ListView(
+                      height: 43,
+                      child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        children: ['Todos', 'Públicos', 'Privados', 'Arquivados']
-                            .map(
-                              (value) => Padding(
-                                padding: const EdgeInsets.only(right: 7),
-                                child: ChoiceChip(
-                                  label: Text(value),
-                                  selected: _filter == value,
-                                  onSelected: (_) => setState(() => _filter = value),
-                                ),
-                              ),
-                            )
-                            .toList(growable: false),
+                        itemCount: 4,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final value = const ['Todos', 'Públicos', 'Privados', 'Arquivados'][index];
+                          return ChoiceChip(
+                            label: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Text(value),
+                            ),
+                            selected: _filter == value,
+                            onSelected: (_) => setState(() => _filter = value),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -659,10 +695,10 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
                   );
                 }
                 return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 20),
                   sliver: SliverList.separated(
                     itemCount: filtered.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 7),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final repository = filtered[index];
                       return RepositoryCard(
