@@ -118,8 +118,8 @@ class RepositoryCard extends ConsumerWidget {
                   IconButton(
                     onPressed: onMenu,
                     visualDensity: VisualDensity.compact,
-                    tooltip: 'Mais opções',
-                    icon: const Icon(Icons.more_horiz_rounded),
+                    tooltip: 'Gerenciar repositório',
+                    icon: const Icon(Icons.settings_outlined),
                   ),
                 ],
               ),

@@ -23,6 +23,7 @@ class DownloadManagerService {
   final List<ManagedDownload> _items = [];
   final Map<String, CancelToken> _cancelTokens = {};
   final Map<String, _ProgressSample> _progressSamples = {};
+  DateTime? _lastForegroundUpdate;
   int _sequence = 0;
 
   Stream<List<ManagedDownload>> get stream => _controller.stream;
@@ -178,6 +179,7 @@ class DownloadManagerService {
     _progressSamples.remove(id);
     _emit();
     await _persistHistory();
+    await _syncDownloadForegroundService();
   }
 
   Future<void> retry(String id) async {
@@ -202,6 +204,7 @@ class DownloadManagerService {
     if (item == null || item.isActive) {
       return;
     }
+    await _deleteWorkingFile(item);
     _items.remove(item);
     _emit();
     await _persistHistory();
@@ -220,15 +223,32 @@ class DownloadManagerService {
         // O arquivo pode já ter sido removido pelo usuário fora do app.
       }
     }
+    await _deleteWorkingFile(item);
     _items.remove(item);
     _emit();
     await _persistHistory();
   }
 
   Future<void> clearFinishedHistory() async {
+    final finished = _items.where((item) => !item.isActive).toList(growable: false);
+    for (final item in finished) {
+      await _deleteWorkingFile(item);
+    }
     _items.removeWhere((item) => !item.isActive);
     _emit();
     await _persistHistory();
+  }
+
+  Future<void> _deleteWorkingFile(ManagedDownload item) async {
+    final path = item.workingPath;
+    if (path == null || path.isEmpty) return;
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {
+      // Arquivo parcial é auxiliar e pode já ter sido limpo pelo Android.
+    }
+    item.workingPath = null;
   }
 
   // Compatibilidade com chamadas antigas dentro do projeto.
@@ -286,31 +306,28 @@ class DownloadManagerService {
     try {
       final directory = await _workingDirectory();
       completedFile = await _uniqueFile(directory, item.fileName);
-      partialFile = File('${completedFile.path}.part');
+      partialFile = await _partialFileFor(item, directory, item.fileName);
+      final resumeFrom = await partialFile.exists() ? await partialFile.length() : 0;
       item
         ..fileName = p.basename(completedFile.path)
-        ..sourceEndpoint = url;
-      _markStarted(item);
+        ..sourceEndpoint = url
+        ..receivedBytes = resumeFrom;
+      _markStarted(item, initialBytes: resumeFrom);
 
-      final dio = Dio(
-        BaseOptions(
-          connectTimeout: const Duration(seconds: 20),
-          receiveTimeout: const Duration(minutes: 10),
-          followRedirects: true,
-        ),
-      );
-      await dio.download(
+      await _downloadPublicUrl(
         url,
-        partialFile.path,
+        partialFile,
+        resumeFrom: resumeFrom,
         cancelToken: cancelToken,
-        onReceiveProgress: (received, total) =>
-            _updateProgress(item, received, total),
+        onProgress: (received, total) => _updateProgress(item, received, total),
       );
 
       if (item.status == ManagedDownloadStatus.cancelled) return;
       completedFile = await partialFile.rename(completedFile.path);
       partialFile = null;
-      item.receivedBytes = await completedFile.length();
+      item
+        ..workingPath = null
+        ..receivedBytes = await completedFile.length();
       if (item.totalBytes <= 0) item.totalBytes = item.receivedBytes;
       await _publishCompleted(item, completedFile);
       completedFile = null;
@@ -333,14 +350,12 @@ class DownloadManagerService {
     } finally {
       _cancelTokens.remove(item.id);
       _progressSamples.remove(item.id);
-      if (partialFile != null && await partialFile.exists()) {
-        await partialFile.delete();
-      }
       if (completedFile != null && await completedFile.exists()) {
         await completedFile.delete();
       }
       _emit();
       await _persistHistory();
+      await _syncDownloadForegroundService();
     }
   }
 
@@ -352,11 +367,13 @@ class DownloadManagerService {
     try {
       final directory = await _workingDirectory();
       completedFile = await _uniqueFile(directory, item.fileName);
-      partialFile = File('${completedFile.path}.part');
+      partialFile = await _partialFileFor(item, directory, item.fileName);
+      final resumeFrom = await partialFile.exists() ? await partialFile.length() : 0;
       item
         ..fileName = p.basename(completedFile.path)
-        ..sourceEndpoint = endpoint;
-      _markStarted(item);
+        ..sourceEndpoint = endpoint
+        ..receivedBytes = resumeFrom;
+      _markStarted(item, initialBytes: resumeFrom);
       final onProgress = (int received, int total) =>
           _updateProgress(item, received, total);
       if (endpoint.contains('/releases/assets/')) {
@@ -365,6 +382,7 @@ class DownloadManagerService {
           partialFile.path,
           cancelToken: cancelToken,
           onReceiveProgress: onProgress,
+          resumeFrom: resumeFrom,
         );
       } else {
         await _client.downloadRedirectedFile(
@@ -372,17 +390,16 @@ class DownloadManagerService {
           partialFile.path,
           cancelToken: cancelToken,
           onReceiveProgress: onProgress,
+          resumeFrom: resumeFrom,
         );
       }
-      if (item.status == ManagedDownloadStatus.cancelled) {
-        return;
-      }
+      if (item.status == ManagedDownloadStatus.cancelled) return;
       completedFile = await partialFile.rename(completedFile.path);
       partialFile = null;
-      item.receivedBytes = await completedFile.length();
-      if (item.totalBytes <= 0) {
-        item.totalBytes = item.receivedBytes;
-      }
+      item
+        ..workingPath = null
+        ..receivedBytes = await completedFile.length();
+      if (item.totalBytes <= 0) item.totalBytes = item.receivedBytes;
       await _publishCompleted(item, completedFile);
       completedFile = null;
     } catch (error) {
@@ -396,14 +413,12 @@ class DownloadManagerService {
     } finally {
       _cancelTokens.remove(item.id);
       _progressSamples.remove(item.id);
-      if (partialFile != null && await partialFile.exists()) {
-        await partialFile.delete();
-      }
       if (completedFile != null && await completedFile.exists()) {
         await completedFile.delete();
       }
       _emit();
       await _persistHistory();
+      await _syncDownloadForegroundService();
     }
   }
 
@@ -417,21 +432,27 @@ class DownloadManagerService {
     File? publishFile;
     try {
       final directory = await _workingDirectory();
-      downloadedFile = File(
-        p.join(directory.path, '.artifact-${item.artifactId}-${item.id}.part'),
+      downloadedFile = await _partialFileFor(
+        item,
+        directory,
+        'artifact-${item.artifactId ?? 'download'}.zip',
       );
-      item.sourceEndpoint = endpoint;
-      _markStarted(item);
+      final resumeFrom = await downloadedFile.exists()
+          ? await downloadedFile.length()
+          : 0;
+      item
+        ..sourceEndpoint = endpoint
+        ..receivedBytes = resumeFrom;
+      _markStarted(item, initialBytes: resumeFrom);
       await _client.downloadRedirectedFile(
         endpoint,
         downloadedFile.path,
         cancelToken: cancelToken,
+        resumeFrom: resumeFrom,
         onReceiveProgress: (received, total) =>
             _updateProgress(item, received, total),
       );
-      if (item.status == ManagedDownloadStatus.cancelled) {
-        return;
-      }
+      if (item.status == ManagedDownloadStatus.cancelled) return;
 
       item.failureStage = 'identificar_artifact';
       final input = InputFileStream(downloadedFile.path);
@@ -500,11 +521,18 @@ class DownloadManagerService {
         publishFile = await _uniqueFile(directory, desiredName);
         publishFile = await downloadedFile.rename(publishFile.path);
         downloadedFile = null;
+        item.workingPath = null;
         final length = await publishFile.length();
         item
           ..fileName = p.basename(publishFile.path)
           ..receivedBytes = length
           ..totalBytes = length;
+      } else {
+        item.workingPath = null;
+        if (downloadedFile != null && await downloadedFile.exists()) {
+          await downloadedFile.delete();
+        }
+        downloadedFile = null;
       }
 
       if (publishFile == null) {
@@ -523,18 +551,104 @@ class DownloadManagerService {
     } finally {
       _cancelTokens.remove(item.id);
       _progressSamples.remove(item.id);
-      if (downloadedFile != null && await downloadedFile.exists()) {
-        await downloadedFile.delete();
-      }
       if (publishFile != null && await publishFile.exists()) {
         await publishFile.delete();
       }
       _emit();
       await _persistHistory();
+      await _syncDownloadForegroundService();
     }
   }
 
-  void _markStarted(ManagedDownload item) {
+  Future<File> _partialFileFor(
+    ManagedDownload item,
+    Directory directory,
+    String requestedName,
+  ) async {
+    final existingPath = item.workingPath;
+    if (existingPath != null && existingPath.isNotEmpty) {
+      return File(existingPath);
+    }
+    final safe = _safeName(requestedName, keepExtension: true);
+    final partial = File(p.join(directory.path, '.${item.id}-$safe.part'));
+    item.workingPath = partial.path;
+    await _persistHistory();
+    return partial;
+  }
+
+  Future<void> _downloadPublicUrl(
+    String url,
+    File target, {
+    required int resumeFrom,
+    required CancelToken cancelToken,
+    required void Function(int received, int total) onProgress,
+  }) async {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(minutes: 10),
+        followRedirects: true,
+      ),
+    );
+    Future<Response<ResponseBody>> request(int offset) => dio.get<ResponseBody>(
+          url,
+          cancelToken: cancelToken,
+          options: Options(
+            responseType: ResponseType.stream,
+            validateStatus: (status) =>
+                status == 200 || status == 206 || status == 416,
+            headers: {if (offset > 0) 'Range': 'bytes=$offset-'},
+          ),
+        );
+
+    var offset = resumeFrom;
+    var response = await request(offset);
+    if (response.statusCode == 416 && offset > 0) {
+      if (await target.exists()) await target.delete();
+      offset = 0;
+      response = await request(0);
+    }
+    if (response.statusCode != 200 && response.statusCode != 206) {
+      throw DownloadFailureException(
+        'O servidor não aceitou a retomada do download.',
+        code: 'PUBLIC_DOWNLOAD_RESUME_FAILED',
+        endpoint: url,
+        stage: 'retomar_download',
+        httpStatus: response.statusCode,
+      );
+    }
+    final body = response.data;
+    if (body == null) {
+      throw const FormatException('O servidor retornou um download vazio.');
+    }
+    final acceptedResume = response.statusCode == 206 && offset > 0;
+    final startingBytes = acceptedResume ? offset : 0;
+    final contentRange = response.headers.value('content-range');
+    final rangeTotal = contentRange == null
+        ? null
+        : int.tryParse(contentRange.split('/').last.trim());
+    final contentLength =
+        int.tryParse(response.headers.value('content-length') ?? '');
+    final total = rangeTotal ??
+        (contentLength == null ? -1 : startingBytes + contentLength);
+    final sink = target.openWrite(
+      mode: acceptedResume ? FileMode.append : FileMode.write,
+    );
+    var received = startingBytes;
+    try {
+      await for (final chunk in body.stream) {
+        if (cancelToken.isCancelled) return;
+        sink.add(chunk);
+        received += chunk.length;
+        onProgress(received, total);
+      }
+      await sink.flush();
+    } finally {
+      await sink.close();
+    }
+  }
+
+  void _markStarted(ManagedDownload item, {int initialBytes = 0}) {
     final now = DateTime.now();
     item
       ..status = ManagedDownloadStatus.downloading
@@ -548,9 +662,10 @@ class DownloadManagerService {
       ..responseMessage = null
       ..bytesPerSecond = 0
       ..estimatedSecondsRemaining = null;
-    _progressSamples[item.id] = _ProgressSample(now, 0, 0);
+    _progressSamples[item.id] = _ProgressSample(now, initialBytes, 0);
     _emit();
     unawaited(_persistHistory());
+    unawaited(_syncDownloadForegroundService(startService: true));
   }
 
   void _updateProgress(ManagedDownload item, int received, int total) {
@@ -578,6 +693,39 @@ class DownloadManagerService {
     }
     _progressSamples[item.id] = _ProgressSample(now, received, speed);
     _emit();
+    final last = _lastForegroundUpdate;
+    if (last == null || now.difference(last) >= const Duration(milliseconds: 750)) {
+      _lastForegroundUpdate = now;
+      unawaited(_syncDownloadForegroundService());
+    }
+  }
+
+  Future<void> _syncDownloadForegroundService({bool startService = false}) async {
+    final active = _items.where((item) => item.isActive).toList(growable: false);
+    if (active.isEmpty) {
+      _lastForegroundUpdate = null;
+      try {
+        await PlatformActions.stopDownloadForegroundService();
+      } catch (_) {
+        // O canal nativo pode não existir fora do Android/testes.
+      }
+      return;
+    }
+    final item = active.first;
+    try {
+      await PlatformActions.showDownloadForegroundService(
+        startService: startService,
+        downloadId: item.id,
+        fileName: item.fileName,
+        repositoryFullName: item.repositoryFullName ?? '',
+        current: item.receivedBytes,
+        total: item.totalBytes,
+        indeterminate: item.totalBytes <= 0,
+        activeCount: active.length,
+      );
+    } catch (_) {
+      // A notificação auxilia o segundo plano, mas não invalida o download.
+    }
   }
 
   Future<void> _publishCompleted(
@@ -611,6 +759,7 @@ class DownloadManagerService {
 
     item
       ..localPath = location
+      ..workingPath = null
       ..status = ManagedDownloadStatus.completed
       ..completedAt = DateTime.now()
       ..failedAt = null
@@ -639,8 +788,12 @@ class DownloadManagerService {
       ..estimatedSecondsRemaining = null;
 
     if (error is DownloadFailureException) {
+      final partialPreserved = item.workingPath?.isNotEmpty == true &&
+          item.receivedBytes > 0;
       item
-        ..errorMessage = error.message
+        ..errorMessage = partialPreserved
+            ? '${error.message} O progresso parcial foi preservado para retomada.'
+            : error.message
         ..errorCode = error.technicalCode
         ..sourceEndpoint = error.endpoint
         ..failureStage = error.stage
@@ -741,14 +894,7 @@ class DownloadManagerService {
 
   Future<void> _restoreHistory() async {
     try {
-      final directory = await _workingDirectory();
-      for (final file in directory.listSync().whereType<File>()) {
-        try {
-          file.deleteSync();
-        } catch (_) {
-          // Temporários antigos não devem bloquear a inicialização.
-        }
-      }
+      await _workingDirectory();
       final file = await _historyFile();
       if (!await file.exists()) {
         _emit();
@@ -766,9 +912,18 @@ class DownloadManagerService {
             ),
           )
           .toList(growable: false);
+      final autoResumeIds = <String>[];
       for (final item in restored) {
         if (item.isActive) {
           item.markInterruptedByAppExit();
+          final partialPath = item.workingPath;
+          if (partialPath != null &&
+              partialPath.isNotEmpty &&
+              item.sourceEndpoint?.isNotEmpty == true &&
+              await File(partialPath).exists()) {
+            item.receivedBytes = await File(partialPath).length();
+            autoResumeIds.add(item.id);
+          }
         }
       }
       final liveItems = List<ManagedDownload>.from(_items);
@@ -782,6 +937,9 @@ class DownloadManagerService {
         ..addAll(merged);
       _emit();
       await _persistHistory();
+      for (final id in autoResumeIds) {
+        unawaited(retry(id));
+      }
     } catch (_) {
       // Histórico é auxiliar e nunca bloqueia o restante do aplicativo.
     }
@@ -885,7 +1043,16 @@ class DownloadManagerService {
     }
     _cancelTokens.clear();
     _progressSamples.clear();
+    unawaited(_stopDownloadForegroundService());
     _controller.close();
+  }
+
+  Future<void> _stopDownloadForegroundService() async {
+    try {
+      await PlatformActions.stopDownloadForegroundService();
+    } catch (_) {
+      // O app pode estar encerrando antes do canal nativo responder.
+    }
   }
 }
 

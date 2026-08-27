@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.24+200038`, com Central de Envios global/minimizável, serviço Android em primeiro plano, retomada por checkpoint e relatório de envio visual/textual resumido por métricas e etapas.
+Estado atual: `2.0.25+200039`, com Central de Envios global/minimizável, downloads em foreground com retomada por arquivo parcial/Range, edição de perfil pela Home, inclusão de acompanhados por URL de perfil e área Sobre/suporte remodelada.
 
 ## Arquitetura
 
@@ -18,7 +18,7 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 ## Recursos principais
 
 - notificações de conclusão/falha de builds em segundo plano;
-- repositórios acompanhados em modo somente leitura, com Releases/APKs públicos;
+- repositórios acompanhados em modo somente leitura, com Releases/APKs públicos e seleção de repositório ao colar URL de perfil;
 - lista e CRUD de repositórios;
 - metadados de projeto, versão e tecnologias;
 - navegação/edição/upload de arquivos;
@@ -33,8 +33,8 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 - Commits;
 - Bugs via GitHub Issues sem reformulação adicional;
 - GitHub Secrets com sealed box;
-- configurações, perfil GitHub, Groq/API local e tema;
-- Central de Downloads integrada com publicação na pasta pública Downloads;
+- configurações, edição de perfil GitHub por popup responsivo, Groq/API opcional e tema;
+- Central de Downloads com serviço Android em primeiro plano, retomada parcial por HTTP Range e publicação na pasta pública Downloads;
 - download do projeto em ZIP;
 - instalação de APK iniciada pelo usuário via FileProvider/instalador Android.
 
@@ -45,3 +45,12 @@ Nunca incluir keystore, `.env`, tokens ou key.properties no ZIP/repositório.
 ## ZIP idêntico
 
 Se um ZIP gerar a mesma árvore Git já publicada, não criar commit nem build automática. Informar `Projeto já está atualizado` e permitir `Executar build mesmo assim` via `workflow_dispatch`.
+
+## UI e Sobre 2.0.25
+
+- não existe mais banner vermelho global de versão de teste;
+- a confirmação de envio do ZIP mostra um card vermelho/branco com a versão instalada;
+- avatar da Home abre edição de perfil GitHub em diálogo responsivo;
+- gerenciamento do repositório usa engrenagem e diálogo centralizado;
+- Sobre mostra as três mudanças mais recentes em ExpansionTile, Pix, feedback, desenvolvedor e aviso de independência do GitHub;
+- Groq é opcional e atualmente não é consumido automaticamente por nenhuma função principal.

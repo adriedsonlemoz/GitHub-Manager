@@ -88,4 +88,28 @@ abstract final class PlatformActions {
 
   static Future<void> stopUploadForegroundService() =>
       _channel.invokeMethod<void>('stopUploadForegroundService');
+
+  static Future<void> showDownloadForegroundService({
+    required bool startService,
+    required String downloadId,
+    required String fileName,
+    required String repositoryFullName,
+    required int current,
+    required int total,
+    required bool indeterminate,
+    required int activeCount,
+  }) =>
+      _channel.invokeMethod<void>('showDownloadForegroundService', {
+        'startService': startService,
+        'downloadId': downloadId,
+        'fileName': fileName,
+        'repositoryFullName': repositoryFullName,
+        'current': current,
+        'total': total,
+        'indeterminate': indeterminate,
+        'activeCount': activeCount,
+      });
+
+  static Future<void> stopDownloadForegroundService() =>
+      _channel.invokeMethod<void>('stopDownloadForegroundService');
 }

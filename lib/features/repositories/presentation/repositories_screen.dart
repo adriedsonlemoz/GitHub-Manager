@@ -5,10 +5,11 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/widgets/app_error_card.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
-import 'package:github_manager/core/widgets/test_version_banner.dart';
 import 'package:github_manager/features/auth/presentation/auth_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
+import 'package:github_manager/features/home/domain/github_profile.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
+import 'package:github_manager/features/home/presentation/github_profile_edit_dialog.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
 import 'package:github_manager/features/repositories/presentation/repository_card.dart';
 import 'package:github_manager/features/repositories/presentation/repository_management_dialogs.dart';
@@ -66,6 +67,33 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
       ref.invalidate(repositoriesProvider);
       ref.invalidate(githubProfileProvider);
       await ref.read(repositoriesProvider.future);
+    }
+  }
+
+  Future<void> _editGitHubProfile(GitHubProfile profile) async {
+    final draft = await showGitHubProfileEditDialog(context, profile);
+    if (draft == null || !mounted) return;
+    try {
+      await ref.read(githubProfileRepositoryProvider).updateProfile(
+            name: draft.name,
+            email: draft.email,
+            blog: draft.blog,
+            twitterUsername: draft.twitterUsername,
+            company: draft.company,
+            location: draft.location,
+            bio: draft.bio,
+            hireable: draft.hireable,
+          );
+      ref.invalidate(githubProfileProvider);
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          'Perfil atualizado no GitHub.',
+          kind: CenteredNoticeKind.success,
+        );
+      }
+    } catch (error) {
+      if (mounted) _showError(error);
     }
   }
 
@@ -150,7 +178,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'O repositório será salvo somente como referência local e aberto em modo somente leitura.',
+                  'Cole owner/repo ou a URL do repositório. Se colar apenas um perfil, como github.com/usuario, você poderá escolher um repositório público dessa conta.',
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -180,23 +208,129 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
     controller.dispose();
     if (value == null || !mounted) return;
     try {
-      await ref.read(repositoryServiceProvider).followRepository(value);
-      final refreshed =
-          await ref.read(repositoryServiceProvider).refreshFollowedRepositories();
+      final service = ref.read(repositoryServiceProvider);
+      GitHubRepository repository;
+      try {
+        repository = await service.followRepository(value);
+      } on FormatException catch (directError) {
+        try {
+          final candidates = await service.listOwnerRepositoriesFromReference(value);
+          if (!mounted) return;
+          if (candidates.isEmpty) {
+            showCenteredNotice(
+              context,
+              'Esse perfil não possui repositórios públicos para acompanhar.',
+            );
+            return;
+          }
+          final selected = await _selectRepositoryFromProfile(candidates);
+          if (selected == null || !mounted) return;
+          repository = await service.followRepository(selected.fullName);
+        } on GitHubNotFoundException {
+          if (mounted) {
+            showCenteredNotice(
+              context,
+              'Perfil do GitHub não encontrado. Confira o nome de usuário no link.',
+            );
+          }
+          return;
+        } on FormatException {
+          throw directError;
+        }
+      }
+
+      await service.refreshFollowedRepositories();
       ref.invalidate(followedRepositoriesProvider);
+      if (mounted) setState(() {});
       if (mounted) {
-        setState(() {});
-      }
-      if (refreshed.isEmpty) {
-        await ref.read(followedRepositoriesProvider.future);
-      }
-      if (mounted) {
-        showCenteredNotice(context, 'Repositório adicionado aos acompanhados.');
+        showCenteredNotice(
+          context,
+          '${repository.name} adicionado aos acompanhados.',
+          kind: CenteredNoticeKind.success,
+        );
       }
     } catch (error) {
       if (mounted) _showError(error);
     }
   }
+
+  Future<GitHubRepository?> _selectRepositoryFromProfile(
+    List<GitHubRepository> repositories,
+  ) =>
+      showDialog<GitHubRepository>(
+        context: context,
+        builder: (dialogContext) {
+          final screen = MediaQuery.sizeOf(dialogContext);
+          return Dialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 520,
+                maxHeight: screen.height * .78 < 680.0 ? screen.height * .78 : 680.0,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 8, 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person_search_outlined),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Perfil do GitHub detectado',
+                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                              ),
+                              SizedBox(height: 2),
+                              Text('Escolha qual repositório deseja acompanhar.'),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      itemCount: repositories.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final repository = repositories[index];
+                        return ListTile(
+                          leading: Icon(
+                            repository.isPrivate
+                                ? Icons.lock_outline_rounded
+                                : Icons.bookmark_border_rounded,
+                          ),
+                          title: Text(repository.name),
+                          subtitle: Text(
+                            repository.description?.trim().isNotEmpty == true
+                                ? repository.description!
+                                : repository.fullName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => Navigator.pop(dialogContext, repository),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
 
   Future<void> _manageRepository(GitHubRepository repository) async {
     final action = await showRepositoryActionsSheet(context, repository);
@@ -406,12 +540,21 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
                   profile.maybeWhen(
                     data: (data) => Padding(
                       padding: const EdgeInsets.only(right: 2),
-                      child: CircleAvatar(
-                        radius: 15,
-                        foregroundImage: data.avatarUrl.isEmpty ? null : NetworkImage(data.avatarUrl),
-                        child: data.avatarUrl.isEmpty
-                            ? const Icon(Icons.person_outline_rounded, size: 17)
-                            : null,
+                      child: Tooltip(
+                        message: 'Editar perfil GitHub',
+                        child: InkResponse(
+                          onTap: () => _editGitHubProfile(data),
+                          radius: 22,
+                          child: CircleAvatar(
+                            radius: 16,
+                            foregroundImage: data.avatarUrl.isEmpty
+                                ? null
+                                : NetworkImage(data.avatarUrl),
+                            child: data.avatarUrl.isEmpty
+                                ? const Icon(Icons.person_outline_rounded, size: 17)
+                                : null,
+                          ),
+                        ),
                       ),
                     ),
                     orElse: () => const SizedBox.shrink(),
@@ -436,8 +579,6 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
               sliver: SliverToBoxAdapter(
                 child: Column(
                   children: [
-                    const TestVersionBanner(),
-                    const SizedBox(height: 8),
                     SearchBar(
                       controller: _searchController,
                       hintText: _showingFollowed ? 'Pesquisar acompanhado' : 'Pesquisar projeto',

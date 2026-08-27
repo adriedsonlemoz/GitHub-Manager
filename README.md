@@ -1,10 +1,10 @@
-# GitHub Manager 2.0.24
+# GitHub Manager 2.0.25
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
 ## Identidade oficial
 
-- versão: `2.0.24+200038`;
+- versão: `2.0.25+200039`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
@@ -19,7 +19,7 @@ O desenvolvimento oficial usa `adriedsonlemoz/GitHub-Manager`. Validações de A
 
 A lista usa cache local e atualização paralela para abrir rapidamente. Cada acompanhado possui ação `Fork`, que cria uma cópia na conta conectada, e o diálogo de inclusão possui botão para colar a URL.
 
-A tela inicial separa `Meus repositórios` e `Acompanhados`. Repositórios públicos de outros desenvolvedores podem ser adicionados por URL ou `owner/repo`, sem criar outra sessão. Eles são mantidos localmente como referências e abertos em modo somente leitura, com download do projeto e acesso a Releases/APKs quando disponíveis.
+A tela inicial separa `Meus repositórios` e `Acompanhados`. Repositórios públicos de outros desenvolvedores podem ser adicionados por URL ou `owner/repo`, sem criar outra sessão. Ao colar somente uma URL de perfil, como `github.com/usuario`, o app consulta os repositórios públicos daquela conta e permite escolher qual acompanhar. Eles são mantidos localmente como referências e abertos em modo somente leitura, com download do projeto e acesso a Releases/APKs quando disponíveis.
 
 ## Notificações de Builds
 
@@ -44,7 +44,7 @@ Para reduzir chamadas desnecessárias, o envio calcula o SHA Git dos arquivos do
 
 Durante a sincronização, o Android mantém um serviço em primeiro plano com notificação de progresso. Se a interface for removida dos recentes, o envio continua enquanto o processo estiver vivo. Se o processo for realmente encerrado, a fila é restaurada automaticamente ao abrir o app: o GitHub Manager usa a cópia privada do ZIP e reaproveita blobs/commit já salvos no checkpoint. Se o ZIP não tiver alterações, a Central mantém a opção `Executar build` usando o commit atual, sem reenviar o projeto.
 
-A versão 2.0.24 mantém o banner de teste com fundo vermelho e texto branco e reorganiza os logs de envio em relatório visual: resumo de arquivos, resultado da build, GitHub, arquivos alterados e linha do tempo sem centenas de linhas repetitivas por arquivo.
+A versão 2.0.25 remove o banner vermelho global. O destaque vermelho com texto branco aparece somente na confirmação de envio do ZIP, identificando claramente a versão do GitHub Manager instalada antes da sincronização. A Home permite editar o perfil GitHub tocando no avatar, e o menu de gerenciamento do repositório usa uma engrenagem com diálogo centralizado.
 
 
 ## Central de Downloads
@@ -56,7 +56,7 @@ Todos os downloads GitHub usam o mesmo gerenciador interno:
 - logs do GitHub Actions;
 - arquivos GitHub integrados futuramente pelo mesmo serviço.
 
-A Central separa `Baixando`, `Concluídos` e `Falharam`, mostrando progresso, bytes, tamanho total, velocidade, estimativa restante e status. Downloads podem ser cancelados e falhas repetidas quando a origem ainda existe.
+A Central separa `Baixando`, `Concluídos` e `Falharam`, mostrando progresso, bytes, tamanho total, velocidade, estimativa restante e status. Durante downloads ativos, um serviço Android em primeiro plano mantém o processo com notificação de progresso ao minimizar ou remover a interface dos recentes. Downloads interrompidos preservam o arquivo parcial e, quando o servidor aceita `Range`, retomam a partir dos bytes já recebidos em vez de reiniciar do zero.
 
 Arquivos concluídos são publicados diretamente na pasta pública `Downloads` do Android, sem pedir uma pasta a cada operação. O histórico pode ser removido sem apagar o arquivo; a exclusão do arquivo é uma ação separada. Arquivos concluídos podem ser abertos ou compartilhados. APKs oferecem `Instalar`, que apenas abre o instalador oficial do Android.
 
@@ -82,3 +82,8 @@ Os workflows `Android APK` e `Android Release` usam os mesmos Secrets oficiais:
 - `KEY_PASSWORD`
 
 A chave oficial desta geração usa o alias `github_manager_release`. O certificado público esperado fica em `android/release-signing.properties`. Keystore, arquivo de Secrets, `.env` e `key.properties` não fazem parte do ZIP do projeto.
+
+
+## Sobre e suporte
+
+A área Sobre mantém as três mudanças mais recentes recolhidas em um painel expansível, identifica o desenvolvedor como `@AdriedsonLemos`, oferece chave Pix e canal de feedback copiáveis e informa que o GitHub Manager é um projeto independente, sem parceria, afiliação, endosso ou patrocínio do GitHub. A integração Groq permanece opcional e reservada para futuros recursos de IA, como resumo de logs e explicação de erros; ela não é necessária para as funções GitHub atuais.

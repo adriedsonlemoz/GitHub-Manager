@@ -48,10 +48,9 @@ Future<RepositoryAction?> showRepositoryActionsSheet(
   BuildContext context,
   GitHubRepository repository,
 ) =>
-    showModalBottomSheet<RepositoryAction>(
+    showDialog<RepositoryAction>(
       context: context,
-      showDragHandle: true,
-      builder: (context) => _RepositoryActionsSheet(repository: repository),
+      builder: (context) => _RepositoryActionsDialog(repository: repository),
     );
 
 class _CreateRepositoryDialog extends StatefulWidget {
@@ -379,32 +378,91 @@ class _EditRepositoryDialogState extends State<_EditRepositoryDialog> {
 
 }
 
-class _RepositoryActionsSheet extends StatelessWidget {
-  const _RepositoryActionsSheet({required this.repository});
+class _RepositoryActionsDialog extends StatelessWidget {
+  const _RepositoryActionsDialog({required this.repository});
   final GitHubRepository repository;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(repository.fullName),
-                subtitle: Text(repository.isPrivate ? 'Privado' : 'Público'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Editar repositório'),
-                onTap: () => Navigator.pop(context, RepositoryAction.edit),
-              ),
-              ListTile(
-                leading: Icon(Icons.delete_forever_outlined, color: Theme.of(context).colorScheme.error),
-                title: const Text('Excluir permanentemente'),
-                onTap: () => Navigator.pop(context, RepositoryAction.delete),
-              ),
-            ],
+  Widget build(BuildContext context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(
+                        Icons.settings_outlined,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Gerenciar repositório',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            repository.fullName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Fechar',
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.edit_outlined),
+                        title: const Text('Editar repositório'),
+                        subtitle: const Text('Nome, descrição, visibilidade e arquivamento'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.pop(context, RepositoryAction.edit),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(
+                          Icons.delete_forever_outlined,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        title: Text(
+                          'Excluir permanentemente',
+                          style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        ),
+                        subtitle: const Text('A exclusão exige uma confirmação adicional'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.pop(context, RepositoryAction.delete),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

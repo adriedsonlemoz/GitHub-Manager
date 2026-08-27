@@ -88,7 +88,15 @@ class RepositoryService {
       return cached;
     }
 
-    return refreshFollowedRepositories();
+    try {
+      return await refreshFollowedRepositories();
+    } catch (_) {
+      cached.sort(
+        (a, b) => (b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+      );
+      return cached;
+    }
   }
 
   Future<List<GitHubRepository>> refreshFollowedRepositories() async {
@@ -182,23 +190,77 @@ class RepositoryService {
     }
   }
 
-  static String _normalizeRepositoryReference(String input) {
+  static List<String> _referenceParts(String input) {
     var value = input.trim();
-    if (value.startsWith('https://github.com/')) {
-      value = value.substring('https://github.com/'.length);
-    } else if (value.startsWith('http://github.com/')) {
-      value = value.substring('http://github.com/'.length);
+    if (value.isEmpty) return const <String>[];
+
+    final uri = Uri.tryParse(value);
+    if (uri != null && uri.hasScheme) {
+      final host = uri.host.toLowerCase();
+      if (host != 'github.com' && host != 'www.github.com') {
+        throw const FormatException('Use um link válido do GitHub.');
+      }
+      value = uri.path;
     }
+
     value = value.split('?').first.split('#').first;
-    value = value.replaceAll(RegExp(r'/+$'), '');
+    value = value.replaceAll(RegExp(r'^/+|/+$'), '');
     if (value.endsWith('.git')) {
       value = value.substring(0, value.length - 4);
     }
-    final parts = value.split('/').where((item) => item.isNotEmpty).toList();
+    return value
+        .split('/')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  static String _normalizeRepositoryReference(String input) {
+    final parts = _referenceParts(input);
     if (parts.length != 2) {
-      throw const FormatException('Informe o link do GitHub ou owner/repo.');
+      if (parts.length == 1) {
+        throw const FormatException(
+          'Este link é de um perfil do GitHub. Escolha um repositório dessa conta.',
+        );
+      }
+      throw const FormatException(
+        'Informe um repositório como github.com/owner/repo ou owner/repo.',
+      );
     }
     return '${parts[0]}/${parts[1]}';
+  }
+
+  Future<List<GitHubRepository>> listOwnerRepositoriesFromReference(
+    String input,
+  ) async {
+    final parts = _referenceParts(input);
+    if (parts.length != 1) {
+      throw const FormatException('Informe somente o perfil do GitHub, como github.com/owner.');
+    }
+    final owner = parts.single;
+    final repositories = <GitHubRepository>[];
+    for (var page = 1; page <= 5; page++) {
+      final response = await _client.get<List<dynamic>>(
+        '/users/$owner/repos',
+        queryParameters: {
+          'sort': 'updated',
+          'direction': 'desc',
+          'per_page': 100,
+          'page': page,
+        },
+      );
+      final pageItems = (response.data ?? const <dynamic>[])
+          .whereType<Map>()
+          .map(
+            (json) => GitHubRepository.fromJson(
+              Map<String, dynamic>.from(json),
+            ),
+          )
+          .toList(growable: false);
+      repositories.addAll(pageItems);
+      if (pageItems.length < 100) break;
+    }
+    return repositories;
   }
 
   Future<GitHubRepository> getRepository(String fullName) async {

@@ -5,6 +5,7 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
+import 'package:github_manager/core/widgets/installed_version_banner.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
@@ -189,6 +190,8 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const InstalledVersionBanner(compact: true),
+                const SizedBox(height: 12),
                 _BuildSafetyRow(
                   label: 'Projeto detectado',
                   value: project.identityLabel,
@@ -465,7 +468,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                       IconButton(
                         onPressed: () => _manageRepository(repository),
                         tooltip: 'Gerenciar repositório',
-                        icon: const Icon(Icons.more_vert_rounded),
+                        icon: const Icon(Icons.settings_outlined),
                       ),
                     const SizedBox(width: 4),
                   ],

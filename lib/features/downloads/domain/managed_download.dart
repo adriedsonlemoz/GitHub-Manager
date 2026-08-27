@@ -21,6 +21,7 @@ class ManagedDownload {
     this.sourceEndpoint,
     this.artifactId,
     this.localPath,
+    this.workingPath,
     this.startedAt,
     this.completedAt,
     this.failedAt,
@@ -45,6 +46,7 @@ class ManagedDownload {
   String? sourceEndpoint;
   int? artifactId;
   String? localPath;
+  String? workingPath;
   DateTime? startedAt;
   DateTime? completedAt;
   DateTime? failedAt;
@@ -73,6 +75,11 @@ class ManagedDownload {
           status == ManagedDownloadStatus.cancelled) &&
       sourceEndpoint != null &&
       sourceEndpoint!.isNotEmpty;
+
+  bool get canResume =>
+      canRetry &&
+      workingPath?.isNotEmpty == true &&
+      receivedBytes > 0;
 
   double? get progress {
     if (totalBytes <= 0) {
@@ -108,6 +115,7 @@ class ManagedDownload {
       'Status: $statusLabel',
       if (repositoryFullName != null) 'Repositório: $repositoryFullName',
       if (sourceEndpoint != null) 'Endpoint: $sourceEndpoint',
+      if (workingPath != null) 'Arquivo parcial: preservado para retomada',
       if (httpStatus != null) 'HTTP: $httpStatus',
       if (failureStage != null) 'Etapa: $failureStage',
       if (errorCode != null) 'Código interno: $errorCode',
@@ -124,7 +132,9 @@ class ManagedDownload {
     failedAt = DateTime.now();
     bytesPerSecond = 0;
     estimatedSecondsRemaining = null;
-    errorMessage = 'Download interrompido porque o aplicativo foi encerrado.';
+    errorMessage = workingPath?.isNotEmpty == true
+        ? 'Download interrompido. O progresso parcial foi preservado para retomar.'
+        : 'Download interrompido porque o aplicativo foi encerrado.';
     errorCode = 'DOWNLOAD_APP_INTERRUPTED';
     failureStage = 'download';
   }
@@ -157,6 +167,7 @@ class ManagedDownload {
         'sourceEndpoint': sourceEndpoint,
         'artifactId': artifactId,
         'localPath': localPath,
+        'workingPath': workingPath,
         'startedAt': startedAt?.toIso8601String(),
         'completedAt': completedAt?.toIso8601String(),
         'failedAt': failedAt?.toIso8601String(),
@@ -192,6 +203,7 @@ class ManagedDownload {
       sourceEndpoint: json['sourceEndpoint']?.toString(),
       artifactId: (json['artifactId'] as num?)?.toInt(),
       localPath: json['localPath']?.toString(),
+      workingPath: json['workingPath']?.toString(),
       startedAt: DateTime.tryParse(json['startedAt']?.toString() ?? ''),
       completedAt: DateTime.tryParse(json['completedAt']?.toString() ?? ''),
       failedAt: DateTime.tryParse(json['failedAt']?.toString() ?? ''),

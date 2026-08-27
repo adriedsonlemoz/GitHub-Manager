@@ -109,6 +109,7 @@ class GitHubApiClient {
     String savePath, {
     ProgressCallback? onReceiveProgress,
     CancelToken? cancelToken,
+    int resumeFrom = 0,
   }) async {
     final token = await _secureStorage.readGitHubToken();
     if (token == null) {
@@ -156,16 +157,11 @@ class GitHubApiClient {
       );
     }
 
-    final downloadDio = Dio(
-      BaseOptions(
-        connectTimeout: const Duration(seconds: 20),
-        receiveTimeout: const Duration(minutes: 5),
-      ),
-    );
     try {
-      await downloadDio.download(
+      await _downloadTemporaryUrl(
         location,
         savePath,
+        resumeFrom: resumeFrom,
         cancelToken: cancelToken,
         onReceiveProgress: onReceiveProgress,
       );
@@ -184,27 +180,38 @@ class GitHubApiClient {
     String savePath, {
     ProgressCallback? onReceiveProgress,
     CancelToken? cancelToken,
+    int resumeFrom = 0,
   }) async {
     final token = await _secureStorage.readGitHubToken();
     if (token == null) {
       throw const AuthenticationRequiredException();
     }
 
+    Future<Response<ResponseBody>> request(int offset) =>
+        _dio.get<ResponseBody>(
+          path,
+          cancelToken: cancelToken,
+          options: Options(
+            followRedirects: false,
+            validateStatus: (_) => true,
+            responseType: ResponseType.stream,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/octet-stream',
+              if (offset > 0) 'Range': 'bytes=$offset-',
+            },
+          ),
+        );
+
     Response<ResponseBody> response;
     try {
-      response = await _dio.get<ResponseBody>(
-        path,
-        cancelToken: cancelToken,
-        options: Options(
-          followRedirects: false,
-          validateStatus: (_) => true,
-          responseType: ResponseType.stream,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/octet-stream',
-          },
-        ),
-      );
+      response = await request(resumeFrom);
+      if (response.statusCode == 416 && resumeFrom > 0) {
+        final partial = File(savePath);
+        if (await partial.exists()) await partial.delete();
+        resumeFrom = 0;
+        response = await request(0);
+      }
     } on DioException catch (error) {
       throw _mapDownloadDioException(
         error,
@@ -214,7 +221,7 @@ class GitHubApiClient {
     }
 
     final status = response.statusCode;
-    if (status == 200) {
+    if (status == 200 || status == 206) {
       final body = response.data;
       if (body == null) {
         throw DownloadFailureException(
@@ -225,29 +232,16 @@ class GitHubApiClient {
           httpStatus: status,
         );
       }
-      final file = File(savePath);
-      final sink = file.openWrite();
-      var received = 0;
-      final total =
-          int.tryParse(response.headers.value('content-length') ?? '') ?? -1;
-      try {
-        await for (final chunk in body.stream) {
-          if (cancelToken?.isCancelled == true) {
-            throw DownloadFailureException(
-              'Download cancelado.',
-              code: 'DOWNLOAD_CANCELLED',
-              endpoint: path,
-              stage: 'baixar_release_asset',
-            );
-          }
-          sink.add(chunk);
-          received += chunk.length;
-          onReceiveProgress?.call(received, total);
-        }
-        await sink.flush();
-      } finally {
-        await sink.close();
-      }
+      await _writeResponseBody(
+        response,
+        body,
+        savePath,
+        requestedResumeFrom: resumeFrom,
+        cancelToken: cancelToken,
+        onReceiveProgress: onReceiveProgress,
+        endpoint: path,
+        stage: 'baixar_release_asset',
+      );
       return;
     }
 
@@ -272,16 +266,11 @@ class GitHubApiClient {
       );
     }
 
-    final downloadDio = Dio(
-      BaseOptions(
-        connectTimeout: const Duration(seconds: 20),
-        receiveTimeout: const Duration(minutes: 10),
-      ),
-    );
     try {
-      await downloadDio.download(
+      await _downloadTemporaryUrl(
         location,
         savePath,
+        resumeFrom: resumeFrom,
         cancelToken: cancelToken,
         onReceiveProgress: onReceiveProgress,
       );
@@ -292,6 +281,113 @@ class GitHubApiClient {
         stage: 'baixar_release_asset',
         temporaryUrl: true,
       );
+    }
+  }
+
+  Future<void> _downloadTemporaryUrl(
+    String url,
+    String savePath, {
+    required int resumeFrom,
+    ProgressCallback? onReceiveProgress,
+    CancelToken? cancelToken,
+  }) async {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(minutes: 10),
+        followRedirects: true,
+      ),
+    );
+
+    Future<Response<ResponseBody>> request(int offset) =>
+        dio.get<ResponseBody>(
+          url,
+          cancelToken: cancelToken,
+          options: Options(
+            responseType: ResponseType.stream,
+            validateStatus: (status) => status == 200 || status == 206 || status == 416,
+            headers: {if (offset > 0) 'Range': 'bytes=$offset-'},
+          ),
+        );
+
+    var offset = resumeFrom;
+    var response = await request(offset);
+    if (response.statusCode == 416 && offset > 0) {
+      final partial = File(savePath);
+      if (await partial.exists()) await partial.delete();
+      offset = 0;
+      response = await request(0);
+    }
+    if (response.statusCode != 200 && response.statusCode != 206) {
+      throw DownloadFailureException(
+        'O servidor não aceitou a retomada do download.',
+        code: 'DOWNLOAD_RESUME_HTTP_${response.statusCode ?? 'UNKNOWN'}',
+        endpoint: url,
+        stage: 'retomar_download',
+        httpStatus: response.statusCode,
+      );
+    }
+    final body = response.data;
+    if (body == null) {
+      throw DioException(
+        requestOptions: response.requestOptions,
+        message: 'Resposta de download vazia.',
+      );
+    }
+    await _writeResponseBody(
+      response,
+      body,
+      savePath,
+      requestedResumeFrom: offset,
+      cancelToken: cancelToken,
+      onReceiveProgress: onReceiveProgress,
+      endpoint: url,
+      stage: 'baixar_arquivo',
+    );
+  }
+
+  Future<void> _writeResponseBody(
+    Response<ResponseBody> response,
+    ResponseBody body,
+    String savePath, {
+    required int requestedResumeFrom,
+    ProgressCallback? onReceiveProgress,
+    CancelToken? cancelToken,
+    required String endpoint,
+    required String stage,
+  }) async {
+    final acceptedResume = response.statusCode == 206 && requestedResumeFrom > 0;
+    final startingBytes = acceptedResume ? requestedResumeFrom : 0;
+    final file = File(savePath);
+    final sink = file.openWrite(
+      mode: acceptedResume ? FileMode.append : FileMode.write,
+    );
+    var received = startingBytes;
+    final contentRange = response.headers.value('content-range');
+    final rangeTotal = contentRange == null
+        ? null
+        : int.tryParse(contentRange.split('/').last.trim());
+    final contentLength =
+        int.tryParse(response.headers.value('content-length') ?? '');
+    final total = rangeTotal ??
+        (contentLength == null ? -1 : startingBytes + contentLength);
+    try {
+      await for (final chunk in body.stream) {
+        if (cancelToken?.isCancelled == true) {
+          throw DownloadFailureException(
+            'Download cancelado.',
+            code: 'DOWNLOAD_CANCELLED',
+            endpoint: endpoint,
+            stage: stage,
+          );
+        }
+        sink.add(chunk);
+        received += chunk.length;
+        onReceiveProgress?.call(received, total);
+      }
+      await sink.flush();
+    } finally {
+      await sink.close();
     }
   }
 

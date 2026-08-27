@@ -7,9 +7,9 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
-import 'package:github_manager/core/widgets/test_version_banner.dart';
 import 'package:github_manager/features/auth/presentation/auth_providers.dart';
 import 'package:github_manager/features/home/domain/github_profile.dart';
+import 'package:github_manager/features/home/presentation/github_profile_edit_dialog.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:go_router/go_router.dart';
@@ -247,87 +247,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _editProfile(GitHubProfile profile) async {
-    final name = TextEditingController(text: profile.name ?? '');
-    final email = TextEditingController(text: profile.email ?? '');
-    final blog = TextEditingController(text: profile.blog ?? '');
-    final twitter = TextEditingController(text: profile.twitterUsername ?? '');
-    final company = TextEditingController(text: profile.company ?? '');
-    final location = TextEditingController(text: profile.location ?? '');
-    final bio = TextEditingController(text: profile.bio ?? '');
-    var hireable = profile.hireable;
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Editar perfil GitHub'),
-          content: AdaptiveDialogBody(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome')),
-                  const SizedBox(height: 10),
-                  TextField(controller: bio, maxLines: 3, decoration: const InputDecoration(labelText: 'Bio')),
-                  const SizedBox(height: 10),
-                  TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail público')),
-                  const SizedBox(height: 10),
-                  TextField(controller: blog, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'Site')),
-                  const SizedBox(height: 10),
-                  TextField(controller: twitter, decoration: const InputDecoration(labelText: 'Usuário do X / Twitter')),
-                  const SizedBox(height: 10),
-                  TextField(controller: company, decoration: const InputDecoration(labelText: 'Empresa')),
-                  const SizedBox(height: 10),
-                  TextField(controller: location, decoration: const InputDecoration(labelText: 'Localização')),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: hireable,
-                    onChanged: (value) => setDialogState(() => hireable = value),
-                    title: const Text('Disponível para contratação'),
-                  ),
-                  const Text('Login e avatar são somente leitura: PATCH /user não permite alterar esses campos.'),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Salvar')),
-          ],
-        ),
-      ),
-    );
-
-    if (result == true && mounted) {
-      try {
-        await ref.read(githubProfileRepositoryProvider).updateProfile(
-              name: name.text,
-              email: email.text,
-              blog: blog.text,
-              twitterUsername: twitter.text,
-              company: company.text,
-              location: location.text,
-              bio: bio.text,
-              hireable: hireable,
-            );
-        ref.invalidate(githubProfileProvider);
-        if (mounted) {
-          showCenteredNotice(context, 'Perfil atualizado no GitHub.');
-        }
-      } catch (error) {
-        if (mounted) {
-        _showError(error);
+    final draft = await showGitHubProfileEditDialog(context, profile);
+    if (draft == null || !mounted) return;
+    try {
+      await ref.read(githubProfileRepositoryProvider).updateProfile(
+            name: draft.name,
+            email: draft.email,
+            blog: draft.blog,
+            twitterUsername: draft.twitterUsername,
+            company: draft.company,
+            location: draft.location,
+            bio: draft.bio,
+            hireable: draft.hireable,
+          );
+      ref.invalidate(githubProfileProvider);
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          'Perfil atualizado no GitHub.',
+          kind: CenteredNoticeKind.success,
+        );
       }
-      }
+    } catch (error) {
+      if (mounted) _showError(error);
     }
-
-    name.dispose();
-    email.dispose();
-    blog.dispose();
-    twitter.dispose();
-    company.dispose();
-    location.dispose();
-    bio.dispose();
   }
 
   Future<void> _editApi() async {
@@ -352,6 +295,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Para que serve? Esta integração foi preparada para recursos opcionais de IA, '
+                      'como resumir logs e explicar erros de build em linguagem simples. '
+                      'Na versão atual nenhuma função principal depende do Groq, então você pode deixar sem chave.',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   SegmentedButton<String>(
                     segments: const [
                       ButtonSegment(value: 'groq', label: Text('Groq')),
@@ -439,6 +396,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     model.dispose();
   }
 
+  Future<void> _copySupportText(String value, String message) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (mounted) {
+      showCenteredNotice(
+        context,
+        message,
+        kind: CenteredNoticeKind.success,
+      );
+    }
+  }
+
   void _showError(Object error) {
     final message = error is AppException ? error.message : 'Não foi possível concluir a operação.';
     showCenteredNotice(context, message);
@@ -509,9 +477,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: api?['name']?.isNotEmpty == true ? api!['name']! : 'Groq / API personalizada',
             subtitle: api == null
                 ? 'Carregando configuração…'
-                : '${api['baseUrl']?.isNotEmpty == true ? api['baseUrl'] : 'Sem Base URL'}${api['model']?.isNotEmpty == true ? ' • ${api['model']}' : ''}',
-            status: api?['apiKey']?.isNotEmpty == true ? 'Configurada' : 'Sem chave',
+                : 'IA opcional para futuros resumos e explicações de logs. '
+                    'Hoje não é necessária para usar o GitHub Manager.',
+            status: api?['apiKey']?.isNotEmpty == true ? 'Configurada' : 'Opcional',
             onTap: _editApi,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            child: Text(
+              'A integração Groq está preparada para recursos de IA, como resumir logs e explicar erros de build. '
+              'Nesta versão ela ainda não é usada automaticamente; você pode deixar sem chave.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
           ),
           const SizedBox(height: 18),
           const _SectionTitle('Transferências'),
@@ -554,21 +533,72 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 18),
           const _SectionTitle('Sobre'),
           Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const TestVersionBanner(compact: true),
-                  const SizedBox(height: 8),
-                  const ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.info_outline_rounded),
-                    title: Text('GitHub Manager'),
-                    subtitle: Text('Gerenciador GitHub local-first para Android'),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                const ListTile(
+                  leading: Icon(Icons.info_outline_rounded),
+                  title: Text('GitHub Manager'),
+                  subtitle: Text(
+                    'Gerenciador GitHub local-first para Android\n'
+                    'Desenvolvedor: @AdriedsonLemos',
                   ),
-                ],
-              ),
+                ),
+                const Divider(height: 1),
+                ExpansionTile(
+                  leading: const Icon(Icons.new_releases_outlined),
+                  title: const Text('Últimas 3 mudanças'),
+                  subtitle: const Text('Toque para expandir'),
+                  initiallyExpanded: false,
+                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  children: const [
+                    _ChangeNote(
+                      version: '2.0.25',
+                      text: 'Downloads em segundo plano com retomada, ajustes de perfil, Acompanhados e interface.',
+                    ),
+                    _ChangeNote(
+                      version: '2.0.24',
+                      text: 'Relatório de envios reorganizado com resumo, métricas e linha do tempo limpa.',
+                    ),
+                    _ChangeNote(
+                      version: '2.0.23',
+                      text: 'Envios resistentes ao segundo plano com serviço Android e checkpoints.',
+                    ),
+                  ],
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.payments_outlined),
+                  title: const Text('Apoiar via Pix'),
+                  subtitle: const Text('adriedson@outlook.com • toque para copiar'),
+                  trailing: const Icon(Icons.copy_rounded),
+                  onTap: () => _copySupportText(
+                    'adriedson@outlook.com',
+                    'Chave Pix copiada.',
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.feedback_outlined),
+                  title: const Text('Fale conosco / Feedback'),
+                  subtitle: const Text('adriedson@outlook.com • toque para copiar'),
+                  trailing: const Icon(Icons.copy_rounded),
+                  onTap: () => _copySupportText(
+                    'adriedson@outlook.com',
+                    'E-mail de contato copiado.',
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                  child: Text(
+                    'GitHub Manager é um projeto independente. Não possui parceria, afiliação, endosso ou patrocínio do GitHub.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -639,6 +669,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+}
+
+class _ChangeNote extends StatelessWidget {
+  const _ChangeNote({required this.version, required this.text});
+
+  final String version;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                'v$version',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(text)),
+          ],
+        ),
+      );
 }
 
 class _SectionTitle extends StatelessWidget {

@@ -98,6 +98,35 @@ class MainActivity : FlutterActivity() {
                         result.error("UPLOAD_FOREGROUND_STOP_FAILED", error.message, null)
                     }
                 }
+                "showDownloadForegroundService" -> {
+                    try {
+                        val arguments = DownloadForegroundService.Arguments(
+                            downloadId = call.argument<String>("downloadId").orEmpty(),
+                            fileName = call.argument<String>("fileName").orEmpty(),
+                            repositoryFullName = call.argument<String>("repositoryFullName").orEmpty(),
+                            current = call.argument<Int>("current") ?: 0,
+                            total = call.argument<Int>("total") ?: 0,
+                            indeterminate = call.argument<Boolean>("indeterminate") ?: true,
+                            activeCount = call.argument<Int>("activeCount") ?: 1,
+                        )
+                        if (call.argument<Boolean>("startService") != false) {
+                            DownloadForegroundService.show(applicationContext, arguments)
+                        } else {
+                            DownloadForegroundService.update(applicationContext, arguments)
+                        }
+                        result.success(null)
+                    } catch (error: Exception) {
+                        result.error("DOWNLOAD_FOREGROUND_FAILED", error.message, null)
+                    }
+                }
+                "stopDownloadForegroundService" -> {
+                    try {
+                        DownloadForegroundService.stop(applicationContext)
+                        result.success(null)
+                    } catch (error: Exception) {
+                        result.error("DOWNLOAD_FOREGROUND_STOP_FAILED", error.message, null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

@@ -531,6 +531,15 @@ class _FailedDownloadCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
+            if (item.canResume) ...[
+              const SizedBox(height: 7),
+              Text(
+                '${_formatBytes(item.receivedBytes)} preservados. A retomada continua do ponto parcial quando o servidor aceitar Range.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -539,8 +548,8 @@ class _FailedDownloadCard extends StatelessWidget {
                 if (onRetry != null)
                   FilledButton.tonalIcon(
                     onPressed: onRetry,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Tentar novamente'),
+                    icon: Icon(item.canResume ? Icons.play_arrow_rounded : Icons.refresh_rounded),
+                    label: Text(item.canResume ? 'Retomar download' : 'Tentar novamente'),
                   ),
                 OutlinedButton.icon(
                   onPressed: onDetails,

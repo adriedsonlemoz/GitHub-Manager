@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class TestVersionBanner extends StatelessWidget {
-  const TestVersionBanner({super.key, this.compact = false});
+class InstalledVersionBanner extends StatelessWidget {
+  const InstalledVersionBanner({super.key, this.compact = false});
 
   final bool compact;
 
@@ -25,7 +25,7 @@ class TestVersionBanner extends StatelessWidget {
     } catch (_) {
       // O banner continua útil mesmo sem metadados carregados.
     }
-    return 'teste';
+    return 'versão não identificada';
   }
 
   @override
@@ -44,7 +44,7 @@ class TestVersionBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(compact ? 10 : 12),
             ),
             child: Text(
-              'VERSÃO DE TESTE • $label',
+              'GITHUB MANAGER INSTALADO • $label',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,
