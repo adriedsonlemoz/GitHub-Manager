@@ -90,7 +90,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Cole um Personal Access Token. Ele será validado em /user antes de substituir o token atual.'),
+                  const Text('Cole um Personal Access Token fine-grained (github_pat_...) ou clássico (ghp_...). Ele será validado em /user antes de substituir o token atual.'),
                   const SizedBox(height: 14),
                   TextField(
                     controller: controller,
@@ -100,7 +100,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     enableSuggestions: false,
                     decoration: InputDecoration(
                       labelText: 'Personal Access Token',
-                      hintText: 'ghp_...',
+                      hintText: 'github_pat_... ou ghp_...',
                       suffixIcon: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -553,16 +553,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.26',
+                      text: 'Secrets reforçados: PAT fine-grained/clássico, pré-validação, importação em lote com diagnóstico e novos testes.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.25',
                       text: 'Downloads em segundo plano com retomada, ajustes de perfil, Acompanhados e interface.',
                     ),
                     _ChangeNote(
                       version: '2.0.24',
                       text: 'Relatório de envios reorganizado com resumo, métricas e linha do tempo limpa.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.23',
-                      text: 'Envios resistentes ao segundo plano com serviço Android e checkpoints.',
                     ),
                   ],
                 ),

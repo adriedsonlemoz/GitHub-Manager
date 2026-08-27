@@ -6,6 +6,8 @@ GitHub token, Secrets e chaves de APIs: `flutter_secure_storage`; nunca SQLite, 
 ## Logs
 Sanitizar Authorization/Bearer, token, api_key, password e secret. Não depender só da sanitização: código chamador não deve enviar credenciais ao logger.
 
+Diagnósticos de Secrets podem registrar somente nome, operação, HTTP, endpoint, código técnico e mensagem sanitizada da API. O valor do Secret nunca é incluído.
+
 ## ZIP
 Na implementação: rejeitar caminhos absolutos e `../`, normalizar entradas, limitar tamanho compactado/descompactado e número de arquivos, detectar compressão suspeita, nunca executar conteúdo, usar diretório temporário privado e apagar tudo no `finally`.
 

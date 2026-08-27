@@ -1,15 +1,24 @@
-# GitHub Manager 2.0.25
+# GitHub Manager 2.0.26
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
 ## Identidade oficial
 
-- versão: `2.0.25+200039`;
+- versão: `2.0.26+200040`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
 - APK Release universal com `armeabi-v7a` e `arm64-v8a`.
 
+
+
+## GitHub Secrets 2.0.26
+
+O módulo de Secrets aceita PAT fine-grained (`github_pat_...`) e token clássico (`ghp_...`). Para Secrets, o fine-grained deve ter `Secrets: Read and write`; no token clássico, use o escopo `repo`. Antes de gravar, o aplicativo valida nomes, duplicidades, limite de 48 KB por valor e o limite final de 100 Secrets por repositório.
+
+Importações TXT/ENV aceitam `NOME=valor`, `NOME: valor` e `export NOME=valor`; JSON e XML continuam suportados. O lote é pré-visualizado como `Criar` ou `Substituir` e o resultado é individual por Secret, permitindo sucesso parcial. O diagnóstico copiável registra nome, HTTP, endpoint, código e mensagem da API quando disponíveis, mas nunca inclui o valor do Secret.
+
+A criptografia continua local com sealed box/Libsodium antes do `PUT` na API do GitHub. Arquivos de importação recebem limite preventivo de tamanho para evitar consumo excessivo de memória.
 
 ## Repositório oficial
 

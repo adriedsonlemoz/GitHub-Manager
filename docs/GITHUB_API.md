@@ -46,7 +46,11 @@ A importação usa refs, commits, trees e blobs. Arquivos-texto pequenos podem s
 
 ## Secrets
 
-O valor do Secret é criptografado localmente com sealed box antes do envio. Token, Secrets e chaves não podem ser registrados em logs.
+O valor do Secret é criptografado localmente com sealed box antes do envio. O fluxo usa `GET /repos/{owner}/{repo}/actions/secrets`, `GET /repos/{owner}/{repo}/actions/secrets/public-key`, `PUT /repos/{owner}/{repo}/actions/secrets/{name}` e `DELETE` no mesmo recurso. Token, valores de Secrets e chaves não podem ser registrados em logs.
+
+O módulo aceita token fine-grained e clássico porque a autenticação usa `Authorization: Bearer`. Para fine-grained, a tela orienta `Secrets: Read and write`; no token clássico, `repo`. Erros HTTP preservam status, endpoint e mensagem da API no diagnóstico sanitizado.
+
+Antes do PUT, o app valida 48 KB por Secret e o limite final de 100 Secrets do repositório, considerando substituições. Importações em lote continuam após uma falha individual e retornam resultado por nome sem incluir valores.
 
 ## Retry
 

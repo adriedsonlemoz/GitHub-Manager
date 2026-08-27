@@ -579,27 +579,57 @@ class GitHubApiClient {
     final response = error.response;
     final status = response?.statusCode;
     final remaining = response?.headers.value('x-ratelimit-remaining');
+    final endpoint = error.requestOptions.path;
+    final apiMessage = _responseMessage(response?.data);
 
     if (status == 401) {
-      return const AuthenticationRequiredException();
+      return AuthenticationRequiredException(
+        httpStatus: status,
+        endpoint: endpoint,
+        apiMessage: apiMessage,
+      );
     }
     if (status == 404) {
-      return const GitHubNotFoundException();
+      return GitHubNotFoundException(
+        httpStatus: status,
+        endpoint: endpoint,
+        apiMessage: apiMessage,
+      );
     }
     if (status == 429) {
-      return const GitHubRateLimitException();
+      return GitHubRateLimitException(
+        httpStatus: status,
+        endpoint: endpoint,
+        apiMessage: apiMessage,
+      );
     }
     if (status == 403 && remaining == '0') {
-      return const GitHubRateLimitException();
+      return GitHubRateLimitException(
+        httpStatus: status,
+        endpoint: endpoint,
+        apiMessage: apiMessage,
+      );
     }
     if (status == 403) {
-      return const GitHubPermissionException();
+      return GitHubPermissionException(
+        httpStatus: status,
+        endpoint: endpoint,
+        apiMessage: apiMessage,
+      );
     }
     if (status == 409) {
-      return const GitHubConflictException();
+      return GitHubConflictException(
+        httpStatus: status,
+        endpoint: endpoint,
+        apiMessage: apiMessage,
+      );
     }
     if (status == 422) {
-      return const GitHubValidationException();
+      return GitHubValidationException(
+        httpStatus: status,
+        endpoint: endpoint,
+        apiMessage: apiMessage,
+      );
     }
 
     if (error.type == DioExceptionType.connectionError ||

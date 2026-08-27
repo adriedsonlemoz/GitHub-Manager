@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.25+200039`, com Central de Envios global/minimizável, downloads em foreground com retomada por arquivo parcial/Range, edição de perfil pela Home, inclusão de acompanhados por URL de perfil e área Sobre/suporte remodelada.
+Estado atual: `2.0.26+200040`, com módulo de Secrets reforçado para PAT fine-grained/clássico, pré-validação de lote, diagnóstico individual e testes dedicados; mantém Central de Envios global/minimizável e downloads em foreground com retomada.
 
 ## Arquitetura
 
@@ -32,11 +32,22 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 - artifacts/APK;
 - Commits;
 - Bugs via GitHub Issues sem reformulação adicional;
-- GitHub Secrets com sealed box;
+- GitHub Secrets com sealed box, PAT fine-grained/clássico, validação 48 KB/100, importação TXT/ENV/JSON/XML e diagnóstico por Secret;
 - configurações, edição de perfil GitHub por popup responsivo, Groq/API opcional e tema;
 - Central de Downloads com serviço Android em primeiro plano, retomada parcial por HTTP Range e publicação na pasta pública Downloads;
 - download do projeto em ZIP;
 - instalação de APK iniciada pelo usuário via FileProvider/instalador Android.
+
+
+## Secrets 2.0.26
+
+- aceita tokens fine-grained e clássicos sem restringir prefixo na validação de `/user`;
+- assistente explica `Secrets: Read and write` para fine-grained e `repo` para clássico;
+- parser TXT/ENV aceita `=`, `:` e `export`, detectando duplicidades após normalização;
+- pré-valida 48 KB por valor e 100 Secrets finais por repositório;
+- importação em lote continua após falha individual e gera relatório sanitizado copiável;
+- erros HTTP preservam status, endpoint e mensagem da API sem registrar valores;
+- testes dedicados cobrem parser, limites, lote parcial, criptografia e exclusão.
 
 ## Segurança
 

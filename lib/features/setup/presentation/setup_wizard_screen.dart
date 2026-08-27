@@ -24,7 +24,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
   bool _working = false;
   bool _obscure = true;
 
-  static const _tokenUrl = 'https://github.com/settings/tokens/new';
+  static const _fineGrainedTokenUrl = 'https://github.com/settings/personal-access-tokens/new';
+  static const _classicTokenUrl = 'https://github.com/settings/tokens/new';
 
   @override
   void dispose() {
@@ -118,11 +119,23 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                   0 => _Intro(key: const ValueKey(0), onNext: () => setState(() => _step = 1)),
                   1 => _Permissions(
                       key: const ValueKey(1),
-                      onOpen: () => PlatformActions.openUri(_tokenUrl),
-                      onCopy: () async {
-                        await Clipboard.setData(const ClipboardData(text: _tokenUrl));
+                      onOpenFineGrained: () =>
+                          PlatformActions.openUri(_fineGrainedTokenUrl),
+                      onOpenClassic: () => PlatformActions.openUri(_classicTokenUrl),
+                      onCopyFineGrained: () async {
+                        await Clipboard.setData(
+                          const ClipboardData(text: _fineGrainedTokenUrl),
+                        );
                         if (context.mounted) {
-                          showCenteredNotice(context, 'Link copiado.');
+                          showCenteredNotice(context, 'Link do token fine-grained copiado.');
+                        }
+                      },
+                      onCopyClassic: () async {
+                        await Clipboard.setData(
+                          const ClipboardData(text: _classicTokenUrl),
+                        );
+                        if (context.mounted) {
+                          showCenteredNotice(context, 'Link do token clássico copiado.');
                         }
                       },
                       onBack: () => setState(() => _step = 0),
@@ -210,15 +223,19 @@ class _Intro extends StatelessWidget {
 
 class _Permissions extends StatelessWidget {
   const _Permissions({
-    required this.onOpen,
-    required this.onCopy,
+    required this.onOpenFineGrained,
+    required this.onOpenClassic,
+    required this.onCopyFineGrained,
+    required this.onCopyClassic,
     required this.onBack,
     required this.onNext,
     super.key,
   });
 
-  final VoidCallback onOpen;
-  final VoidCallback onCopy;
+  final VoidCallback onOpenFineGrained;
+  final VoidCallback onOpenClassic;
+  final VoidCallback onCopyFineGrained;
+  final VoidCallback onCopyClassic;
   final VoidCallback onBack;
   final VoidCallback onNext;
 
@@ -227,20 +244,67 @@ class _Permissions extends StatelessWidget {
         title: 'Crie um Personal Access Token',
         icon: Icons.admin_panel_settings_outlined,
         children: [
-          const Text('No GitHub, restrinja o token aos repositórios que deseja administrar e use estas permissões:'),
-          const SizedBox(height: 12),
-          const _Bullet('repo — acesso aos repositórios, arquivos, commits, Actions, Issues e Secrets.'),
-          const _Bullet('workflow — necessário para criar ou alterar arquivos de workflow.'),
-          const _Bullet('delete_repo — somente se quiser excluir repositórios pelo aplicativo.'),
-          const _Bullet('user — somente se quiser editar dados do perfil pela engrenagem.'),
+          const Text(
+            'O GitHub Manager aceita tanto token fine-grained (github_pat_...) quanto token clássico (ghp_...). Prefira fine-grained quando possível e libere somente os repositórios e permissões que pretende usar.',
+          ),
           const SizedBox(height: 14),
+          Text(
+            'Fine-grained',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const _Bullet('Secrets: Read and write — listar, criar, substituir e excluir Secrets.'),
+          const _Bullet('Contents/Actions/Issues/Administração — habilite somente conforme as funções do app que pretende usar.'),
+          const _Bullet('Metadata: leitura é concedida pelo GitHub e ajuda a identificar os repositórios permitidos.'),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              FilledButton.icon(onPressed: onOpen, icon: const Icon(Icons.open_in_new_rounded), label: const Text('Abrir GitHub')),
-              OutlinedButton.icon(onPressed: onCopy, icon: const Icon(Icons.copy_rounded), label: const Text('Copiar link')),
+              FilledButton.icon(
+                onPressed: onOpenFineGrained,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Criar fine-grained'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onCopyFineGrained,
+                icon: const Icon(Icons.copy_rounded),
+                label: const Text('Copiar link'),
+              ),
             ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Token clássico',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const _Bullet('repo — acesso aos repositórios privados e aos Secrets do repositório.'),
+          const _Bullet('workflow — necessário para criar ou alterar arquivos de workflow.'),
+          const _Bullet('delete_repo — somente se quiser excluir repositórios pelo aplicativo.'),
+          const _Bullet('user — somente se quiser editar dados do perfil.'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onOpenClassic,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Criar clássico'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onCopyClassic,
+                icon: const Icon(Icons.copy_rounded),
+                label: const Text('Copiar link'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Para o módulo de Secrets, o requisito essencial é: fine-grained com Secrets: Read and write, ou token clássico com repo.',
           ),
           const SizedBox(height: 18),
           Row(
@@ -285,7 +349,7 @@ class _TokenStep extends StatelessWidget {
             enableSuggestions: false,
             decoration: InputDecoration(
               labelText: 'Personal Access Token',
-              hintText: 'ghp_...',
+              hintText: 'github_pat_... ou ghp_...',
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -316,7 +380,7 @@ class _TokenStep extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          const Text('Ao tocar em Testar e conectar, o GitHub Manager consulta /user. Se a API responder corretamente, o token é salvo no aparelho.'),
+          const Text('Ao tocar em Testar e conectar, o GitHub Manager consulta /user. Tokens fine-grained e clássicos são aceitos; se a API responder corretamente, o token é salvo no armazenamento seguro do aparelho.'),
           const SizedBox(height: 18),
           Row(
             children: [
