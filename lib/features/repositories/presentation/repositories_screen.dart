@@ -10,6 +10,8 @@ import 'package:github_manager/features/downloads/presentation/download_center_b
 import 'package:github_manager/features/home/domain/github_profile.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/home/presentation/github_profile_edit_dialog.dart';
+import 'package:github_manager/features/permissions/domain/repository_permission_preflight.dart';
+import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
 import 'package:github_manager/features/repositories/presentation/repository_card.dart';
 import 'package:github_manager/features/repositories/presentation/repository_management_dialogs.dart';
@@ -359,6 +361,13 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
         if (mounted) _showError(error);
       }
     } else if (action == RepositoryAction.delete) {
+      final allowed = await ensureRepositoryPermission(
+        context,
+        ref,
+        repositoryFullName: repository.fullName,
+        action: RepositoryCriticalAction.deleteRepository,
+      );
+      if (!allowed || !mounted) return;
       final confirmed = await showDeleteRepositoryDialog(context, repository);
       if (confirmed != true || !mounted) return;
       try {

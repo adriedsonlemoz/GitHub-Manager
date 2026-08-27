@@ -348,6 +348,14 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
           ] else ...[
             if (!widget.readOnly)
               IconButton(
+                onPressed: () => context.push(
+                  '/repositories/${widget.repositoryFullName}/permissions',
+                ),
+                tooltip: 'Diagnóstico do token',
+                icon: const Icon(Icons.verified_user_outlined),
+              ),
+            if (!widget.readOnly)
+              IconButton(
                 onPressed: () => setState(() => _selectionMode = true),
                 tooltip: 'Selecionar execuções',
                 icon: const Icon(Icons.checklist_rounded),

@@ -10,6 +10,8 @@ import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
+import 'package:github_manager/features/permissions/domain/repository_permission_preflight.dart';
+import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
 import 'package:github_manager/features/projects/domain/project_safety_check.dart';
 import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/projects/presentation/project_providers.dart';
@@ -130,6 +132,14 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
 
   Future<void> _sendBuild(GitHubRepository repository) async {
     try {
+      final allowed = await ensureRepositoryPermission(
+        context,
+        ref,
+        repositoryFullName: repository.fullName,
+        action: RepositoryCriticalAction.sendBuild,
+      );
+      if (!allowed || !mounted) return;
+
       final project =
           await ref.read(localProjectServiceProvider).pickAndAnalyzeZip();
       if (project == null || !mounted) {
@@ -354,6 +364,13 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
       }
       }
     } else if (action == RepositoryAction.delete) {
+      final allowed = await ensureRepositoryPermission(
+        context,
+        ref,
+        repositoryFullName: repository.fullName,
+        action: RepositoryCriticalAction.deleteRepository,
+      );
+      if (!allowed || !mounted) return;
       final confirmed = await showDeleteRepositoryDialog(context, repository);
       if (confirmed != true || !mounted) {
         return;
@@ -584,6 +601,17 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                           title: 'Central de envios',
                           subtitle: 'Acompanhar sincronizações, fila, falhas e builds iniciadas',
                           onTap: () => context.push('/uploads'),
+                        ),
+                        const SizedBox(height: 7),
+                      ],
+                      if (!widget.readOnly) ...[
+                        _WorkspaceTile(
+                          icon: Icons.verified_user_outlined,
+                          title: 'Diagnóstico do token',
+                          subtitle: 'Verificar Contents, Actions, Secrets e administração sem alterar dados',
+                          onTap: () => context.push(
+                            '/repositories/${repository.fullName}/permissions',
+                          ),
                         ),
                         const SizedBox(height: 7),
                       ],

@@ -254,8 +254,12 @@ class _Permissions extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
           ),
+          const _Bullet('Contents: Read and write — ler e sincronizar arquivos do projeto.'),
+          const _Bullet('Workflows: Read and write — necessário quando o ZIP altera .github/workflows.'),
+          const _Bullet('Actions: Read and write — listar, executar, cancelar e reexecutar builds.'),
           const _Bullet('Secrets: Read and write — listar, criar, substituir e excluir Secrets.'),
-          const _Bullet('Contents/Actions/Issues/Administração — habilite somente conforme as funções do app que pretende usar.'),
+          const _Bullet('Administration: Read and write — somente para recursos administrativos e exclusão de repositório.'),
+          const _Bullet('Issues: Read and write — somente se quiser gerenciar Bugs/Issues pelo app.'),
           const _Bullet('Metadata: leitura é concedida pelo GitHub e ajuda a identificar os repositórios permitidos.'),
           const SizedBox(height: 8),
           Wrap(
@@ -304,7 +308,7 @@ class _Permissions extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Para o módulo de Secrets, o requisito essencial é: fine-grained com Secrets: Read and write, ou token clássico com repo.',
+            'Depois de conectar, cada repositório possui “Diagnóstico do token”. Ele faz apenas consultas de leitura e mostra quais permissões estão confirmadas, ausentes ou precisam ser conferidas no PAT fine-grained.',
           ),
           const SizedBox(height: 18),
           Row(

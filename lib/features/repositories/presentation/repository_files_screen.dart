@@ -6,6 +6,7 @@ import 'package:github_manager/features/repositories/domain/repository_git_model
 import 'package:github_manager/features/repositories/presentation/repository_file_editor_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
+import 'package:go_router/go_router.dart';
 
 class RepositoryFilesScreen extends ConsumerStatefulWidget {
   const RepositoryFilesScreen({
@@ -192,6 +193,14 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
           leading: IconButton(onPressed: _upOneLevel, icon: const Icon(Icons.arrow_back_rounded)),
           title: Text(widget.readOnly ? 'Arquivos • somente leitura' : 'Arquivos'),
           actions: [
+            if (!widget.readOnly)
+              IconButton(
+                onPressed: () => context.push(
+                  '/repositories/${widget.repositoryFullName}/permissions',
+                ),
+                tooltip: 'Diagnóstico do token',
+                icon: const Icon(Icons.verified_user_outlined),
+              ),
             if (!widget.readOnly)
               IconButton(
                 onPressed: _uploading ? null : _createFile,

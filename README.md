@@ -1,16 +1,30 @@
-# GitHub Manager 2.0.26
+# GitHub Manager 2.0.28
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
 ## Identidade oficial
 
-- versão: `2.0.26+200040`;
+- versão: `2.0.28+200042`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
 - APK Release universal com `armeabi-v7a` e `arm64-v8a`.
 
 
+
+## Proteção preventiva de permissões 2.0.28
+
+Ações críticas agora consultam um diagnóstico em cache antes de chamar a API. `Enviar build` verifica as permissões de sincronização/Actions, operações de Secrets verificam `Secrets: write` e a exclusão permanente verifica a capacidade de exclusão. Quando uma negação já foi confirmada, a ação é interrompida antes de selecionar/enviar dados e o app mostra exatamente a permissão necessária, com acesso direto ao diagnóstico do token.
+
+O cache dura poucos minutos e usa uma impressão SHA-256 do token apenas em memória como parte da chave. Se o token for trocado, o diagnóstico antigo não é reutilizado. Resultados inconclusivos de PAT fine-grained não bloqueiam a operação: como o GitHub não oferece introspecção segura de todas as permissões de escrita, a chamada real continua sendo a autoridade final. Rate limit ou indisponibilidade temporária do diagnóstico também não são tratados como permissão ausente.
+
+## Diagnóstico de permissões 2.0.27
+
+Cada repositório próprio possui `Diagnóstico do token`. A verificação é não destrutiva: usa somente consultas de leitura para testar acesso a Contents, Actions, Secrets e Administration, lê `X-Accepted-GitHub-Permissions` quando o GitHub o retorna e identifica os escopos expostos por PAT clássico.
+
+O relatório separa `Confirmada`, `Disponível` por inferência, `Sem acesso` e `Verifique no token`. Em PAT fine-grained, permissões de escrita não são testadas por mutações, para que o diagnóstico nunca altere arquivos, Secrets, workflows ou configurações. O app mostra a permissão necessária para cada função, incluindo `Contents: write + Workflows: write` para sincronização completa por ZIP, `Actions: write`, `Secrets: write` e `Administration: write` para administração/exclusão. Para PAT clássico, o diagnóstico considera `repo`, `workflow` e `delete_repo` junto com o papel da conta no repositório.
+
+O diagnóstico pode ser copiado sem incluir o token.
 
 ## GitHub Secrets 2.0.26
 

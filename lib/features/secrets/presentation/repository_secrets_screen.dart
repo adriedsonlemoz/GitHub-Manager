@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
+import 'package:github_manager/features/permissions/domain/repository_permission_preflight.dart';
+import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
 import 'package:github_manager/features/secrets/data/repository_secrets_service.dart';
 import 'package:github_manager/features/secrets/domain/repository_secret.dart';
 import 'package:github_manager/features/secrets/presentation/secrets_providers.dart';
+import 'package:go_router/go_router.dart';
 
 class RepositorySecretsScreen extends ConsumerStatefulWidget {
   const RepositorySecretsScreen({required this.repositoryFullName, super.key});
@@ -36,6 +39,13 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
   }
 
   Future<void> _manualSecret() async {
+    final allowed = await ensureRepositoryPermission(
+      context,
+      ref,
+      repositoryFullName: widget.repositoryFullName,
+      action: RepositoryCriticalAction.manageSecrets,
+    );
+    if (!allowed || !mounted) return;
     final name = TextEditingController();
     final value = TextEditingController();
     var obscure = true;
@@ -206,6 +216,13 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
 
   Future<void> _putMany(Map<String, String> values) async {
     if (_working) return;
+    final allowed = await ensureRepositoryPermission(
+      context,
+      ref,
+      repositoryFullName: widget.repositoryFullName,
+      action: RepositoryCriticalAction.manageSecrets,
+    );
+    if (!allowed || !mounted) return;
     setState(() => _working = true);
     final SecretImportPlan plan;
     try {
@@ -404,6 +421,13 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
   }
 
   Future<void> _delete(RepositorySecret secret) async {
+    final allowed = await ensureRepositoryPermission(
+      context,
+      ref,
+      repositoryFullName: widget.repositoryFullName,
+      action: RepositoryCriticalAction.manageSecrets,
+    );
+    if (!allowed || !mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -434,6 +458,13 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
   }
 
   Future<void> _replace(RepositorySecret secret) async {
+    final allowed = await ensureRepositoryPermission(
+      context,
+      ref,
+      repositoryFullName: widget.repositoryFullName,
+      action: RepositoryCriticalAction.manageSecrets,
+    );
+    if (!allowed || !mounted) return;
     final controller = TextEditingController();
     var obscure = true;
     final result = await showDialog<bool>(
@@ -587,6 +618,13 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
         title: const Text('GitHub Secrets'),
         actions: [
           IconButton(
+            onPressed: () => context.push(
+              '/repositories/${widget.repositoryFullName}/permissions',
+            ),
+            tooltip: 'Diagnóstico do token',
+            icon: const Icon(Icons.verified_user_outlined),
+          ),
+          IconButton(
             onPressed: _working ? null : _refresh,
             tooltip: 'Atualizar',
             icon: const Icon(Icons.refresh_rounded),
@@ -665,11 +703,21 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
                 children: [
                   Text(
                     error is GitHubPermissionException
-                        ? 'Não foi possível listar Secrets. Em token fine-grained, habilite Secrets: Read and write; em token clássico, use repo.'
+                        ? 'Não foi possível listar Secrets. Use o diagnóstico do token para identificar a permissão ausente.'
                         : error is AppException
                             ? error.message
                             : 'Não foi possível listar os Secrets.',
                   ),
+                  if (error is GitHubPermissionException) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => context.push(
+                        '/repositories/${widget.repositoryFullName}/permissions',
+                      ),
+                      icon: const Icon(Icons.verified_user_outlined),
+                      label: const Text('Diagnosticar permissões'),
+                    ),
+                  ],
                 ],
               ),
               data: (items) => items.isEmpty

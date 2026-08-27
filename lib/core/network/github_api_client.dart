@@ -391,6 +391,36 @@ class GitHubApiClient {
     }
   }
 
+  Future<GitHubApiProbeResponse> probeGet(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+  }) async {
+    final token = await _secureStorage.readGitHubToken();
+    if (token == null) {
+      throw const AuthenticationRequiredException();
+    }
+
+    try {
+      final response = await _dio.get<Object?>(
+        path,
+        queryParameters: queryParameters,
+        cancelToken: cancelToken,
+        options: Options(
+          validateStatus: (_) => true,
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+      return GitHubApiProbeResponse(
+        statusCode: response.statusCode,
+        data: response.data,
+        headers: response.headers,
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<Response<T>> _request<T>(
     String method,
     String path, {
@@ -641,4 +671,21 @@ class GitHubApiClient {
 
     return UnexpectedAppException('GITHUB_HTTP_${status ?? 'UNKNOWN'}');
   }
+}
+
+
+class GitHubApiProbeResponse {
+  const GitHubApiProbeResponse({
+    required this.statusCode,
+    required this.data,
+    required this.headers,
+  });
+
+  final int? statusCode;
+  final Object? data;
+  final Headers headers;
+
+  bool get isSuccess => statusCode != null && statusCode! >= 200 && statusCode! < 300;
+
+  String? header(String name) => headers.value(name);
 }

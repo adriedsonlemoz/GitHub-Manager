@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:github_manager/features/downloads/presentation/downloads_screen.dart';
 import 'package:github_manager/features/issues/presentation/repository_issues_screen.dart';
+import 'package:github_manager/features/permissions/presentation/repository_permission_diagnostics_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repositories_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_actions_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_artifacts_screen.dart';
@@ -101,6 +102,16 @@ final appRouter = GoRouter(
             return RepositoryArtifactsScreen(
               repositoryFullName: fullName,
               readOnly: state.uri.queryParameters['readOnly'] == '1',
+            );
+          },
+        ),
+        GoRoute(
+          path: 'permissions',
+          builder: (_, state) {
+            final fullName =
+                '${state.pathParameters['owner']}/${state.pathParameters['repo']}';
+            return RepositoryPermissionDiagnosticsScreen(
+              repositoryFullName: fullName,
             );
           },
         ),

@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.26+200040`, com módulo de Secrets reforçado para PAT fine-grained/clássico, pré-validação de lote, diagnóstico individual e testes dedicados; mantém Central de Envios global/minimizável e downloads em foreground com retomada.
+Estado atual: `2.0.28+200042`, com pré-checagem em cache das permissões antes de Enviar build, gerenciar Secrets e excluir repositórios; mantém o diagnóstico seguro por repositório, Secrets reforçados, Central de Envios global/minimizável e downloads em foreground com retomada.
 
 ## Arquitetura
 
@@ -33,11 +33,34 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 - Commits;
 - Bugs via GitHub Issues sem reformulação adicional;
 - GitHub Secrets com sealed box, PAT fine-grained/clássico, validação 48 KB/100, importação TXT/ENV/JSON/XML e diagnóstico por Secret;
+- diagnóstico não destrutivo do token por repositório, com leitura real, escopos clássicos, `X-Accepted-GitHub-Permissions` e permissões necessárias para escrita;
 - configurações, edição de perfil GitHub por popup responsivo, Groq/API opcional e tema;
 - Central de Downloads com serviço Android em primeiro plano, retomada parcial por HTTP Range e publicação na pasta pública Downloads;
 - download do projeto em ZIP;
 - instalação de APK iniciada pelo usuário via FileProvider/instalador Android.
 
+
+
+## Pré-checagem de permissões 2.0.28
+
+- `Enviar build` consulta Contents/Workflows e Actions antes de abrir o seletor de ZIP;
+- criar, substituir, importar e excluir Secrets consultam a capacidade de escrita de Secrets;
+- exclusão permanente de repositório consulta a capacidade de exclusão antes da confirmação destrutiva;
+- negação confirmada bloqueia antecipadamente e mostra a permissão faltante com atalho para o diagnóstico;
+- resultado `unknown` de PAT fine-grained não bloqueia, evitando falso negativo;
+- cache de 3 minutos usa fingerprint SHA-256 do token apenas em memória, portanto troca de token não reaproveita resultado antigo;
+- rate limit/indisponibilidade do diagnóstico não são convertidos em falta de permissão.
+
+## Diagnóstico do token 2.0.27
+
+- disponível em cada repositório próprio;
+- executa somente GETs e nunca altera dados para testar permissões;
+- confirma leitura de Contents, Actions, Secrets e Administration;
+- PAT clássico: cruza `X-OAuth-Scopes` com o papel da conta e identifica `repo`, `workflow` e `delete_repo`;
+- PAT fine-grained: mostra a permissão exata necessária para escrita sem fingir que é possível introspectar o que o GitHub não expõe;
+- usa `X-Accepted-GitHub-Permissions` em falhas de leitura quando disponível;
+- relatório copiável não inclui token;
+- testes dedicados cobrem token clássico, fine-grained, permissão ausente e papel não administrativo.
 
 ## Secrets 2.0.26
 

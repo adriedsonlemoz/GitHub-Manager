@@ -553,16 +553,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.28',
+                      text: 'Pré-checagem de permissões antes de Enviar build, alterar Secrets e excluir repositórios, com cache seguro por token.',
+                    ),
+                    _ChangeNote(
+                      version: '2.0.27',
+                      text: 'Diagnóstico seguro do token por repositório para Contents, Actions, Secrets, administração e exclusão.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.26',
                       text: 'Secrets reforçados: PAT fine-grained/clássico, pré-validação, importação em lote com diagnóstico e novos testes.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.25',
-                      text: 'Downloads em segundo plano com retomada, ajustes de perfil, Acompanhados e interface.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.24',
-                      text: 'Relatório de envios reorganizado com resumo, métricas e linha do tempo limpa.',
                     ),
                   ],
                 ),
@@ -625,6 +625,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   title: Text(profile.name?.isNotEmpty == true ? profile.name! : profile.login),
                   subtitle: Text('@${profile.login}'),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'As permissões podem variar por repositório. Abra um repositório e toque em “Diagnóstico do token” para verificar Contents, Actions, Secrets, administração e exclusão sem alterar dados.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
                 ),
                 FilledButton.tonalIcon(
                   onPressed: () {

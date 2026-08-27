@@ -52,6 +52,19 @@ O módulo aceita token fine-grained e clássico porque a autenticação usa `Aut
 
 Antes do PUT, o app valida 48 KB por Secret e o limite final de 100 Secrets do repositório, considerando substituições. Importações em lote continuam após uma falha individual e retornam resultado por nome sem incluir valores.
 
+## Diagnóstico de permissões
+
+A versão 2.0.27 adiciona um diagnóstico não destrutivo por repositório. O fluxo consulta `GET /user`, `GET /repos/{owner}/{repo}`, `GET /repos/{owner}/{repo}/contents`, `GET /repos/{owner}/{repo}/actions/workflows`, `GET /repos/{owner}/{repo}/actions/secrets` e `GET /repos/{owner}/{repo}/actions/permissions`. Nenhuma chamada de escrita é executada só para testar permissões.
+
+Em PAT clássico, `X-OAuth-Scopes` é usado para identificar `repo`, `workflow` e `delete_repo` quando o GitHub expõe esses escopos. Em PAT fine-grained, o app usa os resultados reais de leitura e `X-Accepted-GitHub-Permissions` para explicar requisitos, mas não afirma conhecer permissões de escrita que o GitHub não expõe por introspecção. A interface marca essas operações como `Verifique no token` e mostra a permissão necessária.
+
+O diagnóstico também considera o papel da conta retornado em `permissions` do repositório. Rate limit é tratado separadamente de falta de permissão para evitar falso diagnóstico. O relatório copiável não inclui o token.
+
 ## Retry
 
 Retry automático de chamadas destrutivas não é utilizado. Na Central de Downloads, o usuário pode repetir explicitamente downloads falhos ou cancelados quando o endpoint de origem ainda é válido.
+
+
+## Pré-checagem de permissões 2.0.28
+
+Antes de ações críticas, o aplicativo reutiliza por até 3 minutos o último `RepositoryPermissionReport` compatível com o mesmo repositório e o mesmo token (token identificado apenas por SHA-256 em memória). Negação confirmada impede a chamada mutativa; resultados `unknown` de PAT fine-grained, rate limit ou falha temporária do diagnóstico não são convertidos em bloqueio. A operação real continua sendo a autoridade final quando a API não permite confirmar escrita sem mutação.
