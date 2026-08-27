@@ -3,6 +3,7 @@ import 'package:github_manager/app/router/app_router.dart';
 import 'package:github_manager/app/theme/app_theme.dart';
 import 'package:github_manager/app/theme/app_theme_controller.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
+import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 
 class GitHubManagerApp extends StatelessWidget {
   const GitHubManagerApp({super.key});
@@ -24,8 +25,18 @@ class GitHubManagerApp extends StatelessWidget {
             Positioned(
               right: 14,
               bottom: MediaQuery.paddingOf(context).bottom + 82,
-              child: DownloadFloatingStatusButton(
-                onTap: () => appRouter.push('/downloads'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  UploadFloatingStatusButton(
+                    onTap: () => appRouter.push('/uploads'),
+                  ),
+                  const SizedBox(height: 8),
+                  DownloadFloatingStatusButton(
+                    onTap: () => appRouter.push('/downloads'),
+                  ),
+                ],
               ),
             ),
           ],

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
@@ -17,8 +18,10 @@ import 'package:github_manager/features/repositories/domain/repository_project_i
 import 'package:github_manager/features/repositories/presentation/repository_management_dialogs.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/repositories/presentation/technology_badge.dart';
+import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
+import 'package:github_manager/features/uploads/presentation/upload_progress_dialog.dart';
+import 'package:github_manager/features/uploads/presentation/upload_providers.dart';
 import 'package:go_router/go_router.dart';
-import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class RepositoryDetailScreen extends ConsumerStatefulWidget {
   const RepositoryDetailScreen({
@@ -143,363 +146,26 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
         return;
       }
 
-      final progress = ValueNotifier<ProjectUploadProgress>(
-        ProjectUploadProgress(
-          phase: 'Preparando sincronização',
-          current: 0,
-          total: project.fileCount,
-        ),
+      final manager = ref.read(uploadManagerProvider);
+      final upload = manager.startBuild(
+        project: project,
+        repositoryFullName: repository.fullName,
+        branch: repository.defaultBranch,
       );
-      final uploadLog = ValueNotifier<List<String>>(
-        <String>['Preparando projeto para envio'],
-      );
-
-      void updateProgress(ProjectUploadProgress value) {
-        progress.value = value;
-        final detail = value.fileName?.trim().isNotEmpty == true
-            ? '${value.phase}: ${value.fileName}'
-            : value.phase;
-        final current = List<String>.from(uploadLog.value);
-        if (current.isEmpty || current.last != detail) {
-          current.add(detail);
-          if (current.length > 6) {
-            current.removeAt(0);
-          }
-          uploadLog.value = current;
-        }
-      }
-
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Enviando build'),
-          content: AdaptiveDialogBody(
-            child: AnimatedBuilder(
-              animation: Listenable.merge([progress, uploadLog]),
-              builder: (context, _) {
-                final value = progress.value;
-                final fraction = value.fraction?.clamp(0.0, 1.0).toDouble();
-                final percent = fraction == null
-                    ? null
-                    : (fraction * 100).clamp(0, 100).round();
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value.phase,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (value.total > 0)
-                      Text(
-                        '${value.current.clamp(0, value.total)} de ${value.total} arquivos'
-                        '${percent == null ? '' : ' • $percent%'}',
-                      ),
-                    if (value.fileName?.trim().isNotEmpty == true) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        value.fileName!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    LinearProgressIndicator(value: fraction),
-                    const SizedBox(height: 14),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Processo',
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          const SizedBox(height: 5),
-                          ...uploadLog.value.map(
-                            (line) => Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Text(
-                                '• $line',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Projetos grandes podem levar alguns minutos. Não feche o aplicativo durante a sincronização.',
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-      );
-
-      ProjectUploadResult? uploadResult;
-      try {
-        final uploaded = await ref.read(gitProjectUploadServiceProvider).uploadZip(
-              project: project,
-              repositoryFullName: repository.fullName,
-              branch: repository.defaultBranch,
-              commitMessage: '',
-              onProgress: updateProgress,
-            );
-        uploadResult = uploaded;
-        if (!uploaded.changed) {
-          if (!mounted) {
-            return;
-          }
-          Navigator.of(context, rootNavigator: true).pop();
-          await _showNoChangesDialog(
-            repository: repository,
-            uploadResult: uploaded,
-          );
-          return;
-        }
-        updateProgress(
-          ProjectUploadProgress(
-            phase: 'Confirmando o disparo da build',
-            current: project.fileCount,
-            total: project.fileCount,
-          ),
-        );
-        final launch = await ref
-            .read(repositoryGitServiceProvider)
-            .ensureBuildForCommit(
-              repositoryFullName: repository.fullName,
-              branch: repository.defaultBranch,
-              commitSha: uploaded.commitSha,
-              onStatus: (status) => updateProgress(
-                ProjectUploadProgress(
-                  phase: status,
-                  current: project.fileCount,
-                  total: project.fileCount,
-                ),
-              ),
-            );
-        if (!mounted) {
-          return;
-        }
-        Navigator.of(context, rootNavigator: true).pop();
-        await _refresh();
-        if (!mounted) {
-          return;
-        }
-        await _showBuildSentDialog(
-          repository: repository,
-          uploadResult: uploaded,
-          launch: launch,
-        );
-      } catch (error) {
-        if (!mounted) {
-          return;
-        }
-        Navigator.of(context, rootNavigator: true).pop();
-        if (uploadResult != null) {
-          await _showBuildStartFailure(
-            repository: repository,
-            uploadResult: uploadResult,
-            error: error,
-          );
-        } else {
-          _showError(error);
-        }
-      } finally {
-        progress.dispose();
-        uploadLog.dispose();
-      }
-    } catch (error) {
-      if (mounted) {
-        _showError(error);
-      }
-    }
-  }
-
-  Future<void> _showNoChangesDialog({
-    required GitHubRepository repository,
-    required ProjectUploadResult uploadResult,
-  }) async {
-    final runAnyway = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Projeto já está atualizado'),
-        content: AdaptiveDialogBody(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'O ZIP enviado é idêntico ao conteúdo atual do repositório. Nenhuma alteração foi encontrada.',
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Commit atual: ${uploadResult.commitSha.substring(0, 7)}.',
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Nenhum novo commit foi criado e nenhuma build automática foi iniciada.',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Fechar'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.play_circle_outline_rounded),
-            label: const Text('Executar build mesmo assim'),
-          ),
-        ],
-      ),
-    );
-    if (runAnyway != true || !mounted) {
-      return;
-    }
-    try {
-      final workflowName = await ref
-          .read(repositoryGitServiceProvider)
-          .dispatchBestApkWorkflow(
-            repositoryFullName: repository.fullName,
-            branch: repository.defaultBranch,
-          );
       if (!mounted) {
         return;
       }
-      showCenteredNotice(
-        context,
-        'Build manual enviada por $workflowName. Ela pode levar alguns segundos para aparecer.',
-      );
-      context.push(
-        '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => UploadProgressDialog(uploadId: upload.id),
       );
     } catch (error) {
       if (mounted) {
         _showError(error);
       }
     }
-  }
-
-  Future<void> _showBuildSentDialog({
-    required GitHubRepository repository,
-    required ProjectUploadResult uploadResult,
-    required RepositoryBuildLaunchResult launch,
-  }) async {
-    final workflowName = launch.workflow?.name ??
-        (launch.runs.isNotEmpty ? launch.runs.first.name : 'Android APK');
-    final statusText = launch.dispatchTriggered
-        ? launch.runs.isEmpty
-            ? 'O push não iniciou uma build de APK. O GitHub Manager iniciou $workflowName por workflow_dispatch; a execução pode levar alguns segundos para aparecer.'
-            : 'O push não iniciou uma build de APK. O GitHub Manager iniciou $workflowName por workflow_dispatch e a execução já apareceu no GitHub.'
-        : 'Projeto atualizado • Build iniciada\n\n'
-            '$workflowName já foi encontrado para o SHA ${uploadResult.commitSha.substring(0, 7)}. '
-            'Nenhum workflow manual foi disparado e nenhuma build duplicada foi criada.';
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          launch.dispatchTriggered
-              ? 'Projeto atualizado • Build iniciada manualmente'
-              : 'Projeto atualizado • Build iniciada',
-        ),
-        content: AdaptiveDialogBody(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${uploadResult.fileCount} arquivos sincronizados no commit ${uploadResult.commitSha.substring(0, 7)}.',
-              ),
-              const SizedBox(height: 10),
-              Text(statusText),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Fechar'),
-          ),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context.push(
-                '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
-              );
-            },
-            icon: const Icon(Icons.monitor_heart_outlined),
-            label: const Text('Acompanhar build'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showBuildStartFailure({
-    required GitHubRepository repository,
-    required ProjectUploadResult uploadResult,
-    required Object error,
-  }) async {
-    await _refresh();
-    if (!mounted) {
-      return;
-    }
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Projeto atualizado, build não confirmada'),
-        content: AdaptiveDialogBody(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'O projeto foi sincronizado no commit ${uploadResult.commitSha.substring(0, 7)}, mas o GitHub Manager não conseguiu confirmar ou iniciar o Android APK.',
-              ),
-              const SizedBox(height: 10),
-              Text(_message(error)),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Fechar'),
-          ),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context.push(
-                '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
-              );
-            },
-            icon: const Icon(Icons.play_circle_outline_rounded),
-            label: const Text('Abrir Builds'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<bool?> _confirmZip(
@@ -793,6 +459,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                       tooltip: 'Baixar ZIP do projeto',
                       icon: const Icon(Icons.folder_zip_outlined),
                     ),
+                    const UploadCenterButton(),
                     const DownloadCenterButton(),
                     if (!widget.readOnly)
                       IconButton(
@@ -908,6 +575,15 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                         ),
                       ),
                       const SizedBox(height: 7),
+                      if (!widget.readOnly) ...[
+                        _WorkspaceTile(
+                          icon: Icons.cloud_upload_outlined,
+                          title: 'Central de envios',
+                          subtitle: 'Acompanhar sincronizações, fila, falhas e builds iniciadas',
+                          onTap: () => context.push('/uploads'),
+                        ),
+                        const SizedBox(height: 7),
+                      ],
                       if (!widget.readOnly) ...[
                         _WorkspaceTile(
                           icon: Icons.key_rounded,

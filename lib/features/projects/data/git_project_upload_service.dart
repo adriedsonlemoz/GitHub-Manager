@@ -4,6 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/core/utils/commit_message.dart';
+import 'package:github_manager/core/utils/git_object_hash.dart';
 import 'package:github_manager/features/projects/data/local_project_service.dart';
 import 'package:github_manager/features/projects/domain/zip_project.dart';
 
@@ -69,17 +70,26 @@ class GitProjectUploadService {
       throw const UnexpectedAppException('BASE_TREE_TRUNCATED');
     }
     final currentTree = currentTreeData['tree'];
-    final existingEntries = <String, ({String mode, String type})>{};
+    final existingEntries =
+        <String, ({String mode, String type, String sha, int? size})>{};
     if (currentTree is List) {
       for (final raw in currentTree.whereType<Map>()) {
         final path = raw['path'];
         final mode = raw['mode'];
         final type = raw['type'];
+        final sha = raw['sha'];
+        final size = (raw['size'] as num?)?.toInt();
         if (path is String &&
             mode is String &&
             type is String &&
+            sha is String &&
             (type == 'blob' || type == 'commit')) {
-          existingEntries[path] = (mode: mode, type: type);
+          existingEntries[path] = (
+            mode: mode,
+            type: type,
+            sha: sha,
+            size: size,
+          );
         }
       }
     }
@@ -111,6 +121,30 @@ class GitProjectUploadService {
           );
         }
         final mode = _gitMode(entry.mode);
+        final existing = existingEntries[gitPath];
+        if (existing != null &&
+            existing.type == 'blob' &&
+            existing.mode == mode &&
+            (existing.size == null || existing.size == bytes.length) &&
+            existing.sha == GitObjectHash.blobSha(bytes)) {
+          treeEntries.add({
+            'path': gitPath,
+            'mode': mode,
+            'type': 'blob',
+            'sha': existing.sha,
+          });
+          processed++;
+          onProgress?.call(
+            ProjectUploadProgress(
+              phase: 'Arquivo já está atualizado',
+              current: processed,
+              total: project.fileCount,
+              fileName: gitPath,
+            ),
+          );
+          continue;
+        }
+
         final text = _tryDecodeText(bytes);
         final canInline = text != null &&
             bytes.length <= _maxInlineFileBytes &&

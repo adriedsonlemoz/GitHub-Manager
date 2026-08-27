@@ -4,7 +4,7 @@ publish_to: "none"
 
 # Fonte canônica de versionName/versionCode.
 # Nunca duplicar a versão manualmente em Gradle, UI ou workflows.
-version: 2.0.21+200035
+version: 2.0.22+200036
 
 environment:
   sdk: ">=3.13.0 <4.0.0"
@@ -21,6 +21,7 @@ dependencies:
   path_provider: ^2.1.6
   file_picker: 12.0.0
   archive: 4.1.0
+  crypto: ^3.0.6
   pinenacl: 0.6.0
   xml: ^7.0.1
   workmanager: ^0.10.9
@@ -33,3 +34,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - github-manager.json

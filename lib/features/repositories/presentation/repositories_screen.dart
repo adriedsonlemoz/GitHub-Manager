@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/widgets/app_error_card.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
+import 'package:github_manager/core/widgets/test_version_banner.dart';
 import 'package:github_manager/features/auth/presentation/auth_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
@@ -12,8 +14,8 @@ import 'package:github_manager/features/repositories/presentation/repository_car
 import 'package:github_manager/features/repositories/presentation/repository_management_dialogs.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/setup/presentation/setup_wizard_screen.dart';
+import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 import 'package:go_router/go_router.dart';
-import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class RepositoriesScreen extends ConsumerStatefulWidget {
   const RepositoriesScreen({super.key});
@@ -419,6 +421,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
                   tooltip: _showingFollowed ? 'Acompanhar repositório' : 'Novo repositório',
                   icon: Icon(_showingFollowed ? Icons.bookmark_add_outlined : Icons.add_rounded),
                 ),
+                const UploadCenterButton(),
                 const DownloadCenterButton(),
                 IconButton(
                   onPressed: () => context.push('/settings'),
@@ -433,6 +436,8 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
               sliver: SliverToBoxAdapter(
                 child: Column(
                   children: [
+                    const TestVersionBanner(),
+                    const SizedBox(height: 8),
                     SearchBar(
                       controller: _searchController,
                       hintText: _showingFollowed ? 'Pesquisar acompanhado' : 'Pesquisar projeto',

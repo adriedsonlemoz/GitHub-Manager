@@ -10,6 +10,7 @@ import 'package:github_manager/features/repositories/presentation/repository_fil
 import 'package:github_manager/features/secrets/presentation/repository_secrets_screen.dart';
 import 'package:github_manager/features/settings/presentation/settings_screen.dart';
 import 'package:github_manager/features/setup/presentation/setup_wizard_screen.dart';
+import 'package:github_manager/features/uploads/presentation/uploads_screen.dart';
 import 'package:go_router/go_router.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -29,6 +30,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/downloads',
       builder: (_, _) => const DownloadsScreen(),
+    ),
+    GoRoute(
+      path: '/uploads',
+      builder: (_, _) => const UploadsScreen(),
     ),
     GoRoute(
       path: '/setup',

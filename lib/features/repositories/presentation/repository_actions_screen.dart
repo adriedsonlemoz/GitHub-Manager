@@ -1,13 +1,14 @@
 import 'dart:async';
-import 'package:github_manager/core/widgets/centered_notice.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
+import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 import 'package:go_router/go_router.dart';
 
 class RepositoryActionsScreen extends ConsumerStatefulWidget {
@@ -368,6 +369,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
               tooltip: 'APKs e artifacts',
               icon: const Icon(Icons.android_rounded),
             ),
+            const UploadCenterButton(),
             const DownloadCenterButton(),
           ],
         ],
@@ -1663,4 +1665,3 @@ class _JobIcon extends StatelessWidget {
           );
   }
 }
-

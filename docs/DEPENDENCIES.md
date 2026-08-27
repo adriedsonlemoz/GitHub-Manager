@@ -11,6 +11,7 @@ Dependências principais:
 - sqflite: cache local;
 - file_picker: seleção e exportação de arquivos;
 - archive: ZIPs e artifacts;
+- crypto: cálculo SHA-1 no formato Git para reutilizar blobs idênticos durante sincronizações;
 - pinenacl: criptografia de GitHub Secrets;
 - xml: importação XML de Secrets;
 - path/path_provider: armazenamento e Central de Downloads.

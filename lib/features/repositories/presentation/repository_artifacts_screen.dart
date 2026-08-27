@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
-import 'package:github_manager/core/widgets/centered_notice.dart';
+import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 
 class RepositoryArtifactsScreen extends ConsumerStatefulWidget {
   const RepositoryArtifactsScreen({
@@ -456,6 +457,7 @@ class _RepositoryArtifactsScreenState
               icon: const Icon(Icons.auto_delete_outlined),
             ),
           ],
+          if (!_selectionMode) const UploadCenterButton(),
           if (!_selectionMode) const DownloadCenterButton(),
           const SizedBox(width: 4),
         ],

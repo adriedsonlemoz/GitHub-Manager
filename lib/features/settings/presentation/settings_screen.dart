@@ -6,12 +6,13 @@ import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
+import 'package:github_manager/core/widgets/centered_notice.dart';
+import 'package:github_manager/core/widgets/test_version_banner.dart';
 import 'package:github_manager/features/auth/presentation/auth_providers.dart';
 import 'package:github_manager/features/home/domain/github_profile.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:go_router/go_router.dart';
-import 'package:github_manager/core/widgets/centered_notice.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -513,6 +514,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: _editApi,
           ),
           const SizedBox(height: 18),
+          const _SectionTitle('Transferências'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.cloud_upload_outlined),
+                  title: const Text('Central de Envios'),
+                  subtitle: const Text('Acompanhar envios, builds e tentativas interrompidas.'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push('/uploads'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.download_for_offline_outlined),
+                  title: const Text('Central de Downloads'),
+                  subtitle: const Text('Acompanhar APKs, ZIPs, artifacts e logs.'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push('/downloads'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
           const _SectionTitle('Ajuda e segurança'),
           Card(
             child: Column(
@@ -529,11 +553,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 18),
           const _SectionTitle('Sobre'),
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.info_outline_rounded),
-              title: Text('GitHub Manager'),
-              subtitle: Text('Gerenciador GitHub local-first para Android'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const TestVersionBanner(compact: true),
+                  const SizedBox(height: 8),
+                  const ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.info_outline_rounded),
+                    title: Text('GitHub Manager'),
+                    subtitle: Text('Gerenciador GitHub local-first para Android'),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

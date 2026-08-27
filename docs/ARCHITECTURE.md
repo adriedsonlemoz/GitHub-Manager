@@ -43,3 +43,9 @@ SQLite guarda cache, favoritos, histórico, metadados e logs sanitizados. Creden
 
 ### Futuro VPS
 A VPS deve entrar atrás de uma interface, por exemplo `BuildProvider`, com implementações GitHub Actions e VPS. A UI não depende da implementação concreta.
+
+## Central de Envios
+
+`UploadManagerService` mantém a fila global de sincronizações de ZIP e o histórico persistido. A tela do repositório apenas seleciona/confirma o projeto e entrega o trabalho ao gerenciador; por isso o painel pode ser minimizado sem cancelar o envio.
+
+As mutações de sincronização são executadas sequencialmente. O serviço de upload compara o SHA Git (`blob <tamanho>\0<conteúdo>`) com a árvore atual e reutiliza blobs idênticos, evitando chamadas desnecessárias à API. Se o processo do Android for encerrado, um envio ativo é restaurado como interrompido e pode ser repetido pela Central de Envios.
