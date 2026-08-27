@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.22+200036`, com Central de Envios global/minimizável, fila de sincronizações, reutilização de blobs Git idênticos, histórico de envios e banner visual de versão de teste.
+Estado atual: `2.0.23+200037`, com Central de Envios global/minimizável, serviço Android em primeiro plano, notificação persistente de progresso, checkpoints de blobs e retomada automática de envios interrompidos pelo processo.
 
 ## Arquitetura
 

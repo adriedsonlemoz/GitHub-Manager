@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -28,6 +29,8 @@ void main() {
       required String branch,
       required String commitMessage,
       void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
     }) async {
       uploadCount++;
       activeUploads++;
@@ -71,6 +74,7 @@ void main() {
       uploadZip: upload,
       ensureBuild: ensure,
       historyFileFactory: () async => history,
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
     );
     addTearDown(manager.dispose);
 
@@ -105,6 +109,184 @@ void main() {
     );
   });
 
+  test('restored upload reuses checkpoint and continues build when already synced', () async {
+    final zip = File('${temp.path}/resume.zip')..writeAsBytesSync([1, 2, 3]);
+    final history = File('${temp.path}/history.json');
+    final original = ManagedUpload(
+      id: 'resume-1',
+      repositoryFullName: 'owner/resume',
+      branch: 'main',
+      zipPath: zip.path,
+      zipName: 'resume.zip',
+      projectName: 'Resume',
+      projectType: 'Flutter',
+      archiveBytes: 3,
+      uncompressedBytes: 3,
+      fileCount: 2,
+      folderCount: 0,
+      importantFiles: const ['pubspec.yaml'],
+      commonRoot: null,
+      packageName: 'resume',
+      applicationId: 'br.com.test.resume',
+      version: '1.0.0',
+      versionCode: 1,
+      status: ManagedUploadStatus.syncing,
+      createdAt: DateTime(2026, 8, 27),
+      current: 1,
+      total: 2,
+      uploadedBlobShas: const {'assets/big.bin': 'checkpoint-sha'},
+    );
+    await history.writeAsString(jsonEncode([original.toJson()]));
+
+    Map<String, String>? receivedCheckpoint;
+    var builds = 0;
+
+    Future<ProjectUploadResult> upload({
+      required ZipProjectPreview project,
+      required String repositoryFullName,
+      required String branch,
+      required String commitMessage,
+      void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
+    }) async {
+      receivedCheckpoint = Map<String, String>.from(reusableBlobShas);
+      onProgress?.call(
+        const ProjectUploadProgress(
+          phase: 'Retomando arquivo já enviado',
+          current: 1,
+          total: 2,
+          fileName: 'assets/big.bin',
+        ),
+      );
+      return const ProjectUploadResult(
+        commitSha: 'abcdef0123456789',
+        fileCount: 2,
+        changed: false,
+      );
+    }
+
+    Future<RepositoryBuildLaunchResult> ensure({
+      required String repositoryFullName,
+      required String branch,
+      required String commitSha,
+      void Function(String status)? onStatus,
+      required int verificationAttempts,
+      required Duration verificationDelay,
+      required Duration postDispatchDelay,
+    }) async {
+      builds++;
+      return RepositoryBuildLaunchResult(
+        commitSha: commitSha,
+        runs: const [],
+        workflow: null,
+        dispatchTriggered: false,
+      );
+    }
+
+    final manager = UploadManagerService.forTest(
+      uploadZip: upload,
+      ensureBuild: ensure,
+      historyFileFactory: () async => history,
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
+      restoreHistory: true,
+    );
+    addTearDown(manager.dispose);
+
+    await manager.waitUntilIdle();
+
+    expect(receivedCheckpoint, {'assets/big.bin': 'checkpoint-sha'});
+    expect(builds, 1);
+    final restored = manager.find('resume-1');
+    expect(restored, isNotNull);
+    expect(restored!.status, ManagedUploadStatus.completed);
+    expect(restored.uploadedBlobShas, isEmpty);
+    expect(restored.logLines.join(' '), contains('Retomada automática'));
+  });
+
+  test('restores build checkpoint even when the ZIP is no longer available', () async {
+    final history = File('${temp.path}/build-history.json');
+    final original = ManagedUpload(
+      id: 'build-resume-1',
+      repositoryFullName: 'owner/build-resume',
+      branch: 'main',
+      zipPath: '${temp.path}/missing-managed.zip',
+      sourceZipPath: '${temp.path}/missing-source.zip',
+      zipName: 'missing.zip',
+      projectName: 'Build Resume',
+      projectType: 'Flutter',
+      archiveBytes: 10,
+      uncompressedBytes: 20,
+      fileCount: 3,
+      folderCount: 1,
+      importantFiles: const ['pubspec.yaml'],
+      commonRoot: null,
+      status: ManagedUploadStatus.syncing,
+      createdAt: DateTime(2026, 8, 27),
+      current: 3,
+      total: 3,
+      commitSha: '1234567890abcdef',
+      changed: true,
+    );
+    await history.writeAsString(jsonEncode([original.toJson()]));
+
+    var uploads = 0;
+    var builds = 0;
+
+    Future<ProjectUploadResult> upload({
+      required ZipProjectPreview project,
+      required String repositoryFullName,
+      required String branch,
+      required String commitMessage,
+      void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
+    }) async {
+      uploads++;
+      throw StateError('Upload should not run for a commit checkpoint');
+    }
+
+    Future<RepositoryBuildLaunchResult> ensure({
+      required String repositoryFullName,
+      required String branch,
+      required String commitSha,
+      void Function(String status)? onStatus,
+      required int verificationAttempts,
+      required Duration verificationDelay,
+      required Duration postDispatchDelay,
+    }) async {
+      builds++;
+      expect(commitSha, '1234567890abcdef');
+      return RepositoryBuildLaunchResult(
+        commitSha: commitSha,
+        runs: const [],
+        workflow: null,
+        dispatchTriggered: false,
+      );
+    }
+
+    final manager = UploadManagerService.forTest(
+      uploadZip: upload,
+      ensureBuild: ensure,
+      historyFileFactory: () async => history,
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
+      restoreHistory: true,
+    );
+    addTearDown(manager.dispose);
+
+    await manager.waitUntilIdle();
+
+    expect(uploads, 0);
+    expect(builds, 1);
+    final restored = manager.find('build-resume-1');
+    expect(restored, isNotNull);
+    expect(restored!.status, ManagedUploadStatus.completed);
+    expect(
+      restored.logLines.join(' '),
+      contains('commit já existente'),
+    );
+  });
+
   test('no-change upload can run current commit build without reuploading', () async {
     var uploadCount = 0;
     var buildCount = 0;
@@ -115,6 +297,8 @@ void main() {
       required String branch,
       required String commitMessage,
       void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
     }) async {
       uploadCount++;
       return ProjectUploadResult(
@@ -148,6 +332,7 @@ void main() {
       uploadZip: upload,
       ensureBuild: ensure,
       historyFileFactory: () async => File('${temp.path}/history.json'),
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
     );
     addTearDown(manager.dispose);
 
@@ -188,3 +373,4 @@ ZipProjectPreview _preview(String path, String name) => ZipProjectPreview(
       version: '1.0.0',
       versionCode: 1,
     );
+

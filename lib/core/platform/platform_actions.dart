@@ -62,4 +62,30 @@ abstract final class PlatformActions {
       _channel.invokeMethod<void>('deletePublishedDownload', {
         'location': location,
       });
+
+  static Future<void> showUploadForegroundService({
+    required bool startService,
+    required String uploadId,
+    required String projectName,
+    required String repositoryFullName,
+    required String phase,
+    required int current,
+    required int total,
+    required bool indeterminate,
+    required int activeCount,
+  }) =>
+      _channel.invokeMethod<void>('showUploadForegroundService', {
+        'startService': startService,
+        'uploadId': uploadId,
+        'projectName': projectName,
+        'repositoryFullName': repositoryFullName,
+        'phase': phase,
+        'current': current,
+        'total': total,
+        'indeterminate': indeterminate,
+        'activeCount': activeCount,
+      });
+
+  static Future<void> stopUploadForegroundService() =>
+      _channel.invokeMethod<void>('stopUploadForegroundService');
 }

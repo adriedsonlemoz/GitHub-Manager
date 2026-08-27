@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 
 void main() {
-  test('active upload restored after app exit becomes interrupted', () {
+  test('upload without resume source can be marked interrupted', () {
     final item = ManagedUpload(
       id: '1',
       repositoryFullName: 'owner/repo',
@@ -57,5 +57,41 @@ void main() {
     item.markInterruptedByAppExit();
 
     expect(item.failureStage, 'build');
+  });
+
+  test('checkpoint survives JSON round trip and exposes resume label', () {
+    final item = ManagedUpload(
+      id: '3',
+      repositoryFullName: 'owner/repo',
+      branch: 'main',
+      zipPath: '/tmp/repo.zip',
+      zipName: 'repo.zip',
+      projectName: 'Repo',
+      projectType: 'Flutter',
+      archiveBytes: 10,
+      uncompressedBytes: 20,
+      fileCount: 3,
+      folderCount: 1,
+      importantFiles: const ['pubspec.yaml'],
+      commonRoot: null,
+      status: ManagedUploadStatus.syncing,
+      createdAt: DateTime(2026, 8, 27),
+      uploadedBlobShas: const {
+        'assets/a.bin': 'sha-a',
+        'assets/b.bin': 'sha-b',
+      },
+    );
+
+    final restored = ManagedUpload.fromJson(item.toJson());
+
+    expect(restored.uploadedBlobShas, item.uploadedBlobShas);
+    restored.uploadedBlobShas.clear();
+    expect(restored.uploadedBlobShas, isEmpty);
+    restored.uploadedBlobShas.addAll(item.uploadedBlobShas);
+    expect(restored.hasCheckpoint, isTrue);
+    expect(restored.checkpointLabel, contains('2 arquivo(s)'));
+    restored.prepareAutomaticResume(buildOnly: false);
+    expect(restored.status, ManagedUploadStatus.queued);
+    expect(restored.logLines.join(' '), contains('2 blob(s)'));
   });
 }

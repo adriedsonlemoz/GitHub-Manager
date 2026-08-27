@@ -298,6 +298,22 @@ class _UploadCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
+            if (item.isActive && item.hasCheckpoint) ...[
+              const SizedBox(height: 6),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.save_outlined, size: 16),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      item.checkpointLabel,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,

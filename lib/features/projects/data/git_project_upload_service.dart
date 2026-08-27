@@ -22,6 +22,8 @@ class GitProjectUploadService {
     required String branch,
     required String commitMessage,
     void Function(ProjectUploadProgress progress)? onProgress,
+    Map<String, String> reusableBlobShas = const <String, String>{},
+    void Function(String path, String sha)? onBlobUploaded,
   }) async {
     onProgress?.call(const ProjectUploadProgress(phase: 'Preparando branch'));
     Map<String, dynamic> refData;
@@ -121,12 +123,13 @@ class GitProjectUploadService {
           );
         }
         final mode = _gitMode(entry.mode);
+        final contentBlobSha = GitObjectHash.blobSha(bytes);
         final existing = existingEntries[gitPath];
         if (existing != null &&
             existing.type == 'blob' &&
             existing.mode == mode &&
             (existing.size == null || existing.size == bytes.length) &&
-            existing.sha == GitObjectHash.blobSha(bytes)) {
+            existing.sha == contentBlobSha) {
           treeEntries.add({
             'path': gitPath,
             'mode': mode,
@@ -137,6 +140,26 @@ class GitProjectUploadService {
           onProgress?.call(
             ProjectUploadProgress(
               phase: 'Arquivo já está atualizado',
+              current: processed,
+              total: project.fileCount,
+              fileName: gitPath,
+            ),
+          );
+          continue;
+        }
+
+        final checkpointSha = reusableBlobShas[gitPath];
+        if (checkpointSha == contentBlobSha) {
+          treeEntries.add({
+            'path': gitPath,
+            'mode': mode,
+            'type': 'blob',
+            'sha': checkpointSha,
+          });
+          processed++;
+          onProgress?.call(
+            ProjectUploadProgress(
+              phase: 'Retomando arquivo já enviado',
               current: processed,
               total: project.fileCount,
               fileName: gitPath,
@@ -178,6 +201,10 @@ class GitProjectUploadService {
           if (sha == null || sha.isEmpty) {
             throw const UnexpectedAppException('BLOB_SHA_MISSING');
           }
+          if (sha != contentBlobSha) {
+            throw const UnexpectedAppException('BLOB_SHA_MISMATCH');
+          }
+          onBlobUploaded?.call(gitPath, sha);
           treeEntries.add({
             'path': gitPath,
             'mode': mode,

@@ -16,6 +16,7 @@ class ManagedUpload {
     required this.repositoryFullName,
     required this.branch,
     required this.zipPath,
+    String? sourceZipPath,
     required this.zipName,
     required this.projectName,
     required this.projectType,
@@ -47,13 +48,19 @@ class ManagedUpload {
     this.errorMessage,
     this.errorCode,
     this.failureStage,
+    Map<String, String>? uploadedBlobShas,
     List<String>? logLines,
-  }) : logLines = logLines ?? <String>[];
+  }) : sourceZipPath = sourceZipPath ?? zipPath,
+        uploadedBlobShas = Map<String, String>.from(
+          uploadedBlobShas ?? const <String, String>{},
+        ),
+        logLines = logLines ?? <String>[];
 
   final String id;
   final String repositoryFullName;
   final String branch;
-  final String zipPath;
+  String zipPath;
+  final String sourceZipPath;
   final String zipName;
   final String projectName;
   final String projectType;
@@ -85,6 +92,7 @@ class ManagedUpload {
   String? errorMessage;
   String? errorCode;
   String? failureStage;
+  final Map<String, String> uploadedBlobShas;
   final List<String> logLines;
 
   bool get isActive =>
@@ -100,6 +108,27 @@ class ManagedUpload {
       status == ManagedUploadStatus.noChanges &&
       commitSha != null &&
       commitSha!.isNotEmpty;
+
+  bool get hasCheckpoint =>
+      uploadedBlobShas.isNotEmpty || (commitSha?.isNotEmpty ?? false);
+
+  bool get hasBuildCheckpoint {
+    if (commitSha?.isNotEmpty != true) return false;
+    if (status == ManagedUploadStatus.startingBuild || changed == true) {
+      return true;
+    }
+    return phase.toLowerCase().contains('build');
+  }
+
+  String get checkpointLabel {
+    if (commitSha?.isNotEmpty == true) {
+      return 'Commit salvo • retomada direta da build disponível';
+    }
+    if (uploadedBlobShas.isNotEmpty) {
+      return '${uploadedBlobShas.length} arquivo(s) já enviado(s) no checkpoint';
+    }
+    return 'Checkpoint preparado';
+  }
 
   double? get progress {
     if (status == ManagedUploadStatus.startingBuild) {
@@ -172,9 +201,33 @@ class ManagedUpload {
     addLog('Envio interrompido ao encerrar o aplicativo');
   }
 
+  void prepareAutomaticResume({required bool buildOnly}) {
+    status = ManagedUploadStatus.queued;
+    phase = buildOnly
+        ? 'Retomando a build pelo checkpoint'
+        : 'Retomando envio pelo checkpoint';
+    current = buildOnly ? fileCount : 0;
+    total = fileCount;
+    currentFile = null;
+    completedAt = null;
+    failedAt = null;
+    errorMessage = null;
+    errorCode = null;
+    failureStage = null;
+    addLog(
+      buildOnly
+          ? 'Retomada automática: commit já existente, seguindo para a build'
+          : uploadedBlobShas.isEmpty
+              ? 'Retomada automática do envio iniciada'
+              : 'Retomada automática usando ${uploadedBlobShas.length} blob(s) do checkpoint',
+    );
+  }
+
   void resetForRetry({required bool buildOnly}) {
     status = ManagedUploadStatus.queued;
-    phase = buildOnly ? 'Aguardando nova tentativa da build' : 'Aguardando reenvio';
+    phase = buildOnly
+        ? 'Aguardando nova tentativa da build'
+        : 'Aguardando reenvio';
     current = buildOnly ? fileCount : 0;
     total = fileCount;
     currentFile = null;
@@ -192,7 +245,9 @@ class ManagedUpload {
       workflowRunId = null;
       dispatchTriggered = null;
     }
-    addLog(buildOnly ? 'Nova tentativa da build solicitada' : 'Reenvio solicitado');
+    addLog(
+      buildOnly ? 'Nova tentativa da build solicitada' : 'Reenvio solicitado',
+    );
   }
 
   String get technicalLog {
@@ -205,6 +260,7 @@ class ManagedUpload {
       'Repositório: $repositoryFullName',
       'Branch: $branch',
       'ZIP: $zipName',
+      if (zipPath != sourceZipPath) 'Cópia segura: ativa',
       'Status: $statusLabel',
       'Etapa: $phase',
       if (commitSha != null) 'Commit: $commitSha',
@@ -214,6 +270,8 @@ class ManagedUpload {
       if (dispatchTriggered != null)
         'Dispatch manual: ${dispatchTriggered! ? 'sim' : 'não'}',
       if (failureStage != null) 'Falha na etapa: $failureStage',
+      if (uploadedBlobShas.isNotEmpty)
+        'Checkpoint de blobs: ${uploadedBlobShas.length}',
       if (errorCode != null) 'Código interno: $errorCode',
       if (errorMessage != null) 'Erro: $errorMessage',
       if (logLines.isNotEmpty) ...[
@@ -229,6 +287,7 @@ class ManagedUpload {
         'repositoryFullName': repositoryFullName,
         'branch': branch,
         'zipPath': zipPath,
+        'sourceZipPath': sourceZipPath,
         'zipName': zipName,
         'projectName': projectName,
         'projectType': projectType,
@@ -260,6 +319,7 @@ class ManagedUpload {
         'errorMessage': errorMessage,
         'errorCode': errorCode,
         'failureStage': failureStage,
+        'uploadedBlobShas': uploadedBlobShas,
         'logLines': logLines,
       };
 
@@ -270,6 +330,9 @@ class ManagedUpload {
       repositoryFullName: json['repositoryFullName']?.toString() ?? '',
       branch: json['branch']?.toString() ?? 'main',
       zipPath: json['zipPath']?.toString() ?? '',
+      sourceZipPath: json['sourceZipPath']?.toString() ??
+          json['zipPath']?.toString() ??
+          '',
       zipName: json['zipName']?.toString() ?? 'projeto.zip',
       projectName: json['projectName']?.toString() ?? 'Projeto',
       projectType: json['projectType']?.toString() ?? 'Projeto',
@@ -308,6 +371,10 @@ class ManagedUpload {
       errorMessage: json['errorMessage']?.toString(),
       errorCode: json['errorCode']?.toString(),
       failureStage: json['failureStage']?.toString(),
+      uploadedBlobShas: (json['uploadedBlobShas'] as Map?)?.map(
+            (key, value) => MapEntry(key.toString(), value.toString()),
+          ) ??
+          <String, String>{},
       logLines: (json['logLines'] as List?)
               ?.map((value) => value.toString())
               .toList(growable: true) ??

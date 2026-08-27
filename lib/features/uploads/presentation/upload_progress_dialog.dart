@@ -101,9 +101,19 @@ class UploadProgressDialog extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
                 if (item.isActive)
-                  const Text(
-                    'Você pode minimizar este painel e continuar navegando pelo GitHub Manager. O envio continuará enquanto o aplicativo permanecer em execução.',
+                  Text(
+                    'Você pode minimizar ou sair para outro aplicativo. Uma notificação mantém o envio em primeiro plano. Se o Android encerrar o processo, o GitHub Manager retoma automaticamente do checkpoint ao abrir novamente.',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
+                if (item.isActive && item.hasCheckpoint) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    item.checkpointLabel,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
                 if (item.errorMessage?.isNotEmpty == true)
                   Text(
                     item.errorMessage!,

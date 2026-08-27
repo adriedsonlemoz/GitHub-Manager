@@ -2,6 +2,7 @@ package br.com.githubmanager.app
 
 import android.Manifest
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -14,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.FileInputStream
@@ -22,8 +24,14 @@ import java.io.FileOutputStream
 class MainActivity : FlutterActivity() {
     private var pendingStoragePermissionResult: MethodChannel.Result? = null
 
+    override fun provideFlutterEngine(context: Context): FlutterEngine? =
+        FlutterEngineCache.getInstance().get(MAIN_ENGINE_ID)
+
+    override fun shouldDestroyEngineWithHost(): Boolean = false
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        FlutterEngineCache.getInstance().put(MAIN_ENGINE_ID, flutterEngine)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "br.com.githubmanager.app/platform",
@@ -60,6 +68,36 @@ class MainActivity : FlutterActivity() {
                     location = call.argument<String>("location"),
                     result = result,
                 )
+                "showUploadForegroundService" -> {
+                    try {
+                        val arguments = UploadForegroundService.Arguments(
+                            uploadId = call.argument<String>("uploadId").orEmpty(),
+                            projectName = call.argument<String>("projectName").orEmpty(),
+                            repositoryFullName = call.argument<String>("repositoryFullName").orEmpty(),
+                            phase = call.argument<String>("phase").orEmpty(),
+                            current = call.argument<Int>("current") ?: 0,
+                            total = call.argument<Int>("total") ?: 0,
+                            indeterminate = call.argument<Boolean>("indeterminate") ?: true,
+                            activeCount = call.argument<Int>("activeCount") ?: 1,
+                        )
+                        if (call.argument<Boolean>("startService") != false) {
+                            UploadForegroundService.show(applicationContext, arguments)
+                        } else {
+                            UploadForegroundService.update(applicationContext, arguments)
+                        }
+                        result.success(null)
+                    } catch (error: Exception) {
+                        result.error("UPLOAD_FOREGROUND_FAILED", error.message, null)
+                    }
+                }
+                "stopUploadForegroundService" -> {
+                    try {
+                        UploadForegroundService.stop(applicationContext)
+                        result.success(null)
+                    } catch (error: Exception) {
+                        result.error("UPLOAD_FOREGROUND_STOP_FAILED", error.message, null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -346,5 +384,6 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val STORAGE_PERMISSION_REQUEST = 7012
+        private const val MAIN_ENGINE_ID = "github_manager_main_engine"
     }
 }
