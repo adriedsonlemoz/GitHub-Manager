@@ -47,7 +47,7 @@ class ProfileScreen extends ConsumerWidget {
     final profile = ref.watch(githubProfileProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Meu perfil')),
-      bottomNavigationBar: const AppMainNavigation(selectedIndex: 2)selectedIndex: 2),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 2),
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => Center(

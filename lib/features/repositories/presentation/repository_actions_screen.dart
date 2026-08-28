@@ -267,6 +267,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      useSafeArea: true,
       isScrollControlled: true,
       builder: (_) => _RunDetailsSheet(
         repositoryFullName: widget.repositoryFullName,
@@ -892,58 +893,59 @@ class _WorkflowStepTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final isSuccess =
         step.status == 'completed' && step.conclusion == 'success';
     final isFailure =
         step.status == 'completed' && step.conclusion == 'failure';
-    final successColor = Colors.green.shade700;
-    final failureColor = Colors.red.shade700;
-    final foreground = isSuccess
-        ? Colors.white
-        : isFailure
-            ? failureColor
-            : Theme.of(context).colorScheme.onSurface;
-    final background = isSuccess
-        ? successColor
-        : isFailure
-            ? Colors.white
-            : Theme.of(context).colorScheme.surfaceContainerLow;
+    final accent = isFailure
+        ? scheme.error
+        : isSuccess
+            ? Colors.green.shade500
+            : scheme.onSurfaceVariant;
+    final background = isFailure
+        ? scheme.errorContainer.withValues(alpha: .38)
+        : scheme.surfaceContainerHighest.withValues(alpha: .34);
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+      margin: const EdgeInsets.fromLTRB(7, 3, 7, 3),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(10),
-        border: isFailure
-            ? Border.all(color: failureColor, width: 1.5)
-            : null,
+        borderRadius: BorderRadius.circular(9),
       ),
       child: ListTile(
         dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+        minVerticalPadding: 5,
         leading: Icon(
           step.status != 'completed'
               ? Icons.radio_button_unchecked_rounded
               : isSuccess
-                  ? Icons.check_rounded
+                  ? Icons.check_circle_outline_rounded
                   : isFailure
-                      ? Icons.close_rounded
-                      : Icons.remove_rounded,
+                      ? Icons.error_outline_rounded
+                      : Icons.remove_circle_outline_rounded,
           size: 19,
-          color: foreground,
+          color: accent,
         ),
         title: Text(
           step.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: foreground,
-            fontWeight: isFailure ? FontWeight.w800 : FontWeight.w600,
+            fontWeight: isFailure ? FontWeight.w900 : FontWeight.w700,
           ),
         ),
         subtitle: Text(
-          '${_RepositoryActionsScreenState._stepExplanation(step.name)}\n'
-          'Status: ${_RepositoryActionsScreenState._stepStatus(step)}',
-          style: TextStyle(color: foreground),
+          '${_RepositoryActionsScreenState._stepExplanation(step.name)} • '
+          '${_RepositoryActionsScreenState._stepStatus(step)}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: scheme.onSurfaceVariant),
         ),
-        isThreeLine: true,
       ),
     );
   }
@@ -1413,14 +1415,15 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: .68,
-      minChildSize: .40,
-      maxChildSize: .95,
-      builder: (context, scrollController) => FutureBuilder<
-          List<RepositoryWorkflowJob>>(
+      initialChildSize: .62,
+      minChildSize: .38,
+      maxChildSize: .94,
+      builder: (context, scrollController) =>
+          FutureBuilder<List<RepositoryWorkflowJob>>(
         future: _jobsFuture,
         builder: (context, snapshot) {
-          final jobs = snapshot.data ?? _currentJobs ?? const <RepositoryWorkflowJob>[];
+          final jobs =
+              snapshot.data ?? _currentJobs ?? const <RepositoryWorkflowJob>[];
           RepositoryWorkflowJob? failedJob;
           for (final job in jobs) {
             if (job.failed) {
@@ -1428,85 +1431,118 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
               break;
             }
           }
+
+          final scheme = Theme.of(context).colorScheme;
+          final statusColor = _run.conclusion == 'failure'
+              ? scheme.error
+              : _run.isRunning
+                  ? scheme.primary
+                  : scheme.onSurfaceVariant;
+
           return ListView(
             controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 76),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 88),
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _run.title,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: _RunStatusIcon(run: _run),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_run.name} #${_run.runNumber} • ${_run.branch} • ${_run.shortSha}',
-                        ),
-                        if (_run.detectedVersion != null) ...[
-                          const SizedBox(height: 1),
-                          Row(
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.new_releases_outlined, size: 16),
-                              const SizedBox(width: 5),
                               Text(
-                                'Versão ${_run.detectedVersion}',
-                                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                                '${_run.name} #${_run.runNumber}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w900),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_run.branch} • ${_run.shortSha} • '
+                                '${_RepositoryActionsScreenState._formatDate(_run.startedAt ?? _run.createdAt)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: scheme.onSurfaceVariant),
                               ),
                             ],
                           ),
-                        ],
-                        if (_run.commitMessage.trim().isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            _run.commitMessage.split('\n').first,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                        const SizedBox(height: 2),
-                        Text(
-                          'Início: ${_RepositoryActionsScreenState._formatDate(_run.startedAt ?? _run.createdAt)}',
-                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        IconButton(
+                          onPressed: () => _refresh(),
+                          tooltip: 'Atualizar',
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.refresh_rounded, size: 20),
                         ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => _refresh(),
-                    tooltip: 'Atualizar etapas',
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Card(
-                child: ListTile(
-                  leading: _RunStatusIcon(run: _run),
-                  title: Text(_RepositoryActionsScreenState._statusLabel(_run)),
-                  subtitle: Text(
-                    _run.isRunning
-                        ? 'Atualização automática a cada 6 segundos'
-                        : 'Duração: ${_RepositoryActionsScreenState._formatDuration(_run)}',
-                  ),
-                  trailing: _run.isRunning
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : null,
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 5,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (_run.detectedVersion != null)
+                          Text(
+                            'v${_run.detectedVersion}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                        Text(
+                          _RepositoryActionsScreenState._statusLabel(_run),
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelLarge
+                              ?.copyWith(
+                                color: statusColor,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                        Text(
+                          _run.isRunning
+                              ? 'Atualizando automaticamente'
+                              : _RepositoryActionsScreenState._formatDuration(_run),
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                    if (_run.commitMessage.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _run.commitMessage.split('\n').first,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
@@ -1561,14 +1597,23 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                 ],
               ),
               if (failedJob != null) ...[
-                const SizedBox(height: 7),
+                const SizedBox(height: 8),
                 _FailureSummaryCard(
                   repositoryFullName: widget.repositoryFullName,
                   job: failedJob,
                 ),
               ],
-              const SizedBox(height: 8),
-              if (snapshot.connectionState == ConnectionState.waiting && jobs.isEmpty)
+              const SizedBox(height: 12),
+              Text(
+                'Etapas',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 7),
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  jobs.isEmpty)
                 const LinearProgressIndicator()
               else if (snapshot.hasError && jobs.isEmpty)
                 Padding(
@@ -1580,24 +1625,43 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                   ),
                 )
               else if (jobs.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Os jobs ainda não foram publicados pelo GitHub.'),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Os jobs ainda não foram publicados pelo GitHub.',
                   ),
                 )
               else
                 ...jobs.map(
                   (job) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Card(
+                    padding: const EdgeInsets.only(bottom: 7),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      clipBehavior: Clip.antiAlias,
                       child: ExpansionTile(
+                        tilePadding:
+                            const EdgeInsets.symmetric(horizontal: 12),
+                        childrenPadding:
+                            const EdgeInsets.fromLTRB(4, 0, 4, 6),
                         leading: _JobIcon(job: job),
-                        title: Text(job.name),
+                        title: Text(
+                          job.name,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
                         subtitle: Text(
                           _RepositoryActionsScreenState._jobStatus(job),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        initiallyExpanded: job.status != 'completed' || job.failed,
+                        initiallyExpanded:
+                            job.status != 'completed' || job.failed,
                         children: job.steps
                             .map(
                               (step) => _WorkflowStepTile(step: step),
@@ -1607,8 +1671,6 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 7),
-
             ],
           );
         },
@@ -1696,44 +1758,55 @@ class _FailureSummaryCard extends ConsumerWidget {
             break;
           }
         }
-        final errorColor = Colors.red.shade700;
-        return Card(
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: errorColor, width: 1.5),
+
+        final scheme = Theme.of(context).colorScheme;
+        final message = failure?.message ??
+            (snapshot.connectionState == ConnectionState.waiting
+                ? 'Buscando a mensagem principal do erro...'
+                : 'O GitHub não forneceu mais detalhes para esta falha.');
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(11),
+          decoration: BoxDecoration(
+            color: scheme.errorContainer.withValues(alpha: .42),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Erro principal',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: errorColor,
-                      ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.error_outline_rounded, color: scheme.error, size: 21),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Erro principal',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: scheme.error,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${failure?.jobName ?? job.name} • '
+                      '${failure?.stepName ?? failedStep ?? 'etapa não identificada'}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      message,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Job: ${failure?.jobName ?? job.name}',
-                  style: TextStyle(color: errorColor, fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  'Etapa: ${failure?.stepName ?? failedStep ?? '-'}',
-                  style: TextStyle(color: errorColor, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  failure?.message ??
-                      (snapshot.connectionState == ConnectionState.waiting
-                          ? 'Buscando a mensagem principal do erro no GitHub...'
-                          : 'O GitHub não forneceu uma annotation detalhada para esta falha.'),
-                  style: TextStyle(color: errorColor),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

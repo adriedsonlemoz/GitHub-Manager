@@ -190,6 +190,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
         }
       },
       child: Scaffold(
+        bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
         appBar: AppBar(
           leading: IconButton(onPressed: _upOneLevel, icon: const Icon(Icons.arrow_back_rounded)),
           title: Text(widget.readOnly ? 'Arquivos • somente leitura' : 'Arquivos'),

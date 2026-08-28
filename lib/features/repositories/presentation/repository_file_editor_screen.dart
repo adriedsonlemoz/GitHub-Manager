@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
@@ -172,6 +173,7 @@ class _RepositoryFileEditorScreenState
   Widget build(BuildContext context) {
     _contentController.setBrightness(Theme.of(context).brightness);
     return Scaffold(
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       appBar: AppBar(
         title: Text(widget.isNew ? 'Novo arquivo' : widget.item!.name),
         actions: [
