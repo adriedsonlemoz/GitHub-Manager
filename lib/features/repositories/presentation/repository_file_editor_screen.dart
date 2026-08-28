@@ -201,7 +201,7 @@ class _RepositoryFileEditorScreenState
           : _loadError != null
               ? _ErrorBody(error: _loadError!)
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
                   children: [
                     if (widget.isNew) ...[
                       TextField(
@@ -232,9 +232,6 @@ class _RepositoryFileEditorScreenState
                     Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       clipBehavior: Clip.antiAlias,
@@ -287,14 +284,6 @@ class _RepositoryFileEditorScreenState
                         ],
                       ),
                     ),
-                    if (!widget.readOnly) ...[
-                      const SizedBox(height: 14),
-                      FilledButton.icon(
-                        onPressed: _saving ? null : _save,
-                        icon: const Icon(Icons.save_rounded),
-                        label: Text(_saving ? 'Salvando...' : 'Salvar no GitHub'),
-                      ),
-                    ],
                   ],
                 ),
     );

@@ -182,6 +182,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return PopScope(
       canPop: _path.isEmpty,
       onPopInvokedWithResult: (didPop, _) {
@@ -192,45 +193,85 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
       child: Scaffold(
         bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
         appBar: AppBar(
-          leading: IconButton(onPressed: _upOneLevel, icon: const Icon(Icons.arrow_back_rounded)),
-          title: Text(widget.readOnly ? 'Arquivos • somente leitura' : 'Arquivos'),
+          leading: IconButton(
+            onPressed: _upOneLevel,
+            tooltip: _path.isEmpty ? 'Voltar' : 'Pasta anterior',
+            icon: const Icon(Icons.arrow_back_rounded),
+          ),
+          title: Text(
+            widget.readOnly ? 'Arquivos • leitura' : 'Arquivos',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           actions: [
-            if (!widget.readOnly)
-              IconButton(
-                onPressed: () => context.push(
-                  '/repositories/${widget.repositoryFullName}/permissions',
-                ),
-                tooltip: 'Diagnóstico do token',
-                icon: const Icon(Icons.verified_user_outlined),
-              ),
-            if (!widget.readOnly)
-              IconButton(
-                onPressed: _uploading ? null : _createFile,
-                tooltip: 'Novo arquivo',
-                icon: const Icon(Icons.note_add_outlined),
-              ),
-            if (!widget.readOnly)
-              IconButton(
-                onPressed: _uploading ? null : _uploadFiles,
-                tooltip: 'Enviar arquivos',
-                icon: const Icon(Icons.upload_file_rounded),
-              ),
+            IconButton(
+              onPressed: _uploading ? null : _refresh,
+              tooltip: 'Atualizar',
+              icon: const Icon(Icons.refresh_rounded),
+            ),
           ],
         ),
         body: RefreshIndicator(
           onRefresh: _refresh,
           child: Column(
             children: [
-              _PathHeader(repositoryFullName: widget.repositoryFullName, branch: widget.defaultBranch, path: _path),
+              _PathHeader(
+                repositoryFullName: widget.repositoryFullName,
+                branch: widget.defaultBranch,
+                path: _path,
+              ),
+              if (!widget.readOnly)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 7, 12, 5),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _FileQuickAction(
+                          icon: Icons.note_add_outlined,
+                          label: 'Novo',
+                          onPressed: _uploading ? null : _createFile,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _FileQuickAction(
+                          icon: Icons.upload_file_rounded,
+                          label: 'Enviar',
+                          filled: true,
+                          onPressed: _uploading ? null : _uploadFiles,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _FileQuickAction(
+                          icon: Icons.verified_user_outlined,
+                          label: 'Permissões',
+                          onPressed: () => context.push(
+                            '/repositories/${widget.repositoryFullName}/permissions',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (_uploading)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      LinearProgressIndicator(value: _uploadTotal > 0 ? _uploadedCount / _uploadTotal : null),
-                      const SizedBox(height: 6),
-                      Text('Enviando $_uploadedCount de $_uploadTotal arquivo(s)...'),
+                      LinearProgressIndicator(
+                        value: _uploadTotal > 0
+                            ? _uploadedCount / _uploadTotal
+                            : null,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Enviando $_uploadedCount de $_uploadTotal',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                      ),
                     ],
                   ),
                 ),
@@ -238,68 +279,120 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
                 child: FutureBuilder<List<RepositoryContentItem>>(
                   future: _future,
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError) {
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
                         children: [
-                          Card(child: Padding(padding: const EdgeInsets.all(18), child: Text(_message(snapshot.error!)))),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: scheme.errorContainer.withValues(alpha: .35),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(_message(snapshot.error!)),
+                          ),
                         ],
                       );
                     }
-                    final items = snapshot.data ?? const <RepositoryContentItem>[];
+
+                    final items =
+                        snapshot.data ?? const <RepositoryContentItem>[];
                     if (items.isEmpty) {
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(18),
-                        children: const [
-                          Card(
-                            child: Padding(
-                              padding: EdgeInsets.all(18),
-                              child: Text('Esta pasta está vazia.'),
+                        padding: const EdgeInsets.fromLTRB(12, 18, 12, 88),
+                        children: [
+                          Center(
+                            child: Text(
+                              'Esta pasta está vazia.',
+                              style: TextStyle(
+                                color: scheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                         ],
                       );
                     }
+
                     return ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                      padding: const EdgeInsets.fromLTRB(10, 5, 10, 88),
                       itemCount: items.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: 3),
                       itemBuilder: (context, index) {
                         final item = items[index];
-                        return ListTile(
-                          leading: Icon(item.isDirectory ? Icons.folder_rounded : _fileIcon(item.name)),
-                          title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle: Text(item.isDirectory ? 'Pasta' : _formatBytes(item.size)),
-                          trailing: item.isFile
-                              ? widget.readOnly
-                                  ? const Icon(Icons.visibility_outlined)
-                                  : PopupMenuButton<String>(
-                                      onSelected: (value) {
-                                        if (value == 'open') {
-                                          _openFile(item);
-                                        } else if (value == 'delete') {
-                                          _delete(item);
-                                        }
-                                      },
-                                      itemBuilder: (_) => const [
-                                        PopupMenuItem(
-                                          value: 'open',
-                                          child: Text('Abrir / editar'),
-                                        ),
-                                        PopupMenuItem(
-                                          value: 'delete',
-                                          child: Text('Excluir'),
-                                        ),
-                                      ],
-                                    )
-                              : const Icon(Icons.chevron_right_rounded),
-                          onTap: item.isDirectory ? () => _openDirectory(item) : () => _openFile(item),
+                        return Material(
+                          color: scheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(11),
+                          clipBehavior: Clip.antiAlias,
+                          child: ListTile(
+                            dense: true,
+                            visualDensity: const VisualDensity(vertical: -2),
+                            contentPadding:
+                                const EdgeInsets.fromLTRB(10, 1, 4, 1),
+                            leading: Icon(
+                              item.isDirectory
+                                  ? Icons.folder_rounded
+                                  : _fileIcon(item.name),
+                              size: 21,
+                              color: item.isDirectory
+                                  ? scheme.primary
+                                  : scheme.onSurfaceVariant,
+                            ),
+                            title: Text(
+                              item.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: Text(
+                              item.isDirectory
+                                  ? 'Pasta'
+                                  : _formatBytes(item.size),
+                              maxLines: 1,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                            trailing: item.isFile
+                                ? widget.readOnly
+                                    ? const Icon(
+                                        Icons.visibility_outlined,
+                                        size: 19,
+                                      )
+                                    : PopupMenuButton<String>(
+                                        tooltip: 'Ações',
+                                        onSelected: (value) {
+                                          if (value == 'open') {
+                                            _openFile(item);
+                                          } else if (value == 'delete') {
+                                            _delete(item);
+                                          }
+                                        },
+                                        itemBuilder: (_) => const [
+                                          PopupMenuItem(
+                                            value: 'open',
+                                            child: Text('Abrir / editar'),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: Text('Excluir'),
+                                          ),
+                                        ],
+                                      )
+                                : const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 20,
+                                  ),
+                            onTap: item.isDirectory
+                                ? () => _openDirectory(item)
+                                : () => _openFile(item),
+                          ),
                         );
                       },
                     );
@@ -309,13 +402,6 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
             ],
           ),
         ),
-        floatingActionButton: widget.readOnly
-            ? null
-            : FloatingActionButton.extended(
-                onPressed: _uploading ? null : _uploadFiles,
-                icon: const Icon(Icons.upload_rounded),
-                label: const Text('Enviar arquivos'),
-              ),
       ),
     );
   }
@@ -350,8 +436,60 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
   }
 }
 
+class _FileQuickAction extends StatelessWidget {
+  const _FileQuickAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.filled = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(Size(0, 40)),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+      ),
+      visualDensity: VisualDensity.compact,
+    );
+    return filled
+        ? FilledButton.tonalIcon(
+            onPressed: onPressed,
+            style: style,
+            icon: Icon(icon, size: 17),
+            label: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+            ),
+          )
+        : OutlinedButton.icon(
+            onPressed: onPressed,
+            style: style,
+            icon: Icon(icon, size: 17),
+            label: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+            ),
+          );
+  }
+}
+
 class _PathHeader extends StatelessWidget {
-  const _PathHeader({required this.repositoryFullName, required this.branch, required this.path});
+  const _PathHeader({
+    required this.repositoryFullName,
+    required this.branch,
+    required this.path,
+  });
 
   final String repositoryFullName;
   final String branch;
@@ -359,16 +497,36 @@ class _PathHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 3, 12, 0),
+      child: Row(
         children: [
-          Text(repositoryFullName, style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 3),
-          Text('${path.isEmpty ? '/' : '/$path'}  •  $branch', style: Theme.of(context).textTheme.bodySmall),
+          Icon(Icons.account_tree_outlined,
+              size: 16, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              path.isEmpty ? repositoryFullName : '/$path',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: .55),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              branch,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ),
         ],
       ),
     );

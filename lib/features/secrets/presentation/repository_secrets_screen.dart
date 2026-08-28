@@ -367,10 +367,15 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
                 ),
                 const SizedBox(height: 14),
                 ...result.items.map(
-                  (item) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
+                  (item) => Container(
+                    margin: const EdgeInsets.only(bottom: 5),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     child: ListTile(
                       dense: true,
+                      visualDensity: const VisualDensity(vertical: -2),
                       leading: Icon(
                         item.success
                             ? Icons.check_circle_outline_rounded
@@ -613,160 +618,241 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
 
   @override
   Widget build(BuildContext context) {
-    final secrets = ref.watch(repositorySecretsProvider(widget.repositoryFullName));
+    final secrets =
+        ref.watch(repositorySecretsProvider(widget.repositoryFullName));
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       appBar: AppBar(
-        title: const Text('GitHub Secrets'),
+        title: const Text('Secrets'),
         actions: [
-          IconButton(
-            onPressed: () => context.push(
-              '/repositories/${widget.repositoryFullName}/permissions',
-            ),
-            tooltip: 'Diagnóstico do token',
-            icon: const Icon(Icons.verified_user_outlined),
-          ),
           IconButton(
             onPressed: _working ? null : _refresh,
             tooltip: 'Atualizar',
-            icon: const Icon(Icons.refresh_rounded),
+            icon: _working
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
       body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(8, 2, 8, 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .secondaryContainer
-                  .withValues(alpha: .5),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 3, 12, 5),
+            child: Row(
               children: [
-                Text(
-                  'Secrets protegidos',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 16,
+                  color: scheme.primary,
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'O GitHub mostra somente nome e datas. Limites validados antes do envio: 48 KB por Secret e até 100 por repositório.',
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Valores protegidos • até 48 KB por Secret',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                  ),
                 ),
-                SizedBox(height: 6),
-                Text(
-                  'Token fine-grained: Secrets → Read and write. Token clássico: escopo repo.',
+                Tooltip(
+                  message:
+                      'O GitHub exibe apenas nome e datas. Os valores não são mostrados nos diagnósticos.',
+                  child: Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            padding: const EdgeInsets.fromLTRB(10, 3, 10, 7),
+            child: Row(
               children: [
-                FilledButton.icon(
-                  onPressed: _working ? null : _importFile,
-                  icon: const Icon(Icons.file_upload_outlined),
-                  label: Text(_working ? 'Validando...' : 'Importar arquivo de Secrets'),
+                Expanded(
+                  child: _SecretQuickAction(
+                    icon: Icons.add_rounded,
+                    label: 'Adicionar',
+                    onPressed: _working ? null : _manualSecret,
+                  ),
                 ),
-                const SizedBox(height: 7),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _working ? null : _manualSecret,
-                        icon: const Icon(Icons.add_rounded),
-                        label: const Text('Adicionar'),
-                      ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: _SecretQuickAction(
+                    icon: Icons.file_upload_outlined,
+                    label: 'Importar',
+                    filled: true,
+                    onPressed: _working ? null : _importFile,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: _SecretQuickAction(
+                    icon: Icons.content_paste_rounded,
+                    label: 'Colar',
+                    onPressed: _working ? null : _pasteMany,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: _SecretQuickAction(
+                    icon: Icons.verified_user_outlined,
+                    label: 'Permissões',
+                    onPressed: () => context.push(
+                      '/repositories/${widget.repositoryFullName}/permissions',
                     ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _working ? null : _pasteMany,
-                        icon: const Icon(Icons.content_paste_rounded),
-                        label: const Text('Colar vários'),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
           Expanded(
             child: secrets.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
               error: (error, _) => ListView(
-                padding: const EdgeInsets.all(10),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 88),
                 children: [
-                  Text(
-                    error is GitHubPermissionException
-                        ? 'Não foi possível listar Secrets. Use o diagnóstico do token para identificar a permissão ausente.'
-                        : error is AppException
-                            ? error.message
-                            : 'Não foi possível listar os Secrets.',
-                  ),
-                  if (error is GitHubPermissionException) ...[
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () => context.push(
-                        '/repositories/${widget.repositoryFullName}/permissions',
-                      ),
-                      icon: const Icon(Icons.verified_user_outlined),
-                      label: const Text('Diagnosticar permissões'),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: error is GitHubPermissionException
+                          ? scheme.errorContainer.withValues(alpha: .35)
+                          : scheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          error is GitHubPermissionException
+                              ? 'Permissão insuficiente para listar Secrets.'
+                              : error is AppException
+                                  ? error.message
+                                  : 'Não foi possível listar os Secrets.',
+                        ),
+                        if (error is GitHubPermissionException) ...[
+                          const SizedBox(height: 7),
+                          TextButton.icon(
+                            onPressed: () => context.push(
+                              '/repositories/${widget.repositoryFullName}/permissions',
+                            ),
+                            icon: const Icon(
+                              Icons.verified_user_outlined,
+                              size: 17,
+                            ),
+                            label: const Text('Diagnosticar'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              data: (items) => items.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      children: const [
-                        Center(child: Text('Nenhum Secret cadastrado.')),
-                      ],
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 20),
-                      itemCount: items.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 5),
-                      itemBuilder: (context, index) {
-                        final secret = items[index];
-                        return Card(
-                          child: ListTile(
-                            dense: true,
-                            leading: const Icon(Icons.key_rounded),
-                            title: Text(secret.name),
-                            subtitle: Text(
-                              'Atualizado: ${_formatDate(secret.updatedAt)}',
-                            ),
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (action) {
-                                if (action == 'replace') {
-                                  _replace(secret);
-                                } else if (action == 'delete') {
-                                  _delete(secret);
-                                }
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                  value: 'replace',
-                                  child: Text('Substituir valor'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Excluir'),
-                                ),
-                              ],
-                            ),
+              data: (items) {
+                if (items.isEmpty) {
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(12, 24, 12, 88),
+                    children: [
+                      Icon(
+                        Icons.key_off_outlined,
+                        size: 30,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          'Nenhum Secret cadastrado.',
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                return ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(10, 3, 10, 88),
+                  itemCount: items.length,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: 3),
+                  itemBuilder: (context, index) {
+                    final secret = items[index];
+                    return Material(
+                      color: scheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(11),
+                      clipBehavior: Clip.antiAlias,
+                      child: ListTile(
+                        dense: true,
+                        visualDensity: const VisualDensity(vertical: -2),
+                        contentPadding:
+                            const EdgeInsets.fromLTRB(10, 1, 2, 1),
+                        leading: Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer
+                                .withValues(alpha: .5),
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: Icon(
+                            Icons.key_rounded,
+                            size: 18,
+                            color: scheme.primary,
+                          ),
+                        ),
+                        title: Text(
+                          secret.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Atualizado ${_formatDate(secret.updatedAt)}',
+                          maxLines: 1,
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          tooltip: 'Ações',
+                          onSelected: (action) {
+                            if (action == 'replace') {
+                              _replace(secret);
+                            } else if (action == 'delete') {
+                              _delete(secret);
+                            }
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'replace',
+                              child: Text('Substituir valor'),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Excluir'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],
@@ -786,6 +872,60 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
     if (bytes < 1024) return '$bytes B';
     final kb = bytes / 1024;
     return '${kb.toStringAsFixed(kb >= 10 ? 0 : 1)} KB';
+  }
+}
+
+class _SecretQuickAction extends StatelessWidget {
+  const _SecretQuickAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.filled = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(Size(0, 40)),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 4, vertical: 7),
+      ),
+      visualDensity: VisualDensity.compact,
+      textStyle: WidgetStatePropertyAll(
+        Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+      ),
+    );
+
+    return filled
+        ? FilledButton.tonalIcon(
+            onPressed: onPressed,
+            style: style,
+            icon: Icon(icon, size: 16),
+            label: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+            ),
+          )
+        : OutlinedButton.icon(
+            onPressed: onPressed,
+            style: style,
+            icon: Icon(icon, size: 16),
+            label: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+            ),
+          );
   }
 }
 
