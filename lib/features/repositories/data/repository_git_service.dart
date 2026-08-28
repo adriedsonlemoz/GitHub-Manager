@@ -11,14 +11,22 @@ part 'repository_git_files.dart';
 part 'repository_git_workflows.dart';
 part 'repository_git_actions.dart';
 
-class RepositoryGitService {
-  RepositoryGitService(this._client);
-
-  static const maxEditableTextBytes = 1024 * 1024;
-  static const maxUploadBytes = 95 * 1024 * 1024;
+abstract class _RepositoryGitBase {
+  _RepositoryGitBase(this._client);
 
   final GitHubApiClient _client;
   final Map<String, String?> _runVersionCache = <String, String?>{};
+}
+
+class RepositoryGitService extends _RepositoryGitBase
+    with
+        _RepositoryGitFileOperations,
+        _RepositoryGitWorkflowOperations,
+        _RepositoryGitActionsOperations {
+  RepositoryGitService(GitHubApiClient client) : super(client);
+
+  static const maxEditableTextBytes = 1024 * 1024;
+  static const maxUploadBytes = 95 * 1024 * 1024;
 }
 
 class _WorkflowFileCandidate {

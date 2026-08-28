@@ -1,11 +1,12 @@
 part of 'repository_git_service.dart';
 
-extension RepositoryGitActionsOperations on RepositoryGitService {
+mixin _RepositoryGitActionsOperations
+    on _RepositoryGitBase, _RepositoryGitFileOperations, _RepositoryGitWorkflowOperations {
   Future<RepositoryActionsData> loadActions(
     String repositoryFullName, {
     RepositoryWorkflow? workflow,
   }) async {
-    final workflows = await RepositoryGitWorkflowOperations(this).listWorkflows(repositoryFullName);
+    final workflows = await listWorkflows(repositoryFullName);
     final repositoryPage = await _listWorkflowRunsEndpoint(
       repositoryFullName,
       '/repos/$repositoryFullName/actions/runs',
@@ -123,15 +124,15 @@ extension RepositoryGitActionsOperations on RepositoryGitService {
         }
         if (run.headSha.trim().isEmpty) return;
         final key = '$repositoryFullName@${run.headSha}';
-        if (this._runVersionCache.containsKey(key)) {
-          versions[run.headSha] = this._runVersionCache[key];
+        if (_runVersionCache.containsKey(key)) {
+          versions[run.headSha] = _runVersionCache[key];
           return;
         }
         final resolved = await _resolveVersionAtRef(
           repositoryFullName,
           run.headSha,
         );
-        this._runVersionCache[key] = resolved;
+        _runVersionCache[key] = resolved;
         versions[run.headSha] = resolved;
       }),
     );
@@ -156,7 +157,7 @@ extension RepositoryGitActionsOperations on RepositoryGitService {
       'VERSION',
     ]) {
       try {
-        final file = await RepositoryGitFileOperations(this).readTextFile(
+        final file = await readTextFile(
           repositoryFullName: repositoryFullName,
           branch: ref,
           path: path,
@@ -195,65 +196,11 @@ extension RepositoryGitActionsOperations on RepositoryGitService {
     return null;
   }
 
-  Future<_WorkflowRunsPage> _listWorkflowRunsEndpoint(
-    String repositoryFullName,
-    String endpoint, {
-    Map<String, dynamic> queryParameters = const {},
-  }) async {
-    final byId = <int, RepositoryWorkflowRun>{};
-    int? status;
-    int? totalCount;
-    for (var page = 1; page <= 5; page++) {
-      final response = await this._client.get<Map<String, dynamic>>(
-        endpoint,
-        queryParameters: {
-          ...queryParameters,
-          'per_page': 100,
-          'page': page,
-        },
-      );
-      status = response.statusCode;
-      totalCount ??= (response.data?['total_count'] as num?)?.toInt();
-      final raw = response.data?['workflow_runs'];
-      if (raw is! List) {
-        throw const RepositoryFileException(
-          'O GitHub retornou uma resposta inesperada ao listar execuções.',
-          code: 'ACTIONS_RUNS_RESPONSE_INVALID',
-        );
-      }
-      final pageItems = raw
-          .whereType<Map>()
-          .map(
-            (json) => RepositoryWorkflowRun.fromJson(
-              Map<String, dynamic>.from(json),
-            ),
-          )
-          .toList(growable: false);
-      for (final item in pageItems) {
-        byId[item.id] = item;
-      }
-      if (pageItems.length < 100) {
-        break;
-      }
-    }
-    final runs = byId.values.toList()
-      ..sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
-    return _WorkflowRunsPage(
-      runs: runs,
-      httpStatus: status,
-      totalCount: totalCount,
-    );
-  }
-
   Future<List<RepositoryWorkflowJob>> listWorkflowRunJobs({
     required String repositoryFullName,
     required int runId,
   }) async {
-    final response = await this._client.get<Map<String, dynamic>>(
+    final response = await _client.get<Map<String, dynamic>>(
       '/repos/$repositoryFullName/actions/runs/$runId/jobs',
       queryParameters: {'per_page': 100},
     );
@@ -290,7 +237,7 @@ extension RepositoryGitActionsOperations on RepositoryGitService {
     }
     String? message;
     try {
-      final response = await this._client.get<List<dynamic>>(
+      final response = await _client.get<List<dynamic>>(
         '/repos/$repositoryFullName/check-runs/${job.id}/annotations',
         queryParameters: {'per_page': 100},
       );
@@ -319,7 +266,7 @@ extension RepositoryGitActionsOperations on RepositoryGitService {
     required String repositoryFullName,
     required int runId,
   }) =>
-      this._client.post<void>(
+      _client.post<void>(
         '/repos/$repositoryFullName/actions/runs/$runId/cancel',
       );
 
@@ -327,7 +274,7 @@ extension RepositoryGitActionsOperations on RepositoryGitService {
     required String repositoryFullName,
     required int runId,
   }) =>
-      this._client.post<void>(
+      _client.post<void>(
         '/repos/$repositoryFullName/actions/runs/$runId/rerun',
       );
 
@@ -335,7 +282,7 @@ extension RepositoryGitActionsOperations on RepositoryGitService {
     required String repositoryFullName,
     required int runId,
   }) =>
-      this._client.delete<void>(
+      _client.delete<void>(
         '/repos/$repositoryFullName/actions/runs/$runId',
       );
 

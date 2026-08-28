@@ -1,13 +1,13 @@
 part of 'repository_git_service.dart';
 
-extension RepositoryGitFileOperations on RepositoryGitService {
+mixin _RepositoryGitFileOperations on _RepositoryGitBase {
   Future<List<RepositoryContentItem>> listContents({
     required String repositoryFullName,
     required String branch,
     String path = '',
   }) async {
     final endpoint = _contentsEndpoint(repositoryFullName, path);
-    final response = await this._client.get<dynamic>(
+    final response = await _client.get<dynamic>(
       endpoint,
       queryParameters: {'ref': branch},
     );
@@ -37,7 +37,7 @@ extension RepositoryGitFileOperations on RepositoryGitService {
     required String branch,
     required String path,
   }) async {
-    final response = await this._client.get<Map<String, dynamic>>(
+    final response = await _client.get<Map<String, dynamic>>(
       _contentsEndpoint(repositoryFullName, path),
       queryParameters: {'ref': branch},
     );
@@ -82,7 +82,7 @@ extension RepositoryGitFileOperations on RepositoryGitService {
     required String message,
   }) async {
     final normalized = _normalizeRepositoryPath(path);
-    await this._client.put<Map<String, dynamic>>(
+    await _client.put<Map<String, dynamic>>(
       _contentsEndpoint(repositoryFullName, normalized),
       data: {
         'message': message.trim().isEmpty
@@ -101,7 +101,7 @@ extension RepositoryGitFileOperations on RepositoryGitService {
     required String content,
     required String message,
   }) async {
-    await this._client.put<Map<String, dynamic>>(
+    await _client.put<Map<String, dynamic>>(
       _contentsEndpoint(repositoryFullName, file.path),
       data: {
         'message': message.trim().isEmpty
@@ -125,7 +125,7 @@ extension RepositoryGitFileOperations on RepositoryGitService {
         code: 'DIRECTORY_DELETE_UNSUPPORTED',
       );
     }
-    await this._client.delete<Map<String, dynamic>>(
+    await _client.delete<Map<String, dynamic>>(
       _contentsEndpoint(repositoryFullName, item.path),
       data: {
         'message': automaticCommitMessage('Exclui ${item.path}'),
@@ -154,7 +154,7 @@ extension RepositoryGitFileOperations on RepositoryGitService {
     }
     final bytes = await pickedFile.readAsBytes();
     final targetPath = _join(directory, pickedFile.name);
-    await this._client.put<Map<String, dynamic>>(
+    await _client.put<Map<String, dynamic>>(
       _contentsEndpoint(repositoryFullName, targetPath),
       data: {
         'message': automaticCommitMessage('Envia $targetPath'),
@@ -167,7 +167,7 @@ extension RepositoryGitFileOperations on RepositoryGitService {
   Future<List<RepositoryBranch>> listBranches(String repositoryFullName) async {
     final branches = <RepositoryBranch>[];
     for (var page = 1; page <= 5; page++) {
-      final response = await this._client.get<List<dynamic>>(
+      final response = await _client.get<List<dynamic>>(
         '/repos/$repositoryFullName/branches',
         queryParameters: {'per_page': 100, 'page': page},
       );
@@ -192,7 +192,7 @@ extension RepositoryGitFileOperations on RepositoryGitService {
     required String repositoryFullName,
     required String branch,
   }) async {
-    final response = await this._client.get<List<dynamic>>(
+    final response = await _client.get<List<dynamic>>(
       '/repos/$repositoryFullName/commits',
       queryParameters: {'sha': branch, 'per_page': 60},
     );

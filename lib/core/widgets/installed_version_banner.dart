@@ -10,6 +10,8 @@ class InstalledVersionBanner extends StatelessWidget {
 
   static final Future<String> _version = _loadVersion();
 
+  static Future<String> get versionLabel => _version;
+
   static Future<String> _loadVersion() async {
     try {
       final raw = await rootBundle.loadString('github-manager.json');

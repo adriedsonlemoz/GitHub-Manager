@@ -1,12 +1,13 @@
 part of 'repository_git_service.dart';
 
-extension RepositoryGitWorkflowOperations on RepositoryGitService {
+mixin _RepositoryGitWorkflowOperations
+    on _RepositoryGitBase, _RepositoryGitFileOperations {
   Future<List<RepositoryWorkflow>> listWorkflows(
     String repositoryFullName,
   ) async {
     final workflows = <RepositoryWorkflow>[];
     for (var page = 1; page <= 5; page++) {
-      final response = await this._client.get<Map<String, dynamic>>(
+      final response = await _client.get<Map<String, dynamic>>(
         '/repos/$repositoryFullName/actions/workflows',
         queryParameters: {'per_page': 100, 'page': page},
       );
@@ -47,7 +48,7 @@ extension RepositoryGitWorkflowOperations on RepositoryGitService {
     };
     for (final path in candidates) {
       try {
-        final file = await RepositoryGitFileOperations(this).readTextFile(
+        final file = await readTextFile(
           repositoryFullName: repositoryFullName,
           branch: branch,
           path: path,
@@ -67,7 +68,7 @@ extension RepositoryGitWorkflowOperations on RepositoryGitService {
     required RepositoryWorkflow workflow,
     required String ref,
   }) async {
-    final response = await this._client.post<Map<String, dynamic>>(
+    final response = await _client.post<Map<String, dynamic>>(
       '/repos/$repositoryFullName/actions/workflows/${workflow.id}/dispatches',
       data: {'ref': ref},
     );
@@ -86,7 +87,7 @@ extension RepositoryGitWorkflowOperations on RepositoryGitService {
         code: 'WORKFLOW_FILE_REQUIRED',
       );
     }
-    final response = await this._client.post<Map<String, dynamic>>(
+    final response = await _client.post<Map<String, dynamic>>(
       '/repos/$repositoryFullName/actions/workflows/${Uri.encodeComponent(fileName)}/dispatches',
       data: {'ref': ref},
     );
@@ -101,7 +102,7 @@ extension RepositoryGitWorkflowOperations on RepositoryGitService {
     if (normalizedSha.isEmpty) {
       return const [];
     }
-    final result = await RepositoryGitActionsOperations(this)._listWorkflowRunsEndpoint(
+    final result = await _listWorkflowRunsEndpoint(
       repositoryFullName,
       '/repos/$repositoryFullName/actions/runs',
       queryParameters: {'head_sha': normalizedSha},
@@ -336,7 +337,7 @@ extension RepositoryGitWorkflowOperations on RepositoryGitService {
   }) async {
     List<RepositoryContentItem> files;
     try {
-      files = await RepositoryGitFileOperations(this).listContents(
+      files = await listContents(
         repositoryFullName: repositoryFullName,
         branch: branch,
         path: '.github/workflows',
@@ -361,7 +362,7 @@ extension RepositoryGitWorkflowOperations on RepositoryGitService {
 
     for (final item in preferred) {
       try {
-        final file = await RepositoryGitFileOperations(this).readTextFile(
+        final file = await readTextFile(
           repositoryFullName: repositoryFullName,
           branch: branch,
           path: item.path,
@@ -428,7 +429,7 @@ extension RepositoryGitWorkflowOperations on RepositoryGitService {
     };
     for (final path in candidates) {
       try {
-        final file = await RepositoryGitFileOperations(this).readTextFile(
+        final file = await readTextFile(
           repositoryFullName: repositoryFullName,
           branch: branch,
           path: path,
@@ -514,4 +515,59 @@ extension RepositoryGitWorkflowOperations on RepositoryGitService {
     }
     return null;
   }
+
+  Future<_WorkflowRunsPage> _listWorkflowRunsEndpoint(
+    String repositoryFullName,
+    String endpoint, {
+    Map<String, dynamic> queryParameters = const {},
+  }) async {
+    final byId = <int, RepositoryWorkflowRun>{};
+    int? status;
+    int? totalCount;
+    for (var page = 1; page <= 5; page++) {
+      final response = await this._client.get<Map<String, dynamic>>(
+        endpoint,
+        queryParameters: {
+          ...queryParameters,
+          'per_page': 100,
+          'page': page,
+        },
+      );
+      status = response.statusCode;
+      totalCount ??= (response.data?['total_count'] as num?)?.toInt();
+      final raw = response.data?['workflow_runs'];
+      if (raw is! List) {
+        throw const RepositoryFileException(
+          'O GitHub retornou uma resposta inesperada ao listar execuções.',
+          code: 'ACTIONS_RUNS_RESPONSE_INVALID',
+        );
+      }
+      final pageItems = raw
+          .whereType<Map>()
+          .map(
+            (json) => RepositoryWorkflowRun.fromJson(
+              Map<String, dynamic>.from(json),
+            ),
+          )
+          .toList(growable: false);
+      for (final item in pageItems) {
+        byId[item.id] = item;
+      }
+      if (pageItems.length < 100) {
+        break;
+      }
+    }
+    final runs = byId.values.toList()
+      ..sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+    return _WorkflowRunsPage(
+      runs: runs,
+      httpStatus: status,
+      totalCount: totalCount,
+    );
+  }
+
 }

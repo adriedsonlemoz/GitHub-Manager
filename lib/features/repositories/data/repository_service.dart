@@ -1,3 +1,4 @@
+import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/core/persistence/local_database.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
@@ -10,6 +11,7 @@ class RepositoryService {
   static const _followedCacheKey = 'followed.repositories.cache';
   final GitHubApiClient _client;
   final LocalDatabase _database;
+  Future<List<GitHubRepository>>? _followedRefreshInFlight;
 
   Future<List<GitHubRepository>> listRepositories() async {
     try {
@@ -60,77 +62,136 @@ class RepositoryService {
   }
 
 
-  Future<List<GitHubRepository>> listFollowedRepositories() async {
+  Future<List<String>> _readFollowedNames() async {
     final stored = await _database.readJson(_followedKey);
-    final names = stored is List
-        ? stored
-            .whereType<String>()
-            .map((item) => item.trim())
-            .where((item) => item.isNotEmpty)
-            .toList()
-        : <String>[];
-    if (names.isEmpty) return const <GitHubRepository>[];
-
-    final cachedRaw = await _database.readJson(_followedCacheKey);
-    final cached = cachedRaw is List
-        ? cachedRaw
-            .whereType<Map>()
-            .map((json) => GitHubRepository.fromJson(Map<String, dynamic>.from(json)))
-            .where((repo) => names.contains(repo.fullName))
-            .toList()
-        : <GitHubRepository>[];
-
-    if (cached.length == names.length) {
-      cached.sort(
-        (a, b) => (b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-            .compareTo(a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
-      );
-      return cached;
+    final source = stored is List
+        ? stored.whereType<String>()
+        : const Iterable<String>.empty();
+    final names = <String>[];
+    final seen = <String>{};
+    for (final raw in source) {
+      final name = raw.trim();
+      if (name.isEmpty) continue;
+      if (seen.add(name.toLowerCase())) names.add(name);
     }
-
-    try {
-      return await refreshFollowedRepositories();
-    } catch (_) {
-      cached.sort(
-        (a, b) => (b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-            .compareTo(a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
-      );
-      return cached;
-    }
+    return names;
   }
 
-  Future<List<GitHubRepository>> refreshFollowedRepositories() async {
-    final stored = await _database.readJson(_followedKey);
-    final names = stored is List
-        ? stored
-            .whereType<String>()
-            .map((item) => item.trim())
-            .where((item) => item.isNotEmpty)
-            .toList()
-        : <String>[];
+  Future<List<GitHubRepository>> _readFollowedCache(
+    List<String> names,
+  ) async {
+    if (names.isEmpty) return const <GitHubRepository>[];
+    final wanted = names.map((name) => name.toLowerCase()).toSet();
+    final cachedRaw = await _database.readJson(_followedCacheKey);
+    if (cachedRaw is! List) return const <GitHubRepository>[];
+
+    final byName = <String, GitHubRepository>{};
+    for (final raw in cachedRaw.whereType<Map>()) {
+      final repository =
+          GitHubRepository.fromJson(Map<String, dynamic>.from(raw));
+      final key = repository.fullName.toLowerCase();
+      if (wanted.contains(key)) byName[key] = repository;
+    }
+    return _sortFollowed(byName.values.toList(growable: false));
+  }
+
+  static List<GitHubRepository> _sortFollowed(
+    List<GitHubRepository> repositories,
+  ) {
+    repositories.sort(
+      (a, b) => (b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+    );
+    return repositories;
+  }
+
+  Future<List<GitHubRepository>> listFollowedRepositories() async {
+    final names = await _readFollowedNames();
     if (names.isEmpty) {
       await _database.putJson(_followedCacheKey, const <Object>[]);
       return const <GitHubRepository>[];
     }
 
-    final results = await Future.wait(
+    // Causa real do spinner intermitente: a implementação anterior só aceitava
+    // o cache quando ele continha 100% dos nomes salvos. Um único repositório
+    // removido, renomeado ou temporariamente inacessível fazia cada abertura
+    // esperar novamente todas as chamadas de rede.
+    final cached = await _readFollowedCache(names);
+    if (cached.isNotEmpty) {
+      return cached;
+    }
+
+    // Rede só bloqueia a primeira abertura quando ainda não existe cache útil.
+    return refreshFollowedRepositories();
+  }
+
+  Future<List<GitHubRepository>> refreshFollowedRepositories() async {
+    final running = _followedRefreshInFlight;
+    if (running != null) return running;
+
+    final future = _refreshFollowedRepositoriesNow();
+    _followedRefreshInFlight = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_followedRefreshInFlight, future)) {
+        _followedRefreshInFlight = null;
+      }
+    }
+  }
+
+  Future<List<GitHubRepository>> _refreshFollowedRepositoriesNow() async {
+    var names = await _readFollowedNames();
+    if (names.isEmpty) {
+      await _database.putJson(_followedCacheKey, const <Object>[]);
+      return const <GitHubRepository>[];
+    }
+
+    final previous = await _readFollowedCache(names);
+    final previousByName = <String, GitHubRepository>{
+      for (final item in previous) item.fullName.toLowerCase(): item,
+    };
+    final resolved = <String, GitHubRepository>{};
+    final unavailable = <String>{};
+    Object? firstFailure;
+
+    await Future.wait(
       names.map((fullName) async {
         try {
-          return await getRepository(fullName);
-        } catch (_) {
-          return null;
+          final repository = await getRepository(fullName);
+          resolved[repository.fullName.toLowerCase()] = repository;
+        } on GitHubNotFoundException {
+          unavailable.add(fullName.toLowerCase());
+        } catch (error) {
+          firstFailure ??= error;
+          final cached = previousByName[fullName.toLowerCase()];
+          if (cached != null) {
+            resolved[cached.fullName.toLowerCase()] = cached;
+          }
         }
       }),
     );
-    final repositories = results.whereType<GitHubRepository>().toList();
-    repositories.sort(
-      (a, b) => (b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-          .compareTo(a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
-    );
+
+    // Entradas que o GitHub confirma como inexistentes/inacessíveis deixam de
+    // provocar novas chamadas a cada abertura do módulo.
+    if (unavailable.isNotEmpty) {
+      names = names
+          .where((name) => !unavailable.contains(name.toLowerCase()))
+          .toList(growable: false);
+      await _database.putJson(_followedKey, names);
+    }
+
+    final repositories = _sortFollowed(resolved.values.toList());
     await _database.putJson(
       _followedCacheKey,
       repositories.map((item) => item.toJson()).toList(),
     );
+
+    // Se nada pôde ser mostrado e houve erro real, propaga o erro para a UI
+    // em vez de transformar a falha em lista vazia ou loading infinito.
+    if (repositories.isEmpty && names.isNotEmpty && firstFailure != null) {
+      throw firstFailure!;
+    }
     return repositories;
   }
 

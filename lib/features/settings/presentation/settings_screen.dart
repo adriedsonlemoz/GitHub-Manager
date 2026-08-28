@@ -8,6 +8,7 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
+import 'package:github_manager/core/widgets/installed_version_banner.dart';
 import 'package:github_manager/features/auth/presentation/auth_providers.dart';
 import 'package:github_manager/features/home/domain/github_profile.dart';
 import 'package:github_manager/features/home/presentation/github_profile_edit_dialog.dart';
@@ -535,7 +536,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          const _SectionTitle('Sobre'),
+          const _SectionTitle('Versão instalada'),
+          const _InstalledVersionCard(),
+          const SizedBox(height: 18),
+          const _SectionTitle('Sobre e novidades'),
           Card(
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -557,16 +561,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.28',
-                      text: 'Pré-checagem de permissões antes de Enviar build, alterar Secrets e excluir repositórios, com cache seguro por token.',
+                      version: '2.0.43',
+                      text: 'Acompanhados estabilizado: cache parcial imediato, refresh deduplicado e erros reais exibidos sem loading indefinido.',
                     ),
                     _ChangeNote(
-                      version: '2.0.27',
-                      text: 'Diagnóstico seguro do token por repositório para Contents, Actions, Secrets, administração e exclusão.',
+                      version: '2.0.42',
+                      text: 'Serviços Git reorganizados e janelas de envio ajustadas para aproveitar melhor a largura da tela.',
                     ),
                     _ChangeNote(
-                      version: '2.0.26',
-                      text: 'Secrets reforçados: PAT fine-grained/clássico, pré-validação, importação em lote com diagnóstico e novos testes.',
+                      version: '2.0.41',
+                      text: 'Diagnóstico do token e Issues compactados, com componentes grandes separados em arquivos menores.',
                     ),
                   ],
                 ),
