@@ -57,7 +57,7 @@ class _RepositoryIssuesScreenState
           );
       await _refresh();
       if (mounted) {
-        showCenteredNotice(context, 'Bug criado no GitHub Issues.');
+        showCenteredNotice(context, 'Issue criada no GitHub.');
       }
     } catch (error) {
       if (mounted) {
@@ -94,7 +94,7 @@ class _RepositoryIssuesScreenState
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.edit_outlined),
-                title: const Text('Editar bug'),
+                title: const Text('Editar issue'),
                 onTap: () => Navigator.pop(context, 'edit'),
               ),
               ListTile(
@@ -104,7 +104,7 @@ class _RepositoryIssuesScreenState
                       ? Icons.check_circle_outline_rounded
                       : Icons.refresh_rounded,
                 ),
-                title: Text(issue.isOpen ? 'Fechar bug' : 'Reabrir bug'),
+                title: Text(issue.isOpen ? 'Fechar issue' : 'Reabrir issue'),
                 onTap: () => Navigator.pop(context, 'toggle'),
               ),
             ],
@@ -164,7 +164,7 @@ class _RepositoryIssuesScreenState
     final result = await showDialog<(String, String)>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(issue == null ? 'Novo bug' : 'Editar bug'),
+        title: Text(issue == null ? 'Nova issue' : 'Editar issue'),
         content: SizedBox(
           width: 520,
           child: Column(
@@ -218,7 +218,7 @@ class _RepositoryIssuesScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bugs'),
+        title: const Text('Issues / Bugs'),
         actions: [
           IconButton(
             onPressed: () => _refresh(),
@@ -230,7 +230,7 @@ class _RepositoryIssuesScreenState
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _createIssue,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Novo bug'),
+        label: const Text('Nova issue'),
       ),
       body: Column(
         children: [

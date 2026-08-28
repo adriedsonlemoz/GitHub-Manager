@@ -532,59 +532,57 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                   ),
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                  padding: const EdgeInsets.fromLTRB(14, 9, 14, 0),
                   sliver: SliverToBoxAdapter(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final width = (constraints.maxWidth - 8) / 2;
-                        return Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            if (!widget.readOnly)
-                              _QuickActionButton(
-                                width: width,
-                                icon: Icons.folder_zip_outlined,
-                                label: 'Enviar build',
-                                filled: true,
-                                onTap: () => _sendBuild(repository),
-                              ),
-                            _QuickActionButton(
-                              width: width,
-                              icon: Icons.open_in_new_rounded,
-                              label: 'GitHub',
-                              onTap: () => PlatformActions.openUri(repository.htmlUrl),
+                    child: Row(
+                      children: [
+                        if (!widget.readOnly) ...[
+                          Expanded(
+                            child: _CompactQuickAction(
+                              icon: Icons.cloud_upload_outlined,
+                              label: 'Enviar',
+                              filled: true,
+                              onTap: () => _sendBuild(repository),
                             ),
-                            if (widget.readOnly)
-                              _QuickActionButton(
-                                width: width,
-                                icon: Icons.call_split_rounded,
-                                label: 'Fork',
-                                filled: true,
-                                onTap: () => _forkRepository(repository),
-                              ),
-                            _QuickActionButton(
-                              width: width,
-                              icon: Icons.copy_rounded,
-                              label: 'Copiar link',
-                              onTap: () => _copyLink(repository),
-                            ),
-                            _QuickActionButton(
-                              width: width,
-                              icon: Icons.android_rounded,
-                              label: 'APK',
-                              enabled: widget.readOnly || latestApk != null,
-                              onTap: widget.readOnly
-                                  ? () => context.push(
-                                        '/repositories/${repository.fullName}/artifacts?readOnly=1',
-                                      )
-                                  : latestApk == null
-                                      ? null
-                                      : () => _downloadLatestApk(repository, latestApk),
-                            ),
-                          ],
-                        );
-                      },
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Expanded(
+                          child: _CompactQuickAction(
+                            icon: widget.readOnly
+                                ? Icons.call_split_rounded
+                                : Icons.open_in_new_rounded,
+                            label: widget.readOnly ? 'Fork' : 'GitHub',
+                            filled: widget.readOnly,
+                            onTap: widget.readOnly
+                                ? () => _forkRepository(repository)
+                                : () => PlatformActions.openUri(repository.htmlUrl),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _CompactQuickAction(
+                            icon: Icons.copy_rounded,
+                            label: 'Copiar',
+                            onTap: () => _copyLink(repository),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _CompactQuickAction(
+                            icon: Icons.android_rounded,
+                            label: 'APK',
+                            enabled: widget.readOnly || latestApk != null,
+                            onTap: widget.readOnly
+                                ? () => context.push(
+                                      '/repositories/${repository.fullName}/artifacts?readOnly=1',
+                                    )
+                                : latestApk == null
+                                    ? null
+                                    : () => _downloadLatestApk(repository, latestApk),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -670,7 +668,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                       _WorkspaceTile(
                         icon: Icons.commit_rounded,
                         title: 'Commits',
-                        subtitle: 'Histórico da branch ${repository.defaultBranch}',
+                        subtitle: 'Histórico, autores, datas e SHA por branch',
                         onTap: () => context.push(
                           '/repositories/${repository.fullName}/commits?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
                         ),
@@ -679,8 +677,8 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                         const SizedBox(height: 7),
                         _WorkspaceTile(
                           icon: Icons.bug_report_outlined,
-                          title: 'Bugs',
-                          subtitle: 'GitHub Issues — mantido sem alterações nesta versão',
+                          title: 'Issues / Bugs',
+                          subtitle: 'Criar, acompanhar, editar, fechar e reabrir problemas',
                           onTap: () => context.push(
                             '/repositories/${repository.fullName}/bugs',
                           ),
@@ -715,114 +713,211 @@ class _RepositoryHeader extends StatelessWidget {
   final Future<List<RepositoryWorkflowRun>> runsFuture;
   final bool readOnly;
 
-  @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    repository.isPrivate
-                        ? Icons.lock_outline_rounded
-                        : Icons.public_rounded,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          info.projectName,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
-                        ),
-                        Text(
-                          repository.fullName,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
+  Future<void> _showProjectInfo(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      color: Theme.of(dialogContext).colorScheme.primary,
                     ),
-                  ),
-                ],
-              ),
-              if (repository.description?.trim().isNotEmpty == true) ...[
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        'Informações do projeto',
+                        style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _ProjectInfoLine(label: 'Projeto', value: info.projectName),
+                _ProjectInfoLine(
+                  label: 'Versão',
+                  value: info.version?.isNotEmpty == true ? 'v${info.version}' : 'Não identificada',
+                ),
+                _ProjectInfoLine(label: 'Repositório', value: repository.fullName),
+                _ProjectInfoLine(label: 'Branch', value: repository.defaultBranch),
+                _ProjectInfoLine(
+                  label: 'Acesso',
+                  value: repository.isPrivate ? 'Privado' : 'Público',
+                ),
+                if (readOnly)
+                  const _ProjectInfoLine(label: 'Modo', value: 'Somente leitura'),
                 const SizedBox(height: 10),
-                Text(repository.description!),
-              ],
-              if (repository.homepage?.trim().isNotEmpty == true) ...[
-                const SizedBox(height: 7),
                 Text(
-                  repository.homepage!,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
+                  'Tecnologias',
+                  style: Theme.of(dialogContext).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 7),
+                if (info.technologies.isEmpty)
+                  Text(
+                    'Nenhuma tecnologia identificada.',
+                    style: Theme.of(dialogContext).textTheme.bodyMedium,
+                  )
+                else
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: info.technologies
+                        .map((item) => TechnologyBadge(name: item))
+                        .toList(growable: false),
+                  ),
+                const SizedBox(height: 12),
+                FutureBuilder<List<RepositoryWorkflowRun>>(
+                  future: runsFuture,
+                  builder: (context, snapshot) {
+                    final data = snapshot.data;
+                    final latest = data != null && data.isNotEmpty ? data.first : null;
+                    final value = latest == null
+                        ? 'Sem builds carregadas'
+                        : latest.isRunning
+                            ? 'Build em execução'
+                            : latest.conclusion == 'success'
+                                ? 'Última build concluída com sucesso'
+                                : latest.conclusion == 'failure'
+                                    ? 'Última build falhou'
+                                    : 'Build ${latest.status}';
+                    return _ProjectInfoLine(label: 'Build', value: value);
+                  },
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Fechar'),
                   ),
                 ),
               ],
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 7,
-                runSpacing: 7,
-                children: [
-                  if (info.version?.isNotEmpty == true)
-                    _ProjectInfoBadge(
-                      icon: Icons.new_releases_outlined,
-                      label: 'v${info.version}',
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .38)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: 7,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      info.projectName,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
-                  _ProjectInfoBadge(
-                    icon: Icons.account_tree_outlined,
-                    label: repository.defaultBranch,
-                  ),
-                  if (readOnly)
-                    const _ProjectInfoBadge(
-                      icon: Icons.visibility_outlined,
-                      label: 'Somente leitura',
-                    ),
-                  ...info.technologies.map((item) => TechnologyBadge(name: item)),
-                  FutureBuilder<List<RepositoryWorkflowRun>>(
-                    future: runsFuture,
-                    builder: (context, snapshot) {
-                      final data = snapshot.data;
-                      final latest = data != null && data.isNotEmpty
-                          ? data.first
-                          : null;
-                      if (latest == null) {
-                        return const _ProjectInfoBadge(
-                          icon: Icons.schedule_outlined,
-                          label: 'Sem builds',
-                        );
-                      }
-                      final label = latest.isRunning
-                          ? 'Build em execução'
-                          : latest.conclusion == 'success'
-                              ? 'Última build OK'
-                              : latest.conclusion == 'failure'
-                                  ? 'Última build falhou'
-                                  : 'Build ${latest.status}';
-                      return _ProjectInfoBadge(
-                        icon: latest.isRunning
-                            ? Icons.sync_rounded
-                            : latest.conclusion == 'success'
-                                ? Icons.check_circle_outline_rounded
-                                : latest.conclusion == 'failure'
-                                    ? Icons.error_outline_rounded
-                                    : Icons.schedule_outlined,
-                        label: label,
-                      );
-                    },
-                  ),
-                ],
+                    if (info.version?.isNotEmpty == true)
+                      Text(
+                        'v${info.version}',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Informações do projeto',
+                onPressed: () => _showProjectInfo(context),
+                icon: const Icon(Icons.help_outline_rounded, size: 21),
               ),
             ],
           ),
+          Text(
+            repository.fullName,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+          ),
+          if (repository.description?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            Text(
+              repository.description!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectInfoLine extends StatelessWidget {
+  const _ProjectInfoLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 88,
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                value,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+          ],
         ),
       );
 }
-
 
 class _BuildSafetyRow extends StatelessWidget {
   const _BuildSafetyRow({
@@ -901,9 +996,8 @@ class _ProjectInfoBadge extends StatelessWidget {
       );
 }
 
-class _QuickActionButton extends StatelessWidget {
-  const _QuickActionButton({
-    required this.width,
+class _CompactQuickAction extends StatelessWidget {
+  const _CompactQuickAction({
     required this.icon,
     required this.label,
     required this.onTap,
@@ -911,7 +1005,6 @@ class _QuickActionButton extends StatelessWidget {
     this.enabled = true,
   });
 
-  final double width;
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
@@ -921,38 +1014,41 @@ class _QuickActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final callback = enabled ? onTap : null;
-    final child = Row(
+    final child = Column(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 19),
-        const SizedBox(width: 7),
-        Flexible(
-          child: Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
+        Icon(icon, size: 18),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
         ),
       ],
     );
     return SizedBox(
-      width: width,
       height: 48,
       child: filled
           ? FilledButton(
               onPressed: callback,
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 visualDensity: VisualDensity.compact,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
               ),
               child: child,
             )
           : OutlinedButton(
               onPressed: callback,
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 visualDensity: VisualDensity.compact,
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .48),
+                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
               ),
               child: child,
             ),
@@ -976,8 +1072,17 @@ class _WorkspaceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
         clipBehavior: Clip.antiAlias,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .34),
+          ),
+        ),
         child: ListTile(
           onTap: onTap,
+          dense: true,
+          visualDensity: const VisualDensity(vertical: -1),
           contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
           leading: Container(
             width: 40,
