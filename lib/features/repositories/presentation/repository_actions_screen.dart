@@ -348,53 +348,16 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
           ] else ...[
             if (!widget.readOnly)
               IconButton(
-                onPressed: () => context.push(
-                  '/repositories/${widget.repositoryFullName}/permissions',
-                ),
-                tooltip: 'Diagnóstico do token',
-                icon: const Icon(Icons.verified_user_outlined),
-              ),
-            if (!widget.readOnly)
-              IconButton(
                 onPressed: () => setState(() => _selectionMode = true),
                 tooltip: 'Selecionar execuções',
-                icon: const Icon(Icons.checklist_rounded),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.checklist_rounded, size: 21),
               ),
-            IconButton(
-              onPressed: () => setState(() => _showDiagnostics = !_showDiagnostics),
-              tooltip: 'Diagnóstico da API',
-              icon: const Icon(Icons.monitor_heart_outlined),
-            ),
-            IconButton(
-              onPressed: () => _refresh(),
-              tooltip: 'Atualizar',
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-            IconButton(
-              onPressed: () => context.push(
-                '/repositories/${widget.repositoryFullName}/artifacts?readOnly=${widget.readOnly ? '1' : '0'}',
-              ),
-              tooltip: 'APKs e artifacts',
-              icon: const Icon(Icons.android_rounded),
-            ),
             const UploadCenterButton(),
             const DownloadCenterButton(),
           ],
         ],
       ),
-      floatingActionButton: widget.readOnly || _selectionMode
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _starting ? null : _runWorkflow,
-              icon: _starting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.play_arrow_rounded),
-              label: const Text('Executar build'),
-            ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<RepositoryActionsData>(
@@ -432,6 +395,21 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 104),
               children: [
+                if (!widget.readOnly && !_selectionMode) ...[
+                  _ActionsQuickBar(
+                    starting: _starting,
+                    onRun: _runWorkflow,
+                    onRefresh: () => _refresh(),
+                    onArtifacts: () => context.push(
+                      '/repositories/${widget.repositoryFullName}/artifacts?readOnly=${widget.readOnly ? '1' : '0'}',
+                    ),
+                    onDiagnostics: () => setState(() => _showDiagnostics = !_showDiagnostics),
+                    onPermissions: () => context.push(
+                      '/repositories/${widget.repositoryFullName}/permissions',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 _WorkflowsPanel(
                   data: data,
                   selectedWorkflow: _selectedWorkflow,
@@ -441,12 +419,12 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                   const SizedBox(height: 10),
                   _ActionsDiagnosticCard(diagnostic: data.diagnostic),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Text(
                   data.selectedWorkflow == null
                       ? 'Todas as execuções'
                       : 'Execuções — ${data.selectedWorkflow!.name}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                 ),
@@ -723,7 +701,7 @@ class _RunGroupCard extends StatelessWidget {
     final sha = group.shortSha.isEmpty ? 'commit -' : group.shortSha;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -736,7 +714,7 @@ class _RunGroupCard extends StatelessWidget {
                     children: [
                       Text(
                         '${group.title} • $timestamp',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w800,
                             ),
                       ),
@@ -765,7 +743,7 @@ class _RunGroupCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             ...group.runs.map(
               (run) => _RunResultTile(
                 run: run,
@@ -802,87 +780,104 @@ class _RunResultTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSuccess =
-        run.status == 'completed' && run.conclusion == 'success';
-    final isFailure =
-        run.status == 'completed' && run.conclusion == 'failure';
-    final successColor = Colors.green.shade700;
-    final failureColor = Colors.red.shade700;
-    final foreground = isSuccess
-        ? Colors.white
+    final scheme = Theme.of(context).colorScheme;
+    final isSuccess = run.status == 'completed' && run.conclusion == 'success';
+    final isFailure = run.status == 'completed' && run.conclusion == 'failure';
+    final statusColor = isSuccess
+        ? Colors.green.shade600
         : isFailure
-            ? failureColor
-            : Theme.of(context).colorScheme.onSurface;
-    final background = isSuccess
-        ? successColor
-        : isFailure
-            ? Colors.white
-            : Colors.transparent;
+            ? scheme.error
+            : scheme.primary;
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 3),
+      margin: const EdgeInsets.only(top: 6),
       decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(12),
-        border: isFailure
-            ? Border.all(color: failureColor, width: 1.5)
-            : null,
+        color: statusColor.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: statusColor.withValues(alpha: .30)),
       ),
-      child: ListTile(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(11),
         onTap: onTap,
         onLongPress: onLongPress,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-        leading: selectionMode
-            ? Checkbox(
-                value: selected,
-                onChanged: run.isRunning ? null : (_) => onTap(),
-                side: BorderSide(color: foreground),
-                checkColor: isSuccess ? successColor : Colors.white,
-                activeColor: isFailure ? failureColor : Theme.of(context).colorScheme.primary,
-              )
-            : Icon(
-                run.isRunning
-                    ? Icons.sync_rounded
-                    : isSuccess
-                        ? Icons.check_circle_rounded
-                        : isFailure
-                            ? Icons.error_rounded
-                            : Icons.schedule_rounded,
-                color: foreground,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(9, 8, 7, 8),
+          child: Row(
+            children: [
+              if (selectionMode)
+                Checkbox(
+                  value: selected,
+                  visualDensity: VisualDensity.compact,
+                  onChanged: run.isRunning ? null : (_) => onTap(),
+                )
+              else
+                Icon(
+                  run.isRunning
+                      ? Icons.sync_rounded
+                      : isSuccess
+                          ? Icons.check_circle_rounded
+                          : isFailure
+                              ? Icons.error_rounded
+                              : Icons.schedule_rounded,
+                  color: statusColor,
+                  size: 21,
+                ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${run.name} #${run.runNumber}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: .14),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            _RepositoryActionsScreenState._statusLabel(run),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${run.detectedVersion == null ? '' : 'v${run.detectedVersion} • '}'
+                      '${run.branch} • ${_RepositoryActionsScreenState._formatDuration(run)} • '
+                      '${_RepositoryActionsScreenState._formatDate(run.createdAt)}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
-        title: Text(
-          '${run.name} #${run.runNumber}',
-          style: TextStyle(
-            color: foreground,
-            fontWeight: FontWeight.w800,
+              const SizedBox(width: 4),
+              if (run.isRunning)
+                SizedBox(
+                  width: 17,
+                  height: 17,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: statusColor),
+                )
+              else if (!selectionMode)
+                const Icon(Icons.chevron_right_rounded, size: 20),
+            ],
           ),
         ),
-        subtitle: Text(
-          '${run.detectedVersion == null ? '' : 'Versão ${run.detectedVersion} • '}'
-          '${_RepositoryActionsScreenState._formatDate(run.createdAt)} • '
-          'Tentativa ${run.runAttempt} • ${run.branch}\n'
-          '${_RepositoryActionsScreenState._statusLabel(run)} • '
-          '${_RepositoryActionsScreenState._formatDuration(run)}',
-          style: TextStyle(color: foreground),
-        ),
-        isThreeLine: true,
-        trailing: selectionMode
-            ? run.isRunning
-                ? Tooltip(
-                    message: 'Execução em andamento não pode ser excluída',
-                    child: Icon(Icons.lock_clock_outlined, color: foreground),
-                  )
-                : null
-            : run.isRunning
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: foreground,
-                    ),
-                  )
-                : Icon(Icons.chevron_right_rounded, color: foreground),
       ),
     );
   }
@@ -952,6 +947,97 @@ class _WorkflowStepTile extends StatelessWidget {
   }
 }
 
+class _ActionsQuickBar extends StatelessWidget {
+  const _ActionsQuickBar({
+    required this.starting,
+    required this.onRun,
+    required this.onRefresh,
+    required this.onArtifacts,
+    required this.onDiagnostics,
+    required this.onPermissions,
+  });
+
+  final bool starting;
+  final VoidCallback onRun;
+  final VoidCallback onRefresh;
+  final VoidCallback onArtifacts;
+  final VoidCallback onDiagnostics;
+  final VoidCallback onPermissions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        child: Row(
+          children: [
+            Expanded(
+              child: FilledButton.tonalIcon(
+                onPressed: starting ? null : onRun,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: starting
+                    ? const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.play_arrow_rounded, size: 19),
+                label: const Text('Executar'),
+              ),
+            ),
+            const SizedBox(width: 6),
+            _CompactIconAction(
+              icon: Icons.refresh_rounded,
+              tooltip: 'Atualizar',
+              onPressed: onRefresh,
+            ),
+            _CompactIconAction(
+              icon: Icons.android_rounded,
+              tooltip: 'APKs e artifacts',
+              onPressed: onArtifacts,
+            ),
+            _CompactIconAction(
+              icon: Icons.monitor_heart_outlined,
+              tooltip: 'Diagnóstico',
+              onPressed: onDiagnostics,
+            ),
+            _CompactIconAction(
+              icon: Icons.verified_user_outlined,
+              tooltip: 'Permissões',
+              onPressed: onPermissions,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactIconAction extends StatelessWidget {
+  const _CompactIconAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        onPressed: onPressed,
+        tooltip: tooltip,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints.tightFor(width: 38, height: 38),
+        icon: Icon(icon, size: 20),
+      );
+}
+
 class _WorkflowsPanel extends StatelessWidget {
   const _WorkflowsPanel({
     required this.data,
@@ -967,7 +1053,7 @@ class _WorkflowsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -975,39 +1061,61 @@ class _WorkflowsPanel extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Workflows (${data.workflows.length})',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    'Workflows',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
                   ),
                 ),
-                Text('${data.allRuns.length} runs recebidos'),
+                Text(
+                  '${data.allRuns.length} execuções',
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
               ],
             ),
             const SizedBox(height: 8),
-            _WorkflowTile(
-              selected: selectedWorkflow == null,
-              icon: Icons.all_inclusive_rounded,
-              title: 'Todas as execuções',
-              subtitle: '${data.allRuns.length} execuções recentes',
-              onTap: () => onSelected(null),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _WorkflowChip(
+                    selected: selectedWorkflow == null,
+                    icon: Icons.all_inclusive_rounded,
+                    label: 'Todos',
+                    count: data.allRuns.length,
+                    onTap: () => onSelected(null),
+                  ),
+                  ...data.workflows.map((workflow) => Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: _WorkflowChip(
+                          selected: selectedWorkflow?.id == workflow.id,
+                          icon: workflow.isActive
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.pause_circle_outline_rounded,
+                          label: workflow.name,
+                          count: data.countFor(workflow),
+                          onTap: () => onSelected(workflow),
+                        ),
+                      )),
+                ],
+              ),
             ),
-            ...data.workflows.map((workflow) {
-              final latest = data.latestFor(workflow);
-              final status = latest == null
-                  ? 'Sem execução no histórico carregado'
-                  : '${_RepositoryActionsScreenState._statusLabel(latest)} • #${latest.runNumber}';
-              return _WorkflowTile(
-                selected: selectedWorkflow?.id == workflow.id,
-                icon: workflow.isActive
-                    ? Icons.check_circle_outline_rounded
-                    : Icons.pause_circle_outline_rounded,
-                title: workflow.name,
-                subtitle:
-                    '${workflow.isActive ? 'Ativo' : workflow.state} • ${data.countFor(workflow)} runs\n${workflow.path}\nÚltimo: $status',
-                onTap: () => onSelected(workflow),
-              );
-            }),
+            if (selectedWorkflow != null) ...[
+              const SizedBox(height: 8),
+              Builder(builder: (context) {
+                final workflow = selectedWorkflow!;
+                final latest = data.latestFor(workflow);
+                final status = latest == null
+                    ? 'Sem execução'
+                    : '${_RepositoryActionsScreenState._statusLabel(latest)} • #${latest.runNumber}';
+                return Text(
+                  '${workflow.isActive ? 'Ativo' : workflow.state} • $status • ${workflow.path}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                );
+              }),
+            ],
           ],
         ),
       ),
@@ -1015,35 +1123,31 @@ class _WorkflowsPanel extends StatelessWidget {
   }
 }
 
-class _WorkflowTile extends StatelessWidget {
-  const _WorkflowTile({
+class _WorkflowChip extends StatelessWidget {
+  const _WorkflowChip({
     required this.selected,
     required this.icon,
-    required this.title,
-    required this.subtitle,
+    required this.label,
+    required this.count,
     required this.onTap,
   });
 
   final bool selected;
   final IconData icon;
-  final String title;
-  final String subtitle;
+  final String label;
+  final int count;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      selected: selected,
-      selectedTileColor: Theme.of(context).colorScheme.secondaryContainer.withAlpha(115),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      isThreeLine: subtitle.contains('\n'),
-      trailing: const Icon(Icons.chevron_right_rounded),
-      onTap: onTap,
-    );
-  }
+  Widget build(BuildContext context) => ChoiceChip(
+        selected: selected,
+        onSelected: (_) => onTap(),
+        avatar: Icon(icon, size: 16),
+        label: Text('$label · $count'),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+      );
 }
 
 class _ActionsDiagnosticCard extends StatelessWidget {
