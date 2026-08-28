@@ -18,11 +18,27 @@ class ProfileScreen extends ConsumerWidget {
         data: (data) => ListView(padding: const EdgeInsets.all(20), children: [
           Center(child: CircleAvatar(radius: 42, foregroundImage: data.avatarUrl.isEmpty ? null : NetworkImage(data.avatarUrl), child: data.avatarUrl.isEmpty ? const Icon(Icons.person_rounded, size: 42) : null)),
           const SizedBox(height: 14),
-          Center(child: Text(data.name.isEmpty ? data.login : data.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
+          Center(
+            child: Text(
+              (data.name?.trim().isNotEmpty ?? false) ? data.name! : data.login,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
           const SizedBox(height: 6),
           Center(child: Text('@${data.login}')),
           const SizedBox(height: 20),
-          FilledButton.tonalIcon(onPressed: () async { final draft=await showGitHubProfileEditDialog(context,data); if(draft!=null){ await ref.read(githubProfileRepositoryProvider).updateProfile(name:draft.name,bio:draft.bio,location:draft.location,blog:draft.blog); ref.invalidate(githubProfileProvider); } }, icon: const Icon(Icons.edit_outlined), label: const Text('Editar perfil')),
+          FilledButton.tonalIcon(onPressed: () async { final draft=await showGitHubProfileEditDialog(context,data); if(draft!=null){ await ref.read(githubProfileRepositoryProvider).updateProfile(
+                    name: draft.name,
+                    email: draft.email,
+                    blog: draft.blog,
+                    twitterUsername: draft.twitterUsername,
+                    company: draft.company,
+                    location: draft.location,
+                    bio: draft.bio,
+                    hireable: draft.hireable,
+                  ); ref.invalidate(githubProfileProvider); } }, icon: const Icon(Icons.edit_outlined), label: const Text('Editar perfil')),
         ]),
       ),
     );

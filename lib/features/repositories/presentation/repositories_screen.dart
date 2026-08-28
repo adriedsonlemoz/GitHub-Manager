@@ -544,7 +544,6 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
                   icon: Icon(_showingFollowed ? Icons.bookmark_add_outlined : Icons.add_rounded),
                 ),
                 const UploadCenterButton(),
-                ),
                 const SizedBox(width: 4),
               ],
             ),
