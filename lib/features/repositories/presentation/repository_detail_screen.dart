@@ -193,7 +193,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
     return showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(check.blocked ? 'Envio bloqueado' : 'Conferir build'),
+        title: Text(check.blocked ? 'Risco alto detectado' : 'Conferir build'),
         content: AdaptiveDialogBody(
           child: SingleChildScrollView(
             child: Column(
@@ -290,15 +290,45 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
           ),
           FilledButton.icon(
             onPressed: check.blocked
-                ? null
+                ? () async {
+                    final forced = await showDialog<bool>(
+                      context: dialogContext,
+                      builder: (confirmContext) => AlertDialog(
+                        title: const Text('Forçar envio para este repositório?'),
+                        content: Text(
+                          'Foram encontrados identificadores fortes divergentes. '
+                          'O ZIP será sincronizado em ${repository.fullName}/${repository.defaultBranch} '
+                          'e poderá substituir ou remover arquivos atuais. Continue somente se este destino estiver correto.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(confirmContext, false),
+                            child: const Text('Voltar'),
+                          ),
+                          FilledButton.icon(
+                            onPressed: () => Navigator.pop(confirmContext, true),
+                            icon: const Icon(Icons.warning_amber_rounded),
+                            label: const Text('Forçar envio'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (forced == true && dialogContext.mounted) {
+                      Navigator.pop(dialogContext, true);
+                    }
+                  }
                 : () => Navigator.pop(dialogContext, true),
             icon: Icon(
-              check.warning
+              check.blocked || check.warning
                   ? Icons.warning_amber_rounded
                   : Icons.cloud_upload_outlined,
             ),
             label: Text(
-              check.warning ? 'Enviar mesmo assim' : 'Enviar build',
+              check.blocked
+                  ? 'Revisar e enviar'
+                  : check.warning
+                      ? 'Enviar mesmo assim'
+                      : 'Enviar build',
             ),
           ),
         ],

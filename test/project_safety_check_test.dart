@@ -138,15 +138,16 @@ void main() {
     expect(result.identitySource, 'metadados do projeto');
   });
 
-  test('different applicationId remains blocked', () {
+  test('different applicationId becomes strong warning but remains sendable', () {
     final result = ProjectSafetyCheck.compare(
       project: preview(applicationId: 'com.example.sociallite'),
       repository: repository,
       repositoryInfo: info(applicationId: 'com.example.other'),
     );
 
-    expect(result.blocked, isTrue);
-    expect(result.identitySource, 'applicationId');
+    expect(result.blocked, isFalse);
+    expect(result.warning, isTrue);
+    expect(result.identitySource, 'applicationId divergente');
   });
 
   test('unknown version becomes warning instead of newer version', () {
@@ -161,15 +162,46 @@ void main() {
     expect(result.versionComparison, ProjectVersionComparison.unknown);
   });
 
-  test('older version remains blocked', () {
+  test('older version is allowed as explicit regression warning', () {
     final result = ProjectSafetyCheck.compare(
       project: preview(version: '0.0.9'),
       repository: repository,
       repositoryInfo: info(version: '0.1.0'),
     );
 
-    expect(result.blocked, isTrue);
+    expect(result.blocked, isFalse);
+    expect(result.warning, isTrue);
     expect(result.versionComparison, ProjectVersionComparison.older);
+  });
+
+
+  test('two divergent strong identities require high-risk override', () {
+    final result = ProjectSafetyCheck.compare(
+      project: preview(
+        applicationId: 'com.example.sociallite',
+        packageName: 'social_lite',
+      ),
+      repository: repository,
+      repositoryInfo: info(
+        applicationId: 'com.example.other',
+        packageName: 'other_project',
+      ),
+    );
+
+    expect(result.blocked, isTrue);
+    expect(result.warning, isTrue);
+    expect(result.identitySource, contains('divergentes'));
+  });
+
+  test('display name mismatch is only a warning when strong identity is absent', () {
+    final result = ProjectSafetyCheck.compare(
+      project: preview(projectName: 'Nome Antigo'),
+      repository: repository,
+      repositoryInfo: info(projectName: 'Nome Novo'),
+    );
+
+    expect(result.blocked, isFalse);
+    expect(result.warning, isTrue);
   });
 
   test('different weak filename never blocks by itself', () {

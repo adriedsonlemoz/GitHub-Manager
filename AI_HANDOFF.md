@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.30+200044`, com pré-checagem em cache das permissões antes de Enviar build, gerenciar Secrets e excluir repositórios; mantém o diagnóstico seguro por repositório, Secrets reforçados, Central de Envios global/minimizável e downloads em foreground com retomada.
+Estado atual: `2.0.31+200045`, com pré-checagem em cache das permissões antes de Enviar build, gerenciar Secrets e excluir repositórios; mantém o diagnóstico seguro por repositório, Secrets reforçados, Central de Envios global/minimizável e downloads em foreground com retomada.
 
 ## Arquitetura
 
@@ -41,6 +41,15 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 
 
 
+
+## APKs e segurança de envio 2.0.31
+
+- cards de APK/artifact compactos, com três ações lado a lado e badges de formato/build/estabilidade/versão;
+- classificação por nome diferencia Debug, Profile, Release, prévia e AAB/Google Play, sem afirmar certeza quando a API não fornece buildType;
+- versão anterior não bloqueia mais envio: regressão fica disponível com aviso;
+- nome do projeto/repositório é apenas pista e nunca bloqueia sozinho;
+- uma divergência forte (`applicationId` ou pacote) vira aviso; duas divergências fortes simultâneas ativam risco alto;
+- risco alto ainda pode ser forçado com uma segunda confirmação explícita mostrando o destino.
 
 ## UI e identidade de projeto 2.0.30
 

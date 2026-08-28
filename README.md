@@ -1,16 +1,22 @@
-# GitHub Manager 2.0.30
+# GitHub Manager 2.0.31
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
 ## Identidade oficial
 
-- versão: `2.0.30+200044`;
+- versão: `2.0.31+200045`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
 - APK Release universal com `armeabi-v7a` e `arm64-v8a`.
 
 
+
+## APKs compactos e envio flexível 2.0.31
+
+A tela de APKs e Artifacts foi compactada: ações `Baixar`, `Publicar` e `Excluir` ficam lado a lado, com botões menores, enquanto o card mostra formato, versão detectada, data, tamanho, workflow run e classificação provável de build (`Debug`, `Profile`, `Release`, `AAB / Play`, `Estável provável`, `Prévia`). A estabilidade é tratada como inferência quando o GitHub não fornece o buildType diretamente.
+
+A proteção de envio deixou de usar nome e versão como bloqueios rígidos. Regressão de versão é permitida com aviso; renomear projeto/repositório gera apenas alerta. Divergência isolada de `applicationId` ou pacote também pode ser confirmada. Somente a divergência simultânea de dois identificadores fortes entra em modo de risco alto, ainda com uma segunda confirmação explícita para `Forçar envio`.
 
 ## Interface e proteção de identidade 2.0.30
 

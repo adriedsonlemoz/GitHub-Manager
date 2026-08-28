@@ -27,16 +27,7 @@ class ProjectSafetyCheck {
     final zipAppId = _normalize(project.applicationId);
     final repoAppId = _normalize(repositoryInfo.applicationId);
     final appIdsComparable = zipAppId.isNotEmpty && repoAppId.isNotEmpty;
-    if (appIdsComparable && zipAppId != repoAppId) {
-      return ProjectSafetyCheck(
-        blocked: true,
-        warning: false,
-        identitySource: 'applicationId',
-        versionComparison: ProjectVersionComparison.unknown,
-        message:
-            'Este ZIP pertence a outro aplicativo. applicationId diferente: ${project.applicationId} ≠ ${repositoryInfo.applicationId}.',
-      );
-    }
+    final appIdDiffers = appIdsComparable && zipAppId != repoAppId;
 
     final zipPackage = _canonicalProjectName(
       project.packageName,
@@ -47,16 +38,7 @@ class ProjectSafetyCheck {
       stripVersionSuffix: true,
     );
     final packagesComparable = zipPackage.isNotEmpty && repoPackage.isNotEmpty;
-    if (!appIdsComparable && packagesComparable && zipPackage != repoPackage) {
-      return ProjectSafetyCheck(
-        blocked: true,
-        warning: false,
-        identitySource: 'pacote do projeto',
-        versionComparison: ProjectVersionComparison.unknown,
-        message:
-            'Este ZIP parece ser de outro projeto. Pacote detectado: ${project.packageName}; esperado: ${repositoryInfo.packageName}.',
-      );
-    }
+    final packageDiffers = packagesComparable && zipPackage != repoPackage;
 
     final explicitZipName = _canonicalProjectName(
       project.projectName,
@@ -70,22 +52,8 @@ class ProjectSafetyCheck {
       repository.name,
       stripVersionSuffix: true,
     );
-    final hasStrongerIdentity = appIdsComparable || packagesComparable;
-
-    if (!hasStrongerIdentity && explicitZipName.isNotEmpty) {
-      final explicitNameMatches = explicitZipName == repoProjectName ||
-          explicitZipName == repositoryName;
-      if (!explicitNameMatches) {
-        return ProjectSafetyCheck(
-          blocked: true,
-          warning: false,
-          identitySource: 'metadados do projeto',
-          versionComparison: ProjectVersionComparison.unknown,
-          message:
-              'O projeto identificado nos metadados do ZIP (${project.projectName}) não corresponde ao repositório aberto (${repositoryInfo.projectName}).',
-        );
-      }
-    }
+    final explicitNameMatches = explicitZipName.isNotEmpty &&
+        (explicitZipName == repoProjectName || explicitZipName == repositoryName);
 
     final weakZipName = _canonicalProjectName(
       project.name.replaceFirst(RegExp(r'\.zip$', caseSensitive: false), ''),
@@ -94,18 +62,6 @@ class ProjectSafetyCheck {
     final weakNameMatches = weakZipName.isNotEmpty &&
         (weakZipName == repoProjectName || weakZipName == repositoryName);
 
-    final identitySource = appIdsComparable
-        ? 'applicationId'
-        : packagesComparable
-            ? 'pacote do projeto'
-            : explicitZipName.isNotEmpty &&
-                    (explicitZipName == repoProjectName ||
-                        explicitZipName == repositoryName)
-                ? 'metadados do projeto'
-                : weakNameMatches
-                    ? 'nome do arquivo ZIP (pista)'
-                    : 'não confirmada';
-
     final versionComparison = compareVersions(
       project.version,
       project.versionCode,
@@ -113,14 +69,71 @@ class ProjectSafetyCheck {
       repositoryInfo.versionCode,
     );
 
-    if (versionComparison == ProjectVersionComparison.older) {
+    if (appIdDiffers && packageDiffers) {
       return ProjectSafetyCheck(
         blocked: true,
-        warning: false,
+        warning: true,
+        identitySource: 'applicationId + pacote divergentes',
+        versionComparison: versionComparison,
+        message:
+            'Dois identificadores fortes apontam para outro projeto: applicationId e pacote são diferentes. O envio ainda pode ser forçado com confirmação extra.',
+      );
+    }
+
+    final identitySource = appIdsComparable && !appIdDiffers
+        ? 'applicationId'
+        : packagesComparable && !packageDiffers
+            ? 'pacote do projeto'
+            : explicitNameMatches
+                ? 'metadados do projeto'
+                : weakNameMatches
+                    ? 'nome do ZIP (pista)'
+                    : 'não confirmada';
+
+    if (appIdDiffers) {
+      return ProjectSafetyCheck(
+        blocked: false,
+        warning: true,
+        identitySource: 'applicationId divergente',
+        versionComparison: versionComparison,
+        message:
+            'O applicationId mudou em relação ao repositório. Isso pode ser intencional após migração ou renomeação; confira antes de enviar.',
+      );
+    }
+
+    if (packageDiffers) {
+      return ProjectSafetyCheck(
+        blocked: false,
+        warning: true,
+        identitySource: 'pacote divergente',
+        versionComparison: versionComparison,
+        message:
+            'O pacote do projeto mudou em relação ao repositório. O envio continua disponível, mas confirme se a mudança é intencional.',
+      );
+    }
+
+    if (versionComparison == ProjectVersionComparison.older) {
+      return ProjectSafetyCheck(
+        blocked: false,
+        warning: true,
         identitySource: identitySource,
         versionComparison: versionComparison,
         message:
-            'A versão do ZIP é anterior à versão atual do GitHub. O envio foi bloqueado para evitar substituir o projeto por uma versão antiga.',
+            'O ZIP contém uma versão anterior à atual do GitHub. Regressão é permitida; confirme se deseja substituir o conteúdo atual.',
+      );
+    }
+
+    if (!explicitNameMatches &&
+        explicitZipName.isNotEmpty &&
+        !appIdsComparable &&
+        !packagesComparable) {
+      return ProjectSafetyCheck(
+        blocked: false,
+        warning: true,
+        identitySource: 'nome/metadados (pista)',
+        versionComparison: versionComparison,
+        message:
+            'O nome do projeto no ZIP difere do nome do repositório. Como nomes podem mudar, isso é apenas um aviso e não bloqueia o envio.',
       );
     }
 
@@ -131,13 +144,14 @@ class ProjectSafetyCheck {
         identitySource: identitySource,
         versionComparison: versionComparison,
         message:
-            'É o mesmo projeto e a mesma versão. Confira se você realmente quer reenviar esta build.',
+            'A mesma versão já está no GitHub. O reenvio é permitido; confira se deseja substituir o conteúdo atual.',
       );
     }
 
-    final hasIdentityEvidence = hasStrongerIdentity ||
-        (explicitZipName.isNotEmpty &&
-            (explicitZipName == repoProjectName || explicitZipName == repositoryName)) ||
+    final hasIdentityEvidence =
+        (appIdsComparable && !appIdDiffers) ||
+        (packagesComparable && !packageDiffers) ||
+        explicitNameMatches ||
         weakNameMatches;
 
     if (versionComparison == ProjectVersionComparison.unknown) {
@@ -147,8 +161,8 @@ class ProjectSafetyCheck {
         identitySource: identitySource,
         versionComparison: versionComparison,
         message: hasIdentityEvidence
-            ? 'O projeto é compatível, mas não foi possível comparar as versões com segurança.'
-            : 'Não foi possível confirmar totalmente a identidade nem comparar a versão deste ZIP. Confira os dados antes de enviar.',
+            ? 'A identidade parece compatível, mas não foi possível comparar as versões com segurança.'
+            : 'Não foi possível confirmar totalmente a identidade nem a versão. Confira o destino antes de enviar.',
       );
     }
 
@@ -159,7 +173,7 @@ class ProjectSafetyCheck {
         identitySource: identitySource,
         versionComparison: versionComparison,
         message:
-            'A versão é válida, mas a identidade do ZIP não pôde ser confirmada totalmente. Confira o projeto antes de enviar.',
+            'A identidade não pôde ser confirmada por um identificador forte. Nome e versão não são usados como bloqueio.',
       );
     }
 
@@ -168,7 +182,7 @@ class ProjectSafetyCheck {
       warning: false,
       identitySource: identitySource,
       versionComparison: versionComparison,
-      message: 'Projeto compatível. A identidade e a versão foram conferidas.',
+      message: 'Projeto compatível. Os identificadores disponíveis foram conferidos.',
     );
   }
 
