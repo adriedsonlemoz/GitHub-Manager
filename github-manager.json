@@ -2,14 +2,14 @@
   "product": "GitHub Manager",
   "name": "github_manager",
   "displayName": "GitHub Manager",
-  "version": "2.0.36",
+  "version": "2.0.38",
   "packageFormat": 2,
   "projectType": "flutter",
   "framework": "Flutter",
   "language": "Dart",
   "android": {
     "applicationId": "br.com.githubmanager.app",
-    "versionName": "2.0.36",
-    "versionCode": 200050
+    "versionName": "2.0.38",
+    "versionCode": 200052
   }
 }

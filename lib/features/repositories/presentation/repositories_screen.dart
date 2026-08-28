@@ -22,7 +22,9 @@ import 'package:github_manager/features/uploads/presentation/upload_center_butto
 import 'package:go_router/go_router.dart';
 
 class RepositoriesScreen extends ConsumerStatefulWidget {
-  const RepositoriesScreen({super.key});
+  const RepositoriesScreen({this.initialSection = 0, super.key});
+
+  final int initialSection;
 
   @override
   ConsumerState<RepositoriesScreen> createState() => _RepositoriesScreenState();
@@ -32,9 +34,28 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   String _filter = 'Todos';
-  int _section = 0;
+  late int _section;
 
   bool get _showingFollowed => _section == 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _section = widget.initialSection;
+  }
+
+  @override
+  void didUpdateWidget(covariant RepositoriesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSection != widget.initialSection) {
+      setState(() {
+        _section = widget.initialSection;
+        _query = '';
+        _filter = 'Todos';
+        _searchController.clear();
+      });
+    }
+  }
 
   @override
   void dispose() {

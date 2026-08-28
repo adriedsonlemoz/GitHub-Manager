@@ -23,7 +23,10 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(
       path: '/',
-      builder: (_, _) => const RepositoriesScreen(),
+      builder: (_, state) => RepositoriesScreen(
+        initialSection:
+            state.uri.queryParameters['section'] == 'followed' ? 1 : 0,
+      ),
     ),
     GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
     GoRoute(

@@ -306,7 +306,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
         ? 'Builds'
         : 'Execuções — ${_selectedWorkflow!.name}';
     return Scaffold(
-      bottomNavigationBar: const AppMainNavigation(),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       appBar: AppBar(
         leading: _selectionMode
             ? IconButton(

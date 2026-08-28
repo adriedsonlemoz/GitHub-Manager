@@ -419,7 +419,7 @@ class _RepositoryArtifactsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: const AppMainNavigation(),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       appBar: AppBar(
         leading: _selectionMode
             ? IconButton(

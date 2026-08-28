@@ -615,7 +615,7 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
   Widget build(BuildContext context) {
     final secrets = ref.watch(repositorySecretsProvider(widget.repositoryFullName));
     return Scaffold(
-      bottomNavigationBar: const AppMainNavigation(),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       appBar: AppBar(
         title: const Text('GitHub Secrets'),
         actions: [

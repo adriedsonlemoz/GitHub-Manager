@@ -60,7 +60,7 @@ class _RepositoryCommitsScreenState extends ConsumerState<RepositoryCommitsScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: const AppMainNavigation(),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       appBar: AppBar(
         title: const Text('Commits'),
         actions: [

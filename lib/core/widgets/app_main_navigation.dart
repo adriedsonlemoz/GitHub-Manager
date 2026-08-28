@@ -15,12 +15,23 @@ class AppMainNavigation extends StatelessWidget {
         height: 64,
         selectedIndex: selectedIndex ?? 0,
         onDestinationSelected: (index) {
+          if (selectedIndex == index) return;
           switch (index) {
-            case 0: context.go('/'); break;
-            case 1: context.push('/downloads'); break;
-            case 2: context.push('/profile'); break;
-            case 3: context.go('/?section=followed'); break;
-            case 4: context.push('/settings'); break;
+            case 0:
+              context.go('/');
+              break;
+            case 1:
+              context.go('/downloads');
+              break;
+            case 2:
+              context.go('/profile');
+              break;
+            case 3:
+              context.go('/?section=followed');
+              break;
+            case 4:
+              context.go('/settings');
+              break;
           }
         },
         destinations: const [

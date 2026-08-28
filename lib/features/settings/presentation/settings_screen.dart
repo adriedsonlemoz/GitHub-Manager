@@ -418,7 +418,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final profile = ref.watch(githubProfileProvider);
     final api = _apiSettings;
     return Scaffold(
-      bottomNavigationBar: const AppMainNavigation(),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 4),
       appBar: AppBar(title: const Text('Configurações')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),

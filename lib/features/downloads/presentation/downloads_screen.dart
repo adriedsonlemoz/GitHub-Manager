@@ -16,7 +16,7 @@ class DownloadsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final manager = ref.watch(downloadManagerProvider);
     return Scaffold(
-      bottomNavigationBar: const AppMainNavigation(),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 1),
       appBar: AppBar(
         title: const Text('Central de Downloads'),
         actions: [

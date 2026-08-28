@@ -13,7 +13,7 @@ class UploadsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final manager = ref.watch(uploadManagerProvider);
     return Scaffold(
-      bottomNavigationBar: const AppMainNavigation(),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       appBar: AppBar(
         title: const Text('Central de Envios'),
         actions: [

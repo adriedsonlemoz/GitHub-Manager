@@ -430,7 +430,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: const AppMainNavigation(),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<GitHubRepository>(

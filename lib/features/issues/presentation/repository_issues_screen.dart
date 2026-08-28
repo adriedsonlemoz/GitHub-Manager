@@ -218,7 +218,7 @@ class _RepositoryIssuesScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: const AppMainNavigation(),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       appBar: AppBar(
         title: const Text('Issues / Bugs'),
         actions: [
