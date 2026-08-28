@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
@@ -59,6 +60,7 @@ class _RepositoryCommitsScreenState extends ConsumerState<RepositoryCommitsScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const AppMainNavigation(),
       appBar: AppBar(
         title: const Text('Commits'),
         actions: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
@@ -614,6 +615,7 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
   Widget build(BuildContext context) {
     final secrets = ref.watch(repositorySecretsProvider(widget.repositoryFullName));
     return Scaffold(
+      bottomNavigationBar: const AppMainNavigation(),
       appBar: AppBar(
         title: const Text('GitHub Secrets'),
         actions: [

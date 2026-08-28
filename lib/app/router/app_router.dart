@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:github_manager/features/downloads/presentation/downloads_screen.dart';
+import 'package:github_manager/features/home/presentation/profile_screen.dart';
 import 'package:github_manager/features/issues/presentation/repository_issues_screen.dart';
 import 'package:github_manager/features/permissions/presentation/repository_permission_diagnostics_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repositories_screen.dart';
@@ -24,6 +25,7 @@ final appRouter = GoRouter(
       path: '/',
       builder: (_, _) => const RepositoriesScreen(),
     ),
+    GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
     GoRoute(
       path: '/settings',
       builder: (_, _) => const SettingsScreen(),

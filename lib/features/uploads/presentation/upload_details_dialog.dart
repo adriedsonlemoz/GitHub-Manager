@@ -13,8 +13,8 @@ class UploadDetailsDialog extends StatelessWidget {
     final statusColor = _statusColor(scheme, item.status);
 
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
-      contentPadding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+      titlePadding: const EdgeInsets.fromLTRB(16, 14, 10, 0),
+      contentPadding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
       title: Row(
         children: [
           Icon(Icons.receipt_long_rounded, color: statusColor),
@@ -24,13 +24,13 @@ class UploadDetailsDialog extends StatelessWidget {
         ],
       ),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620),
+        constraints: const BoxConstraints(maxWidth: 520),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _ResultBanner(item: item, color: statusColor),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -69,7 +69,7 @@ class UploadDetailsDialog extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               _Section(
                 icon: Icons.folder_outlined,
                 title: 'Projeto',

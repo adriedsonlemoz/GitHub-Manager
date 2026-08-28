@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
@@ -305,6 +306,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
         ? 'Builds'
         : 'Execuções — ${_selectedWorkflow!.name}';
     return Scaffold(
+      bottomNavigationBar: const AppMainNavigation(),
       appBar: AppBar(
         leading: _selectionMode
             ? IconButton(
@@ -408,7 +410,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                       '/repositories/${widget.repositoryFullName}/permissions',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 7),
                 ],
                 _WorkflowsPanel(
                   data: data,
@@ -416,10 +418,10 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                   onSelected: _selectWorkflow,
                 ),
                 if (_showDiagnostics || runs.isEmpty) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 7),
                   _ActionsDiagnosticCard(diagnostic: data.diagnostic),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Text(
                   data.selectedWorkflow == null
                       ? 'Todas as execuções'
@@ -719,7 +721,7 @@ class _RunGroupCard extends StatelessWidget {
                             ),
                       ),
                       if (group.runs.first.detectedVersion != null) ...[
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 1),
                         Row(
                           children: [
                             const Icon(Icons.new_releases_outlined, size: 15),
@@ -733,7 +735,7 @@ class _RunGroupCard extends StatelessWidget {
                           ],
                         ),
                       ],
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 1),
                       Text(
                         '$sha • ${group.eventLabel} • ${group.runs.length} ${group.runs.length == 1 ? 'workflow' : 'workflows'}',
                         style: Theme.of(context).textTheme.bodySmall,
@@ -854,7 +856,7 @@ class _RunResultTile extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 1),
                     Text(
                       '${run.detectedVersion == null ? '' : 'v${run.detectedVersion} • '}'
                       '${run.branch} • ${_RepositoryActionsScreenState._formatDuration(run)} • '
@@ -1034,7 +1036,7 @@ class _CompactIconAction extends StatelessWidget {
         tooltip: tooltip,
         visualDensity: VisualDensity.compact,
         constraints: const BoxConstraints.tightFor(width: 38, height: 38),
-        icon: Icon(icon, size: 20),
+        icon: Icon(icon, size: 18),
       );
 }
 
@@ -1411,8 +1413,8 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: .78,
-      minChildSize: .48,
+      initialChildSize: .68,
+      minChildSize: .40,
       maxChildSize: .95,
       builder: (context, scrollController) => FutureBuilder<
           List<RepositoryWorkflowJob>>(
@@ -1428,7 +1430,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
           }
           return ListView(
             controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 76),
             children: [
               Row(
                 children: [
@@ -1447,7 +1449,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                           '${_run.name} #${_run.runNumber} • ${_run.branch} • ${_run.shortSha}',
                         ),
                         if (_run.detectedVersion != null) ...[
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 1),
                           Row(
                             children: [
                               const Icon(Icons.new_releases_outlined, size: 16),
@@ -1485,7 +1487,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Card(
                 child: ListTile(
                   leading: _RunStatusIcon(run: _run),
@@ -1504,7 +1506,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                       : null,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 7),
               Row(
                 children: [
                   Expanded(
@@ -1559,13 +1561,13 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                 ],
               ),
               if (failedJob != null) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 7),
                 _FailureSummaryCard(
                   repositoryFullName: widget.repositoryFullName,
                   job: failedJob,
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               if (snapshot.connectionState == ConnectionState.waiting && jobs.isEmpty)
                 const LinearProgressIndicator()
               else if (snapshot.hasError && jobs.isEmpty)
@@ -1605,7 +1607,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 7),
 
             ],
           );
@@ -1633,8 +1635,8 @@ class _RunActionButton extends StatelessWidget {
     final child = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 20),
-        const SizedBox(height: 3),
+        Icon(icon, size: 18),
+        const SizedBox(height: 1),
         Text(
           label,
           maxLines: 1,
@@ -1648,7 +1650,7 @@ class _RunActionButton extends StatelessWidget {
     );
 
     return SizedBox(
-      height: 58,
+      height: 46,
       child: filled
           ? FilledButton.tonal(
               onPressed: onPressed,

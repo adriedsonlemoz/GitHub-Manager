@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 import 'package:github_manager/features/uploads/presentation/upload_details_dialog.dart';
@@ -12,6 +13,7 @@ class UploadsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final manager = ref.watch(uploadManagerProvider);
     return Scaffold(
+      bottomNavigationBar: const AppMainNavigation(),
       appBar: AppBar(
         title: const Text('Central de Envios'),
         actions: [

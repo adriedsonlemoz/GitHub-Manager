@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/app/theme/app_theme_controller.dart';
@@ -417,6 +418,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final profile = ref.watch(githubProfileProvider);
     final api = _apiSettings;
     return Scaffold(
+      bottomNavigationBar: const AppMainNavigation(),
       appBar: AppBar(title: const Text('Configurações')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/widgets/app_error_card.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/auth/presentation/auth_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
@@ -498,50 +499,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: scheme.outlineVariant),
-            boxShadow: dark
-                ? const []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .07),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(21),
-            child: NavigationBar(
-              selectedIndex: _section,
-              onDestinationSelected: (value) {
-                setState(() {
-                  _section = value;
-                  _query = '';
-                  _searchController.clear();
-                  _filter = 'Todos';
-                });
-              },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.folder_outlined),
-                  selectedIcon: Icon(Icons.folder_rounded),
-                  label: 'Meus repositórios',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.groups_outlined),
-                  selectedIcon: Icon(Icons.groups_rounded),
-                  label: 'Acompanhados',
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      bottomNavigationBar: AppMainNavigation(selectedIndex: _showingFollowed ? 3 : 0),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: CustomScrollView(
@@ -580,40 +538,12 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
               actions: [
-                if (!_showingFollowed)
-                  profile.maybeWhen(
-                    data: (data) => Padding(
-                      padding: const EdgeInsets.only(right: 2),
-                      child: Tooltip(
-                        message: 'Editar perfil GitHub',
-                        child: InkResponse(
-                          onTap: () => _editGitHubProfile(data),
-                          radius: 22,
-                          child: CircleAvatar(
-                            radius: 16,
-                            foregroundImage: data.avatarUrl.isEmpty
-                                ? null
-                                : NetworkImage(data.avatarUrl),
-                            child: data.avatarUrl.isEmpty
-                                ? const Icon(Icons.person_outline_rounded, size: 17)
-                                : null,
-                          ),
-                        ),
-                      ),
-                    ),
-                    orElse: () => const SizedBox.shrink(),
-                  ),
                 IconButton(
                   onPressed: _showingFollowed ? _addFollowedRepository : _createRepository,
                   tooltip: _showingFollowed ? 'Acompanhar repositório' : 'Novo repositório',
                   icon: Icon(_showingFollowed ? Icons.bookmark_add_outlined : Icons.add_rounded),
                 ),
                 const UploadCenterButton(),
-                const DownloadCenterButton(),
-                IconButton(
-                  onPressed: () => context.push('/settings'),
-                  tooltip: 'Configurações',
-                  icon: const Icon(Icons.settings_outlined),
                 ),
                 const SizedBox(width: 4),
               ],

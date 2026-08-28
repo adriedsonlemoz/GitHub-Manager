@@ -1,4 +1,4 @@
-# GitHub Manager 2.0.34+200048
+# GitHub Manager 2.0.35+200049
 
 - Tela interna do repositório compactada e alinhada ao padrão visual de APKs/Artifacts.
 - Nome e versão aparecem juntos no cabeçalho; tecnologias e dados técnicos foram movidos para um diálogo centralizado de informações.

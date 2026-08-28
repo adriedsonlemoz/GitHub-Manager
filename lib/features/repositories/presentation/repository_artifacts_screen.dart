@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
@@ -418,6 +419,7 @@ class _RepositoryArtifactsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const AppMainNavigation(),
       appBar: AppBar(
         leading: _selectionMode
             ? IconButton(

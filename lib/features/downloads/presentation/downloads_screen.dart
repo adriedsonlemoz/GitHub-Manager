@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 
 import 'package:flutter/material.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
@@ -15,6 +16,7 @@ class DownloadsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final manager = ref.watch(downloadManagerProvider);
     return Scaffold(
+      bottomNavigationBar: const AppMainNavigation(),
       appBar: AppBar(
         title: const Text('Central de Downloads'),
         actions: [
