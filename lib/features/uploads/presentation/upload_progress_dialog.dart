@@ -21,6 +21,10 @@ class UploadProgressDialog extends ConsumerWidget {
         final item = manager.find(uploadId);
         if (item == null) {
           return AlertDialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+            titlePadding: const EdgeInsets.fromLTRB(16, 15, 16, 4),
+            contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            actionsPadding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
             title: const Text('Envio'),
             content: const Text('Este envio não está mais disponível.'),
             actions: [
@@ -35,6 +39,10 @@ class UploadProgressDialog extends ConsumerWidget {
         final progress = item.progress;
         final percent = progress == null ? null : (progress * 100).round();
         return AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+          titlePadding: const EdgeInsets.fromLTRB(16, 15, 16, 4),
+          contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          actionsPadding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
           title: Text(_title(item)),
           content: AdaptiveDialogBody(
             child: Column(

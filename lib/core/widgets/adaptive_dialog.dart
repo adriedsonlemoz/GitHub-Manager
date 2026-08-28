@@ -15,7 +15,7 @@ class AdaptiveDialogBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.sizeOf(context);
-    final width = media.width - 48;
+    final width = media.width - 20;
     final height = media.height * maxHeightFactor;
     return ConstrainedBox(
       constraints: BoxConstraints(

@@ -217,35 +217,54 @@ class _RepositoryIssuesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       appBar: AppBar(
         title: const Text('Issues / Bugs'),
         actions: [
           IconButton(
-            onPressed: () => _refresh(),
+            onPressed: _refresh,
             tooltip: 'Atualizar',
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _createIssue,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nova issue'),
-      ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'open', label: Text('Abertos')),
-                ButtonSegment(value: 'closed', label: Text('Fechados')),
-                ButtonSegment(value: 'all', label: Text('Todos')),
+            padding: const EdgeInsets.fromLTRB(10, 3, 10, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SegmentedButton<String>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: 'open', label: Text('Abertos')),
+                      ButtonSegment(value: 'closed', label: Text('Fechados')),
+                      ButtonSegment(value: 'all', label: Text('Todos')),
+                    ],
+                    selected: {_filter},
+                    onSelectionChanged: (value) =>
+                        _changeFilter(value.first),
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                SizedBox(
+                  height: 40,
+                  child: FilledButton.tonalIcon(
+                    onPressed: _createIssue,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Nova'),
+                  ),
+                ),
               ],
-              selected: {_filter},
-              onSelectionChanged: (value) => _changeFilter(value.first),
             ),
           ),
           Expanded(
@@ -254,57 +273,78 @@ class _RepositoryIssuesScreenState
               child: FutureBuilder<List<RepositoryIssue>>(
                 future: _future,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (snapshot.connectionState ==
+                      ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
                     return ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 88),
                       children: [
                         _MessageCard(message: _message(snapshot.error!)),
                       ],
                     );
                   }
-                  final issues = snapshot.data ?? const <RepositoryIssue>[];
+                  final issues =
+                      snapshot.data ?? const <RepositoryIssue>[];
                   if (issues.isEmpty) {
                     return ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(10, 20, 10, 88),
                       children: const [
                         _MessageCard(
-                          message: 'Nenhum bug encontrado neste filtro.',
+                          message: 'Nenhuma issue neste filtro.',
                         ),
                       ],
                     );
                   }
                   return ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
+                    padding: const EdgeInsets.fromLTRB(10, 2, 10, 88),
                     itemCount: issues.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: 3),
                     itemBuilder: (context, index) {
                       final issue = issues[index];
-                      return Card(
+                      return Material(
+                        color: scheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(11),
+                        clipBehavior: Clip.antiAlias,
                         child: ListTile(
+                          dense: true,
+                          visualDensity: const VisualDensity(vertical: -2),
+                          contentPadding:
+                              const EdgeInsets.fromLTRB(10, 1, 4, 1),
                           onTap: () => _openIssue(issue),
                           leading: Icon(
                             issue.isOpen
-                                ? Icons.radio_button_unchecked_rounded
+                                ? Icons.error_outline_rounded
                                 : Icons.check_circle_outline_rounded,
+                            size: 20,
                             color: issue.isOpen
-                                ? Theme.of(context).colorScheme.error
-                                : Theme.of(context).colorScheme.primary,
+                                ? scheme.error
+                                : scheme.primary,
                           ),
                           title: Text(
                             issue.title,
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           subtitle: Text(
-                            '#${issue.number} • ${issue.author} • ${_formatDate(issue.updatedAt)}',
+                            '#${issue.number} • ${issue.author} • '
+                            '${_formatDate(issue.updatedAt)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall,
                           ),
-                          trailing: const Icon(Icons.chevron_right_rounded),
+                          trailing: const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                          ),
                         ),
                       );
                     },
@@ -338,10 +378,12 @@ class _MessageCard extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Text(message),
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(11),
         ),
+        child: Text(message),
       );
 }
