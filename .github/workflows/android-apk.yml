@@ -139,6 +139,7 @@ jobs:
         with:
           name: ${{ steps.package.outputs.file }}
           path: dist/${{ steps.package.outputs.file }}
+          # APK direto: evita ZIP externo/compressão adicional e acelera o download.
           archive: false
           if-no-files-found: error
           retention-days: 14

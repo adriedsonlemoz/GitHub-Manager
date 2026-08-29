@@ -74,13 +74,79 @@ class _RepositoryArtifactsScreenState
     await Future.wait([future, releases]);
   }
 
-  void _download(ActionArtifact artifact) {
+  static String? _versionFromName(String value) => RegExp(
+        r'(\d+\.\d+(?:\.\d+){0,3}(?:[-+][A-Za-z0-9._-]+)?)',
+      ).firstMatch(value)?.group(1);
+
+  static bool _artifactLooksStable(ActionArtifact artifact) {
+    final lower = artifact.name.toLowerCase();
+    return !lower.contains('debug') &&
+        !lower.contains('profile') &&
+        !lower.contains('test') &&
+        !lower.contains('alpha') &&
+        !lower.contains('beta') &&
+        !lower.contains('preview') &&
+        !RegExp(r'(^|[-_.])rc\d*($|[-_.])').hasMatch(lower);
+  }
+
+  ReleaseAsset? _matchingRelease(
+    ActionArtifact artifact,
+    List<ReleaseAsset> releases,
+  ) {
+    if (!artifact.likelyContainsApk || !_artifactLooksStable(artifact)) {
+      return null;
+    }
+    final version = _versionFromName(artifact.name);
+    if (version == null) return null;
+    final normalized = version.toLowerCase();
+    for (final asset in releases) {
+      if (!asset.isApk) continue;
+      final tag = asset.tagName.toLowerCase().replaceFirst(RegExp(r'^v'), '');
+      final assetVersion = _versionFromName(asset.name)?.toLowerCase();
+      if (tag == normalized || assetVersion == normalized) {
+        return asset;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _download(ActionArtifact artifact) async {
     if (artifact.expired) {
-      showCenteredNotice(context, 'Este artifact expirou no GitHub e não está mais disponível para download.');
+      showCenteredNotice(
+        context,
+        'Este artifact expirou no GitHub e não está mais disponível para download.',
+      );
       return;
     }
+
     final manager = ref.read(downloadManagerProvider);
+
     if (artifact.likelyContainsApk) {
+      try {
+        final releases = await _releaseFuture;
+        final release = _matchingRelease(artifact, releases);
+        if (release != null) {
+          manager.startReleaseAsset(
+            title: '${release.tagName} | ${release.name}',
+            fileName: release.name,
+            repositoryFullName: widget.repositoryFullName,
+            assetId: release.id,
+            isApk: true,
+          );
+          if (mounted) {
+            showCenteredNotice(
+              context,
+              'Mesma versão encontrada em Release. Download direto do APK iniciado.',
+              kind: CenteredNoticeKind.success,
+            );
+          }
+          return;
+        }
+      } catch (_) {
+        // Release é uma otimização. Se a consulta falhar, o artifact continua
+        // funcionando normalmente sem bloquear o download.
+      }
+
       manager.startArtifactApk(
         repositoryFullName: widget.repositoryFullName,
         artifact: artifact,
@@ -91,8 +157,60 @@ class _RepositoryArtifactsScreenState
         artifact: artifact,
       );
     }
-    showCenteredNotice(context, 'Download iniciado. Acompanhe pela Central de Downloads.');
+
+    if (mounted) {
+      showCenteredNotice(
+        context,
+        'Download iniciado. Acompanhe pela Central de Downloads.',
+      );
+    }
   }
+
+  Future<void> _showArtifactReleaseHelp() =>
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+          titlePadding: const EdgeInsets.fromLTRB(16, 15, 16, 4),
+          contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          actionsPadding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
+          title: const Text('Artifact ou Release?'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Artifact',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'É a saída temporária criada pelo GitHub Actions. É ideal para builds de teste, Debug e arquivos que podem expirar.',
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Release',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'É uma versão publicada do projeto. O APK fica anexado como arquivo da versão e pode ser baixado diretamente, sem precisar extrair um artifact.',
+              ),
+              SizedBox(height: 12),
+              Text(
+                'O GitHub Manager usa automaticamente a Release quando encontra a mesma versão estável; caso contrário, baixa o Artifact.',
+              ),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Entendi'),
+            ),
+          ],
+        ),
+      );
 
   void _downloadRelease(ReleaseAsset asset) {
     ref.read(downloadManagerProvider).startReleaseAsset(
@@ -461,6 +579,12 @@ class _RepositoryArtifactsScreenState
               icon: const Icon(Icons.auto_delete_outlined),
             ),
           ],
+          if (!_selectionMode)
+            IconButton(
+              onPressed: _showArtifactReleaseHelp,
+              tooltip: 'Artifact x Release',
+              icon: const Icon(Icons.help_outline_rounded),
+            ),
           if (!_selectionMode) const UploadCenterButton(),
           if (!_selectionMode) const DownloadCenterButton(),
           const SizedBox(width: 4),
@@ -531,7 +655,7 @@ class _RepositoryArtifactsScreenState
                           initiallyExpanded: widget.readOnly,
                           leading: const Icon(Icons.new_releases_outlined),
                           title: const Text('Releases'),
-                          subtitle: Text('${releases.length} arquivo(s) disponível(is)'),
+                          subtitle: Text('${releases.length} arquivo(s) | download direto'),
                           children: releases.take(20).map(
                             (asset) => ListTile(
                               leading: Icon(

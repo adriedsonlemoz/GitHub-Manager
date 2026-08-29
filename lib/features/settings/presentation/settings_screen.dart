@@ -561,16 +561,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.48',
+                      text: 'Downloads de APK priorizam Release direta da mesma versão e artifacts diretos deixam de ser reprocessados; ajuda explica Artifact x Release.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.47',
-                      text: 'Notificações de downloads agora são imediatas, monitor de Actions ganhou verificação rápida em processo, navegação Projetos foi corrigida e Arquivos recebeu abertura segura com leitor de README.',
+                      text: 'Notificações de downloads/builds revisadas, navegação para Projetos corrigida e Arquivos ganhou abertura segura e visualização de README.',
                     ),
                     _ChangeNote(
                       version: '2.0.46',
-                      text: 'Central de Envios compactada no padrão de APKs/Downloads e Builds com data e versão reunidas no título usando separadores verticais.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.45',
-                      text: 'Operações de repositório e refresh estabilizados, diagnóstico de repositório vazio corrigido e opção para limpar arquivos sem excluir o repositório.',
+                      text: 'Central de Envios compactada e Builds reorganizadas com data, versão e separadores verticais.',
                     ),
                   ],
                 ),

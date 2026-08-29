@@ -67,6 +67,20 @@ class ManagedDownload {
   bool get isApk =>
       type == ManagedDownloadType.apk || fileName.toLowerCase().endsWith('.apk');
 
+  String get sourceLabel {
+    final endpoint = sourceEndpoint?.toLowerCase() ?? '';
+    if (endpoint.contains('/releases/assets/')) {
+      return 'Release direta';
+    }
+    if (endpoint.contains('/actions/artifacts/')) {
+      return 'GitHub Actions';
+    }
+    if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+      return 'Link direto';
+    }
+    return 'GitHub';
+  }
+
   bool get usesContentUri => localPath?.startsWith('content://') == true;
 
   bool get canRetry =>

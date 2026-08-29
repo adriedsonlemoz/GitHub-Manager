@@ -423,6 +423,50 @@ class DownloadManagerService {
     }
   }
 
+  Future<String?> _firstZipEntryName(File file) async {
+    RandomAccessFile? raf;
+    try {
+      raf = await file.open(mode: FileMode.read);
+      final length = await raf.length();
+      if (length < 30) return null;
+      final header = await raf.read(30);
+      if (header.length < 30 ||
+          header[0] != 0x50 ||
+          header[1] != 0x4b ||
+          header[2] != 0x03 ||
+          header[3] != 0x04) {
+        return null;
+      }
+      final fileNameLength = header[26] | (header[27] << 8);
+      if (fileNameLength <= 0 || fileNameLength > 4096) return null;
+      final nameBytes = await raf.read(fileNameLength);
+      return utf8.decode(nameBytes, allowMalformed: true)
+          .replaceAll('\\', '/')
+          .trim();
+    } catch (_) {
+      return null;
+    } finally {
+      await raf?.close();
+    }
+  }
+
+  Future<bool> _canUseArtifactAsDirectApk(
+    ManagedDownload item,
+    File downloaded,
+  ) async {
+    final advertisedAsApk =
+        item.title.toLowerCase().endsWith('.apk') ||
+        item.fileName.toLowerCase().endsWith('.apk');
+    if (!advertisedAsApk) return false;
+
+    // upload-artifact v7 + archive:false entrega o próprio APK.
+    // Em workflows antigos (v4/v5/v6), a API pode devolver um ZIP externo
+    // cujo primeiro item é justamente "app-release.apk".
+    final firstEntry = await _firstZipEntryName(downloaded);
+    if (firstEntry == null) return false;
+    return !firstEntry.toLowerCase().endsWith('.apk');
+  }
+
   Future<void> _runArtifactApk(
     ManagedDownload item,
     String endpoint,
@@ -455,9 +499,28 @@ class DownloadManagerService {
       );
       if (item.status == ManagedDownloadStatus.cancelled) return;
 
+      if (await _canUseArtifactAsDirectApk(item, downloadedFile)) {
+        item.failureStage = 'preparar_apk_direto';
+        final desiredName = item.fileName.toLowerCase().endsWith('.apk')
+            ? item.fileName
+            : '${_safeName(item.title)}.apk';
+        publishFile = await _uniqueFile(directory, desiredName);
+        publishFile = await downloadedFile.rename(publishFile.path);
+        downloadedFile = null;
+        item.workingPath = null;
+        final length = await publishFile.length();
+        item
+          ..fileName = p.basename(publishFile.path)
+          ..receivedBytes = length
+          ..totalBytes = length;
+        await _publishCompleted(item, publishFile);
+        publishFile = null;
+        return;
+      }
+
       item.failureStage = 'identificar_artifact';
       final input = InputFileStream(downloadedFile.path);
-      final archive = ZipDecoder().decodeStream(input, verify: true);
+      final archive = ZipDecoder().decodeStream(input, verify: false);
       ArchiveFile? selectedApk;
       var directApk = false;
       try {

@@ -141,7 +141,7 @@ class ArtifactService {
       onProgress?.call('Localizando o APK dentro do artifact');
       final input = InputFileStream(artifactZip.path);
       try {
-        final archive = ZipDecoder().decodeStream(input, verify: true);
+        final archive = ZipDecoder().decodeStream(input, verify: false);
         final apkEntries = archive
             .where(
               (entry) =>
@@ -149,33 +149,51 @@ class ArtifactService {
             )
             .toList(growable: false);
 
-        if (apkEntries.isEmpty) {
-          throw const FormatException(
-            'O artifact selecionado não contém um APK.',
+        if (apkEntries.isNotEmpty) {
+          final selected = apkEntries.firstWhere(
+            (entry) {
+              final lower = entry.name.toLowerCase();
+              return lower.contains('universal') ||
+                  (!lower.contains('arm64') &&
+                      !lower.contains('armeabi') &&
+                      !lower.contains('x86'));
+            },
+            orElse: () =>
+                apkEntries.reduce((a, b) => a.size >= b.size ? a : b),
           );
-        }
 
-        final selected = apkEntries.firstWhere(
-          (entry) {
-            final lower = entry.name.toLowerCase();
-            return lower.contains('universal') ||
-                (!lower.contains('arm64') &&
-                    !lower.contains('armeabi') &&
-                    !lower.contains('x86'));
-          },
-          orElse: () =>
-              apkEntries.reduce((a, b) => a.size >= b.size ? a : b),
-        );
+          final bytes = selected.readBytes();
+          if (bytes == null) {
+            throw const FormatException(
+              'Não foi possível extrair o APK do artifact.',
+            );
+          }
+          final safeAssetName = _safeAssetName(selected.name.split('/').last);
+          apkFile = File(p.join(work.path, safeAssetName));
+          await apkFile.writeAsBytes(bytes, flush: true);
+        } else {
+          final names = archive
+              .where((entry) => entry.isFile)
+              .map((entry) => entry.name.replaceAll('\\', '/').toLowerCase())
+              .toSet();
+          final directApk = names.contains('androidmanifest.xml') &&
+              (names.contains('classes.dex') ||
+                  names.contains('resources.arsc'));
+          if (!directApk) {
+            throw const FormatException(
+              'O artifact selecionado não contém um APK.',
+            );
+          }
 
-        final bytes = selected.readBytes();
-        if (bytes == null) {
-          throw const FormatException(
-            'Não foi possível extrair o APK do artifact.',
-          );
+          // upload-artifact v7 com archive:false já entregou o APK real.
+          // Reutiliza o arquivo baixado em vez de descompactar/recompactar.
+          final directName = artifact.name.toLowerCase().endsWith('.apk')
+              ? artifact.name
+              : 'app-release.apk';
+          final safeAssetName = _safeAssetName(directName);
+          apkFile = File(p.join(work.path, safeAssetName));
+          await artifactZip.copy(apkFile.path);
         }
-        final safeAssetName = _safeAssetName(selected.name.split('/').last);
-        apkFile = File(p.join(work.path, safeAssetName));
-        await apkFile.writeAsBytes(bytes, flush: true);
         archive.clearSync();
       } finally {
         input.closeSync();

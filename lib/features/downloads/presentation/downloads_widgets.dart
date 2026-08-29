@@ -45,6 +45,12 @@ class _ActiveDownloadCard extends StatelessWidget {
       badges: [
         _DownloadBadge(label: item.typeLabel, icon: _typeIcon(item.type)),
         _DownloadBadge(
+          label: item.sourceLabel,
+          icon: item.sourceLabel == 'Release direta'
+              ? Icons.rocket_launch_outlined
+              : Icons.play_circle_outline_rounded,
+        ),
+        _DownloadBadge(
           label: percent == null ? item.statusLabel : '$percent%',
           icon: Icons.downloading_rounded,
           emphasized: true,
@@ -109,6 +115,12 @@ class _CompletedDownloadCard extends StatelessWidget {
       ),
       badges: [
         _DownloadBadge(label: descriptor.format, icon: descriptor.icon),
+        _DownloadBadge(
+          label: item.sourceLabel,
+          icon: item.sourceLabel == 'Release direta'
+              ? Icons.rocket_launch_outlined
+              : Icons.play_circle_outline_rounded,
+        ),
         if (descriptor.buildType != null)
           _DownloadBadge(
             label: descriptor.buildType!,
@@ -166,6 +178,12 @@ class _FailedDownloadCard extends StatelessWidget {
         item: item,
         badges: [
           _DownloadBadge(label: item.typeLabel, icon: _typeIcon(item.type)),
+          _DownloadBadge(
+            label: item.sourceLabel,
+            icon: item.sourceLabel == 'Release direta'
+                ? Icons.rocket_launch_outlined
+                : Icons.play_circle_outline_rounded,
+          ),
           _DownloadBadge(
             label: item.statusLabel,
             icon: Icons.error_outline_rounded,

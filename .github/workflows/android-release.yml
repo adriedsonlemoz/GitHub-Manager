@@ -127,6 +127,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           path: dist/${{ steps.package.outputs.file }}
+          # APK direto: evita ZIP externo/compressão adicional e acelera o download.
           archive: false
           if-no-files-found: error
 
