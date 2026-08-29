@@ -88,6 +88,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
         ref.invalidate(followedRepositoriesProvider);
         await ref.read(followedRepositoriesProvider.future);
       } else {
+        await ref.read(repositoryServiceProvider).refreshRepositories();
         ref.invalidate(repositoriesProvider);
         ref.invalidate(githubProfileProvider);
         await ref.read(repositoriesProvider.future);

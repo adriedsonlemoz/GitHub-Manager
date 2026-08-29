@@ -206,6 +206,144 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
         .toList(growable: false);
   }
 
+  String _gitRefPath(String branch) => branch
+      .split('/')
+      .map(Uri.encodeComponent)
+      .join('/');
+
+  Future<_RepositoryBranchSnapshot?> _loadBranchSnapshot({
+    required String repositoryFullName,
+    required String branch,
+  }) async {
+    try {
+      final ref = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/ref/heads/${_gitRefPath(branch)}',
+      );
+      final object = ref.data?['object'];
+      final commitSha = object is Map ? object['sha']?.toString() : null;
+      if (commitSha?.isNotEmpty != true) return null;
+
+      final commit = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/commits/$commitSha',
+      );
+      final treeRaw = commit.data?['tree'];
+      final treeSha = treeRaw is Map ? treeRaw['sha']?.toString() : null;
+      if (treeSha?.isNotEmpty != true) return null;
+
+      final tree = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/trees/$treeSha',
+        queryParameters: const {'recursive': '1'},
+      );
+      if (tree.data?['truncated'] == true) {
+        throw const RepositoryFileException(
+          'O repositório é grande demais para uma limpeza segura em um único commit.',
+          code: 'REPOSITORY_CLEAR_TREE_TRUNCATED',
+        );
+      }
+
+      final entries = (tree.data?['tree'] as List? ?? const <dynamic>[])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .where((item) => item['type'] != 'tree')
+          .toList(growable: false);
+
+      return _RepositoryBranchSnapshot(
+        commitSha: commitSha!,
+        treeSha: treeSha!,
+        entries: entries,
+      );
+    } on GitHubNotFoundException {
+      return null;
+    }
+  }
+
+  Future<int> countRepositoryFiles({
+    required String repositoryFullName,
+    required String branch,
+  }) async {
+    final snapshot = await _loadBranchSnapshot(
+      repositoryFullName: repositoryFullName,
+      branch: branch,
+    );
+    return snapshot?.entries.length ?? 0;
+  }
+
+  Future<int> clearRepositoryFiles({
+    required String repositoryFullName,
+    required String branch,
+  }) async {
+    final snapshot = await _loadBranchSnapshot(
+      repositoryFullName: repositoryFullName,
+      branch: branch,
+    );
+    if (snapshot == null || snapshot.entries.isEmpty) return 0;
+
+    try {
+      final deletionTree = snapshot.entries
+          .map(
+            (entry) => {
+              'path': entry['path'],
+              'mode': entry['mode'],
+              'type': entry['type'],
+              'sha': null,
+            },
+          )
+          .toList(growable: false);
+
+      final treeResponse = await _client.post<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/trees',
+        data: {
+          'base_tree': snapshot.treeSha,
+          'tree': deletionTree,
+        },
+      );
+      final newTreeSha = treeResponse.data?['sha']?.toString();
+      if (newTreeSha?.isNotEmpty != true) {
+        throw const RepositoryFileException(
+          'O GitHub não retornou a árvore da limpeza.',
+          code: 'REPOSITORY_CLEAR_TREE_MISSING',
+        );
+      }
+
+      final commitResponse = await _client.post<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/commits',
+        data: {
+          'message': automaticCommitMessage('Limpa arquivos do repositório'),
+          'tree': newTreeSha,
+          'parents': [snapshot.commitSha],
+        },
+      );
+      final newCommitSha = commitResponse.data?['sha']?.toString();
+      if (newCommitSha?.isNotEmpty != true) {
+        throw const RepositoryFileException(
+          'O GitHub não retornou o commit da limpeza.',
+          code: 'REPOSITORY_CLEAR_COMMIT_MISSING',
+        );
+      }
+
+      await _client.patch<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/refs/heads/${_gitRefPath(branch)}',
+        data: {'sha': newCommitSha, 'force': false},
+      );
+      return snapshot.entries.length;
+    } on GitHubPermissionException {
+      throw const RepositoryFileException(
+        'O GitHub bloqueou a limpeza. Verifique Contents: write e as regras/proteções da branch.',
+        code: 'REPOSITORY_CLEAR_PERMISSION',
+      );
+    } on GitHubValidationException {
+      throw const RepositoryFileException(
+        'A branch não aceitou o commit de limpeza. Verifique proteção de branch ou rulesets.',
+        code: 'REPOSITORY_CLEAR_RULESET',
+      );
+    } on GitHubConflictException {
+      throw const RepositoryFileException(
+        'A branch mudou durante a limpeza. Atualize os arquivos e tente novamente.',
+        code: 'REPOSITORY_CLEAR_CONFLICT',
+      );
+    }
+  }
+
   static String _contentsEndpoint(String fullName, String path) {
     final normalized = path.trim();
     if (normalized.isEmpty) {
@@ -248,4 +386,16 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
     }
     return _normalizeRepositoryPath('$directory/$name');
   }
+}
+
+class _RepositoryBranchSnapshot {
+  const _RepositoryBranchSnapshot({
+    required this.commitSha,
+    required this.treeSha,
+    required this.entries,
+  });
+
+  final String commitSha;
+  final String treeSha;
+  final List<Map<String, dynamic>> entries;
 }

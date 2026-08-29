@@ -85,6 +85,28 @@ void main() {
     });
 
 
+    test('repositório vazio não marca Contents como bloqueado', () async {
+      final gateway = _FakeGateway(
+        token: 'ghp_teste',
+        oauthScopes: 'repo, workflow',
+        admin: true,
+        repositorySize: 0,
+        overrides: {
+          '/repos/owner/repo/contents': const PermissionProbe(
+            statusCode: 404,
+            data: {'message': 'Git Repository is empty.'},
+          ),
+        },
+      );
+      final report = await TokenPermissionDiagnosticsService.withGateway(gateway)
+          .diagnose('owner/repo');
+
+      final contents = _area(report, RepositoryPermissionArea.contents);
+      expect(contents.read!.verdict, PermissionVerdict.allowed);
+      expect(contents.write!.verdict, PermissionVerdict.inferred);
+      expect(contents.write!.label, contains('Repositório vazio'));
+    });
+
     test('não confunde rate limit com permissão ausente', () async {
       final gateway = _FakeGateway(
         token: 'github_pat_teste',
@@ -145,6 +167,7 @@ class _FakeGateway implements TokenPermissionDiagnosticsGateway {
     this.oauthScopes,
     this.admin = false,
     this.push = true,
+    this.repositorySize = 10,
     this.overrides = const {},
   });
 
@@ -152,6 +175,7 @@ class _FakeGateway implements TokenPermissionDiagnosticsGateway {
   final String? oauthScopes;
   final bool admin;
   final bool push;
+  final int repositorySize;
   final Map<String, PermissionProbe> overrides;
 
   @override
@@ -177,7 +201,7 @@ class _FakeGateway implements TokenPermissionDiagnosticsGateway {
         statusCode: 200,
         data: {
           'default_branch': 'main',
-          'size': 10,
+          'size': repositorySize,
           'permissions': {
             'admin': admin,
             'maintain': false,

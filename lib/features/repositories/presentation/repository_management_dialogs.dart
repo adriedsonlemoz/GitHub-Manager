@@ -18,7 +18,7 @@ class RepositoryDraft {
   final bool isArchived;
 }
 
-enum RepositoryAction { edit, delete }
+enum RepositoryAction { edit, rename, delete }
 
 Future<RepositoryDraft?> showCreateRepositoryDialog(BuildContext context) =>
     showDialog<RepositoryDraft>(
@@ -33,6 +33,15 @@ Future<RepositoryDraft?> showEditRepositoryDialog(
     showDialog<RepositoryDraft>(
       context: context,
       builder: (context) => _EditRepositoryDialog(repository: repository),
+    );
+
+Future<String?> showRenameRepositoryDialog(
+  BuildContext context,
+  GitHubRepository repository,
+) =>
+    showDialog<String>(
+      context: context,
+      builder: (context) => _RenameRepositoryDialog(repository: repository),
     );
 
 Future<bool?> showDeleteRepositoryDialog(
@@ -446,6 +455,17 @@ class _RepositoryActionsDialog extends StatelessWidget {
                       ),
                       const Divider(height: 1),
                       ListTile(
+                        leading: const Icon(Icons.drive_file_rename_outline_rounded),
+                        title: const Text('Renomear repositório'),
+                        subtitle: const Text(
+                          'Trocar o nome/slug sem criar outro repositório',
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () =>
+                            Navigator.pop(context, RepositoryAction.rename),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
                         leading: Icon(
                           Icons.delete_forever_outlined,
                           color: Theme.of(context).colorScheme.error,
@@ -465,6 +485,58 @@ class _RepositoryActionsDialog extends StatelessWidget {
             ),
           ),
         ),
+      );
+}
+
+class _RenameRepositoryDialog extends StatefulWidget {
+  const _RenameRepositoryDialog({required this.repository});
+  final GitHubRepository repository;
+
+  @override
+  State<_RenameRepositoryDialog> createState() =>
+      _RenameRepositoryDialogState();
+}
+
+class _RenameRepositoryDialogState extends State<_RenameRepositoryDialog> {
+  late final TextEditingController _name =
+      TextEditingController(text: widget.repository.name);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+        title: const Text('Renomear repositório'),
+        content: AdaptiveDialogBody(
+          child: TextField(
+            controller: _name,
+            autofocus: true,
+            autocorrect: false,
+            decoration: const InputDecoration(
+              labelText: 'Novo nome',
+              helperText:
+                  'O GitHub mantém redirecionamento do nome antigo enquanto ele não for reutilizado.',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = _name.text.trim();
+              if (value.isEmpty || value == widget.repository.name) return;
+              Navigator.pop(context, value);
+            },
+            child: const Text('Renomear'),
+          ),
+        ],
       );
 }
 

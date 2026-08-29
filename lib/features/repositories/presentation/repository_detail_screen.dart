@@ -397,18 +397,35 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
               isArchived: result.isArchived,
             );
         ref.invalidate(repositoriesProvider);
-        if (!mounted) {
-        return;
-      }
+        if (!mounted) return;
         if (updated.fullName != widget.repositoryFullName) {
           context.go('/repositories/${updated.fullName}');
           return;
         }
-        await _refresh();
+        ref.invalidate(repositoryProjectInfoProvider(updated));
       } catch (error) {
         if (mounted) {
         _showError(error);
       }
+      }
+    } else if (action == RepositoryAction.rename) {
+      final newName = await showRenameRepositoryDialog(context, repository);
+      if (newName == null || !mounted) return;
+      try {
+        final renamed = await ref.read(repositoryServiceProvider).renameRepository(
+              fullName: repository.fullName,
+              newName: newName,
+            );
+        ref.invalidate(repositoriesProvider);
+        if (!mounted) return;
+        showCenteredNotice(
+          context,
+          'Repositório renomeado para ${renamed.name}.',
+          kind: CenteredNoticeKind.success,
+        );
+        context.go('/repositories/${renamed.fullName}');
+      } catch (error) {
+        if (mounted) _showError(error);
       }
     } else if (action == RepositoryAction.delete) {
       final allowed = await ensureRepositoryPermission(

@@ -42,8 +42,9 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
             homepage: result.homepage,
             isPrivate: result.isPrivate,
           );
-      await _refresh();
+      ref.invalidate(repositoriesProvider);
       if (mounted) {
+        setState(() => _section = 0);
         showCenteredNotice(
           context,
           'Repositório ${created.name} criado com sucesso.',
@@ -282,11 +283,30 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
               isPrivate: result.isPrivate,
               isArchived: result.isArchived,
             );
-        await _refresh();
+        ref.invalidate(repositoriesProvider);
         if (mounted) {
           showCenteredNotice(
             context,
             'Repositório ${updated.name} atualizado com sucesso.',
+            kind: CenteredNoticeKind.success,
+          );
+        }
+      } catch (error) {
+        if (mounted) _showError(error);
+      }
+    } else if (action == RepositoryAction.rename) {
+      final newName = await showRenameRepositoryDialog(context, repository);
+      if (newName == null || !mounted) return;
+      try {
+        final renamed = await ref.read(repositoryServiceProvider).renameRepository(
+              fullName: repository.fullName,
+              newName: newName,
+            );
+        ref.invalidate(repositoriesProvider);
+        if (mounted) {
+          showCenteredNotice(
+            context,
+            'Repositório renomeado para ${renamed.name}.',
             kind: CenteredNoticeKind.success,
           );
         }
@@ -305,7 +325,7 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
       if (confirmed != true || !mounted) return;
       try {
         await ref.read(repositoryServiceProvider).deleteRepository(repository.fullName);
-        await _refresh();
+        ref.invalidate(repositoriesProvider);
         if (mounted) {
           showCenteredNotice(
             context,

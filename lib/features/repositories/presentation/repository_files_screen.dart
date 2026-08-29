@@ -3,6 +3,8 @@ import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
+import 'package:github_manager/features/permissions/domain/repository_permission_preflight.dart';
+import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:github_manager/features/repositories/presentation/repository_file_editor_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
@@ -29,6 +31,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
   String _path = '';
   late Future<List<RepositoryContentItem>> _future;
   bool _uploading = false;
+  bool _clearing = false;
   int _uploadedCount = 0;
   int _uploadTotal = 0;
 
@@ -175,6 +178,94 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
     }
   }
 
+  Future<void> _clearAllFiles() async {
+    if (_uploading || _clearing) return;
+
+    final allowed = await ensureRepositoryPermission(
+      context,
+      ref,
+      repositoryFullName: widget.repositoryFullName,
+      action: RepositoryCriticalAction.manageFiles,
+    );
+    if (!allowed || !mounted) return;
+
+    setState(() => _clearing = true);
+    try {
+      final service = ref.read(repositoryGitServiceProvider);
+      final count = await service.countRepositoryFiles(
+        repositoryFullName: widget.repositoryFullName,
+        branch: widget.defaultBranch,
+      );
+      if (!mounted) return;
+
+      if (count == 0) {
+        showCenteredNotice(
+          context,
+          'A branch ${widget.defaultBranch} já está sem arquivos.',
+        );
+        return;
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+          title: const Text('Limpar arquivos do repositório?'),
+          content: AdaptiveDialogBody(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.repositoryFullName,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Text('$count arquivo(s) serão removidos da branch '
+                    '${widget.defaultBranch} em um único commit.'),
+                const SizedBox(height: 8),
+                const Text(
+                  'O repositório NÃO será excluído. Histórico, Issues, Secrets, '
+                  'Actions e configurações permanecem.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.cleaning_services_outlined),
+              label: const Text('Limpar arquivos'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+
+      final removed = await service.clearRepositoryFiles(
+        repositoryFullName: widget.repositoryFullName,
+        branch: widget.defaultBranch,
+      );
+      _path = '';
+      await _refresh();
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          '$removed arquivo(s) removido(s). O repositório foi mantido.',
+          kind: CenteredNoticeKind.success,
+        );
+      }
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) setState(() => _clearing = false);
+    }
+  }
+
   void _showError(Object error) {
     final message = error is AppException ? error.message : 'Não foi possível concluir a operação.';
     showCenteredNotice(context, message);
@@ -205,10 +296,29 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
           ),
           actions: [
             IconButton(
-              onPressed: _uploading ? null : _refresh,
+              onPressed: _uploading || _clearing ? null : _refresh,
               tooltip: 'Atualizar',
               icon: const Icon(Icons.refresh_rounded),
             ),
+            if (!widget.readOnly)
+              PopupMenuButton<String>(
+                tooltip: 'Mais ações',
+                onSelected: (value) {
+                  if (value == 'clear') _clearAllFiles();
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'clear',
+                    child: Row(
+                      children: [
+                        Icon(Icons.cleaning_services_outlined),
+                        SizedBox(width: 10),
+                        Text('Limpar arquivos'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
         body: RefreshIndicator(
@@ -229,7 +339,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
                         child: _FileQuickAction(
                           icon: Icons.note_add_outlined,
                           label: 'Novo',
-                          onPressed: _uploading ? null : _createFile,
+                          onPressed: _uploading || _clearing ? null : _createFile,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -238,7 +348,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
                           icon: Icons.upload_file_rounded,
                           label: 'Enviar',
                           filled: true,
-                          onPressed: _uploading ? null : _uploadFiles,
+                          onPressed: _uploading || _clearing ? null : _uploadFiles,
                         ),
                       ),
                       const SizedBox(width: 6),

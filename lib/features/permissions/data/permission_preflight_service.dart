@@ -177,6 +177,9 @@ class PermissionPreflightService {
         add(RepositoryPermissionArea.contents);
         add(RepositoryPermissionArea.actions);
         break;
+      case RepositoryCriticalAction.manageFiles:
+        add(RepositoryPermissionArea.contents);
+        break;
       case RepositoryCriticalAction.manageSecrets:
         add(RepositoryPermissionArea.secrets);
         break;

@@ -142,16 +142,26 @@ class TokenPermissionDiagnosticsService {
       _gateway.get('$repoPath/actions/workflows', queryParameters: {'per_page': 1}),
       _gateway.get('$repoPath/actions/secrets', queryParameters: {'per_page': 1}),
       _gateway.get('$repoPath/actions/permissions'),
+      _gateway.get(
+        '$repoPath/branches/${Uri.encodeComponent(defaultBranch)}',
+      ),
     ]);
 
     final contentsProbe = results[0];
     final actionsProbe = results[1];
     final secretsProbe = results[2];
     final administrationProbe = results[3];
+    final branchProbe = results[4];
+    final branchProtected =
+        branchProbe.isSuccess && _map(branchProbe.data)['protected'] == true;
     _throwIfRateLimited(contentsProbe, '$repoPath/contents');
     _throwIfRateLimited(actionsProbe, '$repoPath/actions/workflows');
     _throwIfRateLimited(secretsProbe, '$repoPath/actions/secrets');
     _throwIfRateLimited(administrationProbe, '$repoPath/actions/permissions');
+    _throwIfRateLimited(
+      branchProbe,
+      '$repoPath/branches/${Uri.encodeComponent(defaultBranch)}',
+    );
 
     final capabilities = <RepositoryPermissionCapability>[
       RepositoryPermissionCapability(
@@ -169,6 +179,8 @@ class TokenPermissionDiagnosticsService {
           classicScopes: classicScopes,
           roleAllows: canPush,
           readProbe: contentsProbe,
+          emptyRepository: repositorySize == 0,
+          branchProtected: branchProtected,
         ),
       ),
       RepositoryPermissionCapability(
@@ -301,6 +313,8 @@ class TokenPermissionDiagnosticsService {
     required List<String> classicScopes,
     required bool roleAllows,
     required PermissionProbe readProbe,
+    required bool emptyRepository,
+    required bool branchProtected,
   }) {
     if (!roleAllows) {
       return const PermissionAccessResult(
@@ -312,7 +326,7 @@ class TokenPermissionDiagnosticsService {
     }
     if (readProbe.statusCode == 401 ||
         readProbe.statusCode == 403 ||
-        readProbe.statusCode == 404) {
+        (readProbe.statusCode == 404 && !emptyRepository)) {
       return PermissionAccessResult(
         verdict: PermissionVerdict.denied,
         label: 'Permissão insuficiente',
@@ -327,20 +341,39 @@ class TokenPermissionDiagnosticsService {
       final hasRepo = classicScopes.contains('repo');
       final hasWorkflow = classicScopes.contains('workflow');
       final allowed = hasRepo && hasWorkflow;
+      if (allowed && branchProtected) {
+        return const PermissionAccessResult(
+          verdict: PermissionVerdict.unknown,
+          label: 'Branch protegida',
+          detail:
+              'Token e papel permitem escrita, mas a branch está protegida. Rulesets ou regras de proteção podem impedir push direto.',
+          requiredPermission: 'repo + workflow',
+        );
+      }
       return PermissionAccessResult(
         verdict: allowed ? PermissionVerdict.inferred : PermissionVerdict.denied,
-        label: allowed ? 'Disponível para sincronização' : 'Escopo ausente',
+        label: allowed
+            ? emptyRepository
+                ? 'Repositório vazio • escrita disponível'
+                : 'Disponível para sincronização'
+            : 'Escopo ausente',
         detail: allowed
-            ? 'O PAT clássico possui `repo` e `workflow`, necessários para sincronizar o projeto inclusive em .github/workflows.'
+            ? emptyRepository
+                ? 'O repositório ainda não possui arquivos/branch materializada, mas o acesso ao repositório, o papel de escrita e os escopos `repo` + `workflow` estão confirmados.'
+                : 'O PAT clássico possui `repo` e `workflow`, necessários para sincronizar o projeto inclusive em .github/workflows.'
             : 'A sincronização completa do GitHub Manager precisa de `repo` e também `workflow` para atualizar arquivos em .github/workflows.',
         requiredPermission: 'repo + workflow',
       );
     }
 
-    return const PermissionAccessResult(
+    return PermissionAccessResult(
       verdict: PermissionVerdict.unknown,
-      label: 'Verifique no token',
-      detail: 'Para sincronizar todo o ZIP, inclusive .github/workflows, confirme as duas permissões no PAT fine-grained. O diagnóstico não altera arquivos só para testar escrita.',
+      label: branchProtected ? 'Branch protegida' : 'Verifique no token',
+      detail: branchProtected
+          ? 'A branch está protegida. Além de Contents: write e Workflows: write, as regras da branch/ruleset precisam permitir a atualização.'
+          : emptyRepository
+              ? 'O repositório está vazio. A leitura 404 é normal neste estado; confirme Contents: write e Workflows: write no PAT fine-grained para o primeiro envio.'
+              : 'Para sincronizar todo o ZIP, inclusive .github/workflows, confirme as duas permissões no PAT fine-grained. O diagnóstico não altera arquivos só para testar escrita.',
       requiredPermission: 'Contents: write + Workflows: write',
     );
   }

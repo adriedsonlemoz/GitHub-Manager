@@ -11,56 +11,154 @@ class RepositoryService {
   static const _followedCacheKey = 'followed.repositories.cache';
   final GitHubApiClient _client;
   final LocalDatabase _database;
+  Future<List<GitHubRepository>>? _repositoriesRefreshInFlight;
   Future<List<GitHubRepository>>? _followedRefreshInFlight;
 
-  Future<List<GitHubRepository>> listRepositories() async {
+  Future<List<GitHubRepository>> _readRepositoryCache() async {
+    final cached = await _database.readJson(_cacheKey);
+    if (cached is! List) return const <GitHubRepository>[];
+    return cached
+        .whereType<Map>()
+        .map(
+          (json) => GitHubRepository.fromJson(
+            Map<String, dynamic>.from(json),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _writeRepositoryCache(
+    List<GitHubRepository> repositories,
+  ) async {
+    await _database.putJson(
+      _cacheKey,
+      repositories.map((item) => item.toJson()).toList(),
+    );
+  }
+
+  Future<void> _safeUpsertRepositoryCache(
+    GitHubRepository repository, {
+    String? replaceFullName,
+  }) async {
     try {
-      final repositories = <GitHubRepository>[];
-      for (var page = 1; page <= 10; page++) {
-        final response = await _client.get<List<dynamic>>(
-          '/user/repos',
-          queryParameters: {
-            'affiliation': 'owner,collaborator,organization_member',
-            'sort': 'updated',
-            'direction': 'desc',
-            'per_page': 100,
-            'page': page,
-          },
+      final repositories = (await _readRepositoryCache()).toList();
+      final keys = <String>{
+        repository.fullName.toLowerCase(),
+        if (replaceFullName?.trim().isNotEmpty == true)
+          replaceFullName!.toLowerCase(),
+      };
+      repositories.removeWhere(
+        (item) => keys.contains(item.fullName.toLowerCase()),
+      );
+      repositories.insert(0, repository);
+      await _writeRepositoryCache(repositories);
+    } catch (_) {}
+  }
+
+  Future<void> _safeRemoveRepositoryFromCaches(String fullName) async {
+    try {
+      final repositories = (await _readRepositoryCache()).toList()
+        ..removeWhere(
+          (item) => item.fullName.toLowerCase() == fullName.toLowerCase(),
         );
-        final pageItems = (response.data ?? const <dynamic>[])
-            .whereType<Map>()
-            .map(
-              (json) => GitHubRepository.fromJson(
-                Map<String, dynamic>.from(json),
-              ),
-            )
-            .toList(growable: false);
-        repositories.addAll(pageItems);
-        if (pageItems.length < 100) {
-          break;
+      await _writeRepositoryCache(repositories);
+    } catch (_) {}
+
+    try {
+      final followed = (await _readFollowedNames())
+        ..removeWhere(
+          (item) => item.toLowerCase() == fullName.toLowerCase(),
+        );
+      await _database.putJson(_followedKey, followed);
+      final followedCache = await _readFollowedCache(followed);
+      await _database.putJson(
+        _followedCacheKey,
+        followedCache.map((item) => item.toJson()).toList(),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _safeReplaceFollowedReference(
+    String oldFullName,
+    GitHubRepository repository,
+  ) async {
+    try {
+      final names = await _readFollowedNames();
+      var changed = false;
+      for (var i = 0; i < names.length; i++) {
+        if (names[i].toLowerCase() == oldFullName.toLowerCase()) {
+          names[i] = repository.fullName;
+          changed = true;
         }
       }
-      await _database.putJson(
-        _cacheKey,
-        repositories.map((item) => item.toJson()).toList(),
+      if (!changed) return;
+      await _database.putJson(_followedKey, names);
+
+      final cachedRaw = await _database.readJson(_followedCacheKey);
+      final cache = cachedRaw is List
+          ? cachedRaw
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
+          : <Map<String, dynamic>>[];
+      cache.removeWhere(
+        (item) =>
+            (item['full_name'] as String? ?? '').toLowerCase() ==
+            oldFullName.toLowerCase(),
       );
-      return repositories;
-    } catch (_) {
-      final cached = await _database.readJson(_cacheKey);
-      if (cached is List) {
-        return cached
-            .whereType<Map>()
-            .map(
-              (json) => GitHubRepository.fromJson(
-                Map<String, dynamic>.from(json),
-              ),
-            )
-            .toList(growable: false);
+      cache.add(repository.toJson());
+      await _database.putJson(_followedCacheKey, cache);
+    } catch (_) {}
+  }
+
+  Future<List<GitHubRepository>> listRepositories() async {
+    final cached = await _readRepositoryCache();
+    if (cached.isNotEmpty) return cached;
+    return refreshRepositories();
+  }
+
+  Future<List<GitHubRepository>> refreshRepositories() async {
+    final running = _repositoriesRefreshInFlight;
+    if (running != null) return running;
+
+    final future = _fetchRepositoriesFromGitHub();
+    _repositoriesRefreshInFlight = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_repositoriesRefreshInFlight, future)) {
+        _repositoriesRefreshInFlight = null;
       }
-      rethrow;
     }
   }
 
+  Future<List<GitHubRepository>> _fetchRepositoriesFromGitHub() async {
+    final repositories = <GitHubRepository>[];
+    for (var page = 1; page <= 10; page++) {
+      final response = await _client.get<List<dynamic>>(
+        '/user/repos',
+        queryParameters: {
+          'affiliation': 'owner,collaborator,organization_member',
+          'sort': 'updated',
+          'direction': 'desc',
+          'per_page': 100,
+          'page': page,
+        },
+      );
+      final pageItems = (response.data ?? const <dynamic>[])
+          .whereType<Map>()
+          .map(
+            (json) => GitHubRepository.fromJson(
+              Map<String, dynamic>.from(json),
+            ),
+          )
+          .toList(growable: false);
+      repositories.addAll(pageItems);
+      if (pageItems.length < 100) break;
+    }
+    await _writeRepositoryCache(repositories);
+    return repositories;
+  }
 
   Future<List<String>> _readFollowedNames() async {
     final stored = await _database.readJson(_followedKey);
@@ -334,8 +432,64 @@ class RepositoryService {
       '/repos/$fullName/forks',
       data: const {'default_branch_only': false},
     );
-    await _database.clearGitHubCache();
-    return GitHubRepository.fromJson(response.data ?? const <String, dynamic>{});
+    final repository =
+        GitHubRepository.fromJson(response.data ?? const <String, dynamic>{});
+    if (repository.fullName.isNotEmpty) {
+      await _safeUpsertRepositoryCache(repository);
+    }
+    return repository;
+  }
+
+  static bool _isAmbiguousMutationError(Object error) =>
+      error is NetworkRequiredException || error is UnexpectedAppException;
+
+  Future<String?> _currentLogin() async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>('/user');
+      final login = response.data?['login']?.toString().trim();
+      return login?.isNotEmpty == true ? login : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<GitHubRepository?> _confirmRepositoryExists(
+    String fullName, {
+    int attempts = 4,
+  }) async {
+    for (var attempt = 0; attempt < attempts; attempt++) {
+      try {
+        return await getRepository(fullName);
+      } on GitHubNotFoundException {
+        if (attempt + 1 < attempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+        }
+      } catch (_) {
+        if (attempt + 1 < attempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<bool> _confirmRepositoryMissing(
+    String fullName, {
+    int attempts = 4,
+  }) async {
+    for (var attempt = 0; attempt < attempts; attempt++) {
+      try {
+        await getRepository(fullName);
+        return false;
+      } on GitHubNotFoundException {
+        return true;
+      } catch (_) {
+        if (attempt + 1 < attempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+        }
+      }
+    }
+    return false;
   }
 
   Future<GitHubRepository> createRepository({
@@ -344,18 +498,34 @@ class RepositoryService {
     bool isPrivate = false,
     String? homepage,
   }) async {
-    final response = await _client.post<Map<String, dynamic>>(
-      '/user/repos',
-      data: {
-        'name': name.trim(),
-        'description': description?.trim() ?? '',
-        'private': isPrivate,
-        'homepage': homepage?.trim() ?? '',
-        'auto_init': true,
-      },
-    );
-    await _database.clearGitHubCache();
-    return GitHubRepository.fromJson(response.data ?? const {});
+    final cleanName = name.trim();
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/user/repos',
+        data: {
+          'name': cleanName,
+          'description': description?.trim() ?? '',
+          'private': isPrivate,
+          'homepage': homepage?.trim() ?? '',
+          'auto_init': true,
+        },
+      );
+      final repository = GitHubRepository.fromJson(response.data ?? const {});
+      await _safeUpsertRepositoryCache(repository);
+      return repository;
+    } catch (error) {
+      if (_isAmbiguousMutationError(error)) {
+        final login = await _currentLogin();
+        if (login != null) {
+          final confirmed = await _confirmRepositoryExists('$login/$cleanName');
+          if (confirmed != null) {
+            await _safeUpsertRepositoryCache(confirmed);
+            return confirmed;
+          }
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<GitHubRepository> updateRepository({
@@ -366,22 +536,86 @@ class RepositoryService {
     required bool isArchived,
     String? homepage,
   }) async {
-    final response = await _client.patch<Map<String, dynamic>>(
-      '/repos/$fullName',
-      data: {
-        'name': name.trim(),
-        'description': description.trim(),
-        'private': isPrivate,
-        'archived': isArchived,
-        'homepage': homepage?.trim() ?? '',
-      },
-    );
-    await _database.clearGitHubCache();
-    return GitHubRepository.fromJson(response.data ?? const {});
+    final cleanName = name.trim();
+    final owner = fullName.split('/').first;
+    final targetFullName = '$owner/$cleanName';
+    try {
+      final response = await _client.patch<Map<String, dynamic>>(
+        '/repos/$fullName',
+        data: {
+          'name': cleanName,
+          'description': description.trim(),
+          'private': isPrivate,
+          'archived': isArchived,
+          'homepage': homepage?.trim() ?? '',
+        },
+      );
+      final repository = GitHubRepository.fromJson(response.data ?? const {});
+      await _safeUpsertRepositoryCache(repository, replaceFullName: fullName);
+      if (repository.fullName.toLowerCase() != fullName.toLowerCase()) {
+        await _safeReplaceFollowedReference(fullName, repository);
+      }
+      return repository;
+    } catch (error) {
+      if (_isAmbiguousMutationError(error)) {
+        final confirmed = await _confirmRepositoryExists(targetFullName);
+        if (confirmed != null) {
+          await _safeUpsertRepositoryCache(confirmed, replaceFullName: fullName);
+          if (confirmed.fullName.toLowerCase() != fullName.toLowerCase()) {
+            await _safeReplaceFollowedReference(fullName, confirmed);
+          }
+          return confirmed;
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<GitHubRepository> renameRepository({
+    required String fullName,
+    required String newName,
+  }) async {
+    final cleanName = newName.trim();
+    if (cleanName.isEmpty) {
+      throw const FormatException('Informe o novo nome do repositório.');
+    }
+    final owner = fullName.split('/').first;
+    final targetFullName = '$owner/$cleanName';
+    try {
+      final response = await _client.patch<Map<String, dynamic>>(
+        '/repos/$fullName',
+        data: {'name': cleanName},
+      );
+      final repository = GitHubRepository.fromJson(response.data ?? const {});
+      await _safeUpsertRepositoryCache(repository, replaceFullName: fullName);
+      await _safeReplaceFollowedReference(fullName, repository);
+      return repository;
+    } catch (error) {
+      if (_isAmbiguousMutationError(error)) {
+        final confirmed = await _confirmRepositoryExists(targetFullName);
+        if (confirmed != null) {
+          await _safeUpsertRepositoryCache(confirmed, replaceFullName: fullName);
+          await _safeReplaceFollowedReference(fullName, confirmed);
+          return confirmed;
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<void> deleteRepository(String fullName) async {
-    await _client.delete<void>('/repos/$fullName');
-    await _database.clearGitHubCache();
+    try {
+      await _client.delete<void>('/repos/$fullName');
+    } on GitHubNotFoundException {
+      // Estado final desejado já foi alcançado.
+    } catch (error) {
+      if (!_isAmbiguousMutationError(error) ||
+          !await _confirmRepositoryMissing(fullName)) {
+        rethrow;
+      }
+    }
+    await _safeRemoveRepositoryFromCaches(fullName);
   }
+
+
 }

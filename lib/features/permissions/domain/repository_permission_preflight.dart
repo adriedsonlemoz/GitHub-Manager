@@ -2,6 +2,7 @@ import 'package:github_manager/features/permissions/domain/repository_permission
 
 enum RepositoryCriticalAction {
   sendBuild,
+  manageFiles,
   manageSecrets,
   deleteRepository,
 }
@@ -31,6 +32,7 @@ class RepositoryPermissionPreflightDecision {
 
   String get actionLabel => switch (action) {
         RepositoryCriticalAction.sendBuild => 'Enviar build',
+        RepositoryCriticalAction.manageFiles => 'Gerenciar arquivos',
         RepositoryCriticalAction.manageSecrets => 'Gerenciar Secrets',
         RepositoryCriticalAction.deleteRepository => 'Excluir repositório',
       };
