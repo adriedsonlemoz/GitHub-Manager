@@ -555,6 +555,17 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
     return '${duration.inSeconds}s';
   }
 
+  static String _formatCompactDate(DateTime? value) {
+    if (value == null) return 'sem data';
+    final date = value.toLocal();
+    const months = <String>[
+      'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+      'jul', 'ago', 'set', 'out', 'nov', 'dez',
+    ];
+    final year = (date.year % 100).toString().padLeft(2, '0');
+    return '${date.day} ${months[date.month - 1]} $year';
+  }
+
   static String _formatDate(DateTime? value) {
     if (value == null) {
       return 'data -';

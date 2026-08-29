@@ -24,7 +24,7 @@ class _RunGroup {
 
   String get title {
     if (primary.event == 'push') {
-      return 'Atualização';
+      return 'Atualizado';
     }
     if (primary.event == 'workflow_dispatch') {
       return 'Build manual';
@@ -58,8 +58,13 @@ class _RunGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timestamp = _RepositoryActionsScreenState._formatDate(group.createdAt);
+    final timestamp =
+        _RepositoryActionsScreenState._formatCompactDate(group.createdAt);
+    final version = group.runs.first.detectedVersion;
     final sha = group.shortSha.isEmpty ? 'commit -' : group.shortSha;
+    final headline = version == null
+        ? '${group.title} $timestamp'
+        : '${group.title} $timestamp | Versão $version';
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
@@ -74,29 +79,16 @@ class _RunGroupCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${group.title} • $timestamp',
+                        headline,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w900,
                             ),
                       ),
-                      if (group.runs.first.detectedVersion != null) ...[
-                        const SizedBox(height: 1),
-                        Row(
-                          children: [
-                            const Icon(Icons.new_releases_outlined, size: 15),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Versão ${group.runs.first.detectedVersion}',
-                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 1),
+                      const SizedBox(height: 2),
                       Text(
-                        '$sha • ${group.eventLabel} • ${group.runs.length} ${group.runs.length == 1 ? 'workflow' : 'workflows'}',
+                        '$sha | ${group.eventLabel} | ${group.runs.length} ${group.runs.length == 1 ? 'workflow' : 'workflows'}',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -217,9 +209,8 @@ class _RunResultTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 1),
                     Text(
-                      '${run.detectedVersion == null ? '' : 'v${run.detectedVersion} • '}'
-                      '${run.branch} • ${_RepositoryActionsScreenState._formatDuration(run)} • '
-                      '${_RepositoryActionsScreenState._formatDate(run.createdAt)}',
+                      '${run.branch} | ${_RepositoryActionsScreenState._formatDuration(run)} | '
+                      '${_RepositoryActionsScreenState._formatCompactDate(run.createdAt)}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
