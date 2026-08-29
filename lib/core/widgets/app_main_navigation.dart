@@ -15,7 +15,6 @@ class AppMainNavigation extends StatelessWidget {
         height: 64,
         selectedIndex: selectedIndex ?? 0,
         onDestinationSelected: (index) {
-          if (selectedIndex == index) return;
           switch (index) {
             case 0:
               context.go('/');

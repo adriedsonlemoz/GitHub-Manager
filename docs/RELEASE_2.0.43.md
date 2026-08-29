@@ -1,4 +1,4 @@
-# GitHub Manager 2.0.46+200060
+# GitHub Manager 2.0.47+200061
 
 - Corrige a API pública do `RepositoryGitService` após a divisão interna por responsabilidades.
 - Acompanhados passa a aceitar cache parcial imediatamente e não depende de todas as consultas de rede para renderizar.

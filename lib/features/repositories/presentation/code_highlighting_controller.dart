@@ -69,8 +69,16 @@ class CodeHighlightingController extends TextEditingController {
   }
 
   List<InlineSpan> _scan(String source, TextStyle base) {
-    final result = <InlineSpan>[];
     final keywords = _keywords;
+    // Texto puro (.md, .txt etc.) não precisa ser quebrado caractere por
+    // caractere. Esse era o motivo de alguns Markdown travarem a interface.
+    // Arquivos grandes de código também desativam realce para manter o editor
+    // responsivo no celular.
+    if (source.length > 60000 ||
+        (keywords.isEmpty && !_hashComments && !_slashComments && !_xmlComments)) {
+      return <InlineSpan>[TextSpan(text: source, style: base)];
+    }
+    final result = <InlineSpan>[];
     var index = 0;
     while (index < source.length) {
       if (_xmlComments && source.startsWith('<!--', index)) {

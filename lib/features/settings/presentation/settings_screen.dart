@@ -448,8 +448,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               secondary: const Icon(Icons.notifications_active_outlined),
               title: const Text('Avisar quando builds terminarem'),
               subtitle: const Text(
-                'Verifica em segundo plano e avisa sobre sucesso, falha ou cancelamento. '
-                'O Android pode atrasar a consulta para economizar bateria.',
+                'Enquanto o aplicativo está ativo, verifica builds recentes em intervalos curtos. '
+                'Em segundo plano, o Android controla a frequência mínima das verificações.',
               ),
               value: _buildNotificationsEnabled ?? true,
               onChanged: _buildNotificationsEnabled == null
@@ -561,16 +561,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.47',
+                      text: 'Notificações de downloads agora são imediatas, monitor de Actions ganhou verificação rápida em processo, navegação Projetos foi corrigida e Arquivos recebeu abertura segura com leitor de README.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.46',
                       text: 'Central de Envios compactada no padrão de APKs/Downloads e Builds com data e versão reunidas no título usando separadores verticais.',
                     ),
                     _ChangeNote(
                       version: '2.0.45',
                       text: 'Operações de repositório e refresh estabilizados, diagnóstico de repositório vazio corrigido e opção para limpar arquivos sem excluir o repositório.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.44',
-                      text: 'Relatório de envio sem borda externa e contagem clara de arquivos realmente enviados durante a sincronização.',
                     ),
                   ],
                 ),

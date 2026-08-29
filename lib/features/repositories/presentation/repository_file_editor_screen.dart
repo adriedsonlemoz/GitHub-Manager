@@ -80,6 +80,12 @@ class _RepositoryFileEditorScreenState
   Future<void> _loadExisting() async {
     setState(() => _loading = true);
     try {
+      if ((widget.item?.size ?? 0) > 512 * 1024) {
+        throw const RepositoryFileException(
+          'Arquivo grande demais para editar com segurança no celular. Use Abrir para visualizar sem travar o aplicativo.',
+          code: 'FILE_EDITOR_MOBILE_LIMIT',
+        );
+      }
       final file = await ref.read(repositoryGitServiceProvider).readTextFile(
             repositoryFullName: widget.repositoryFullName,
             branch: widget.branch,

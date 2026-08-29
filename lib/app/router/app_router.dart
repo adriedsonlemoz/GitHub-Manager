@@ -9,6 +9,7 @@ import 'package:github_manager/features/repositories/presentation/repository_art
 import 'package:github_manager/features/repositories/presentation/repository_commits_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_detail_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_files_screen.dart';
+import 'package:github_manager/features/repositories/presentation/repository_text_preview_screen.dart';
 import 'package:github_manager/features/secrets/presentation/repository_secrets_screen.dart';
 import 'package:github_manager/features/settings/presentation/settings_screen.dart';
 import 'package:github_manager/features/setup/presentation/setup_wizard_screen.dart';
@@ -56,6 +57,17 @@ final appRouter = GoRouter(
         );
       },
       routes: [
+        GoRoute(
+          path: 'readme',
+          builder: (_, state) {
+            final fullName =
+                '${state.pathParameters['owner']}/${state.pathParameters['repo']}';
+            return RepositoryTextPreviewScreen.readme(
+              repositoryFullName: fullName,
+              branch: state.uri.queryParameters['branch'] ?? 'main',
+            );
+          },
+        ),
         GoRoute(
           path: 'files',
           builder: (_, state) {

@@ -1,4 +1,4 @@
-# GitHub Manager 2.0.46+200060
+# GitHub Manager 2.0.47+200061
 
 - Relatório de envio sem borda externa.
 - Contagem explícita de arquivos enviados durante a sincronização.

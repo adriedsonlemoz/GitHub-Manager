@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
@@ -49,6 +50,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(BuildMonitorService.watchRepository(widget.repositoryFullName));
     _future = _load();
     _timer = Timer.periodic(const Duration(seconds: 6), (_) {
       if (_hasRunning && mounted) {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/features/projects/data/git_project_upload_service.dart';
 import 'package:github_manager/features/projects/domain/zip_project.dart';
@@ -381,6 +382,7 @@ class UploadManagerService {
     _schedulePersist();
 
     try {
+      await BuildMonitorService.watchRepository(item.repositoryFullName);
       final launch = await _ensureBuild(
         repositoryFullName: item.repositoryFullName,
         branch: item.branch,

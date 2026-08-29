@@ -7,29 +7,34 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
     String path = '',
   }) async {
     final endpoint = _contentsEndpoint(repositoryFullName, path);
-    final response = await _client.get<dynamic>(
-      endpoint,
-      queryParameters: {'ref': branch},
-    );
-    final raw = response.data;
-    if (raw is! List) {
-      return const [];
+    try {
+      final response = await _client.get<dynamic>(
+        endpoint,
+        queryParameters: {'ref': branch},
+      );
+      final raw = response.data;
+      if (raw is! List) return const [];
+      final items = raw
+          .whereType<Map>()
+          .map(
+            (json) => RepositoryContentItem.fromJson(
+              Map<String, dynamic>.from(json),
+            ),
+          )
+          .toList();
+      items.sort((a, b) {
+        if (a.isDirectory != b.isDirectory) {
+          return a.isDirectory ? -1 : 1;
+        }
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+      return items;
+    } on GitHubNotFoundException {
+      // /contents devolve 404 quando uma branch/repositório ainda não possui
+      // nenhum arquivo. Na raiz isso representa uma lista vazia, não uma falha.
+      if (path.trim().isEmpty) return const [];
+      rethrow;
     }
-    final items = raw
-        .whereType<Map>()
-        .map(
-          (json) => RepositoryContentItem.fromJson(
-            Map<String, dynamic>.from(json),
-          ),
-        )
-        .toList();
-    items.sort((a, b) {
-      if (a.isDirectory != b.isDirectory) {
-        return a.isDirectory ? -1 : 1;
-      }
-      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-    });
-    return items;
   }
 
   Future<RepositoryTextFile> readTextFile({
@@ -70,6 +75,48 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
       throw const RepositoryFileException(
         'O arquivo parece ser binário e não pode ser editado como texto.',
         code: 'FILE_BINARY',
+      );
+    }
+  }
+
+  Future<RepositoryTextFile?> readReadme({
+    required String repositoryFullName,
+    required String branch,
+  }) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/readme',
+        queryParameters: {'ref': branch},
+      );
+      final json = response.data ?? const <String, dynamic>{};
+      final size = (json['size'] as num?)?.toInt() ?? 0;
+      if (size > RepositoryGitService.maxEditableTextBytes) {
+        throw const RepositoryFileException(
+          'O README é grande demais para abrir integralmente no celular.',
+          code: 'README_SIZE_LIMIT',
+        );
+      }
+      if (json['encoding'] != 'base64') {
+        throw const RepositoryFileException(
+          'O README retornado pelo GitHub não está em formato de texto suportado.',
+          code: 'README_ENCODING_UNSUPPORTED',
+        );
+      }
+      final encoded = (json['content'] as String? ?? '').replaceAll('\n', '');
+      final bytes = base64.decode(encoded);
+      return RepositoryTextFile(
+        name: json['name'] as String? ?? 'README.md',
+        path: json['path'] as String? ?? 'README.md',
+        sha: json['sha'] as String? ?? '',
+        content: utf8.decode(bytes, allowMalformed: false),
+        size: size,
+      );
+    } on GitHubNotFoundException {
+      return null;
+    } on FormatException {
+      throw const RepositoryFileException(
+        'O README não pôde ser interpretado como texto.',
+        code: 'README_BINARY',
       );
     }
   }
@@ -230,27 +277,35 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
       final treeSha = treeRaw is Map ? treeRaw['sha']?.toString() : null;
       if (treeSha?.isNotEmpty != true) return null;
 
-      final tree = await _client.get<Map<String, dynamic>>(
+      final rootTree = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/trees/$treeSha',
+      );
+      final rootEntries = (rootTree.data?['tree'] as List? ?? const <dynamic>[])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+
+      final recursiveTree = await _client.get<Map<String, dynamic>>(
         '/repos/$repositoryFullName/git/trees/$treeSha',
         queryParameters: const {'recursive': '1'},
       );
-      if (tree.data?['truncated'] == true) {
+      if (recursiveTree.data?['truncated'] == true) {
         throw const RepositoryFileException(
           'O repositório é grande demais para uma limpeza segura em um único commit.',
           code: 'REPOSITORY_CLEAR_TREE_TRUNCATED',
         );
       }
-
-      final entries = (tree.data?['tree'] as List? ?? const <dynamic>[])
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .where((item) => item['type'] != 'tree')
-          .toList(growable: false);
+      final fileCount =
+          (recursiveTree.data?['tree'] as List? ?? const <dynamic>[])
+              .whereType<Map>()
+              .where((item) => item['type'] != 'tree')
+              .length;
 
       return _RepositoryBranchSnapshot(
         commitSha: commitSha!,
         treeSha: treeSha!,
-        entries: entries,
+        rootEntries: rootEntries,
+        fileCount: fileCount,
       );
     } on GitHubNotFoundException {
       return null;
@@ -265,7 +320,7 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
       repositoryFullName: repositoryFullName,
       branch: branch,
     );
-    return snapshot?.entries.length ?? 0;
+    return snapshot?.fileCount ?? 0;
   }
 
   Future<int> clearRepositoryFiles({
@@ -276,10 +331,12 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
       repositoryFullName: repositoryFullName,
       branch: branch,
     );
-    if (snapshot == null || snapshot.entries.isEmpty) return 0;
+    if (snapshot == null || snapshot.rootEntries.isEmpty) return 0;
 
     try {
-      final deletionTree = snapshot.entries
+      // Remove somente as entradas da raiz. Excluir uma entrada do tipo tree
+      // remove a pasta inteira e evita enviar centenas de deleções aninhadas.
+      final deletionTree = snapshot.rootEntries
           .map(
             (entry) => {
               'path': entry['path'],
@@ -325,7 +382,7 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
         '/repos/$repositoryFullName/git/refs/heads/${_gitRefPath(branch)}',
         data: {'sha': newCommitSha, 'force': false},
       );
-      return snapshot.entries.length;
+      return snapshot.fileCount;
     } on GitHubPermissionException {
       throw const RepositoryFileException(
         'O GitHub bloqueou a limpeza. Verifique Contents: write e as regras/proteções da branch.',
@@ -392,10 +449,12 @@ class _RepositoryBranchSnapshot {
   const _RepositoryBranchSnapshot({
     required this.commitSha,
     required this.treeSha,
-    required this.entries,
+    required this.rootEntries,
+    required this.fileCount,
   });
 
   final String commitSha;
   final String treeSha;
-  final List<Map<String, dynamic>> entries;
+  final List<Map<String, dynamic>> rootEntries;
+  final int fileCount;
 }

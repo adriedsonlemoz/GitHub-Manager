@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
+import 'package:github_manager/core/notifications/app_notification_service.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/downloads/domain/managed_download.dart';
@@ -665,6 +666,7 @@ class DownloadManagerService {
     _progressSamples[item.id] = _ProgressSample(now, initialBytes, 0);
     _emit();
     unawaited(_persistHistory());
+    unawaited(AppNotificationService.requestPermission());
     unawaited(_syncDownloadForegroundService(startService: true));
   }
 
@@ -694,7 +696,7 @@ class DownloadManagerService {
     _progressSamples[item.id] = _ProgressSample(now, received, speed);
     _emit();
     final last = _lastForegroundUpdate;
-    if (last == null || now.difference(last) >= const Duration(milliseconds: 750)) {
+    if (last == null || now.difference(last) >= const Duration(milliseconds: 500)) {
       _lastForegroundUpdate = now;
       unawaited(_syncDownloadForegroundService());
     }
@@ -770,6 +772,11 @@ class DownloadManagerService {
       ..responseMessage = null
       ..bytesPerSecond = 0
       ..estimatedSecondsRemaining = null;
+    await AppNotificationService.showDownloadCompleted(
+      id: item.id,
+      fileName: item.fileName,
+      repository: item.repositoryFullName ?? '',
+    );
     if (await source.exists()) {
       await source.delete();
     }
@@ -799,6 +806,7 @@ class DownloadManagerService {
         ..failureStage = error.stage
         ..httpStatus = error.httpStatus
         ..responseMessage = _cleanTechnicalMessage(error.apiMessage);
+      _notifyDownloadFailure(item);
       return;
     }
 
@@ -808,6 +816,7 @@ class DownloadManagerService {
         ..errorCode = error.code
         ..failureStage = fallbackStage
         ..responseMessage = _cleanTechnicalMessage(error.message);
+      _notifyDownloadFailure(item);
       return;
     }
 
@@ -832,6 +841,7 @@ class DownloadManagerService {
                 : 'DOWNLOAD_WRITE_FAILED'
         ..failureStage = fallbackStage
         ..responseMessage = _cleanTechnicalMessage(message);
+      _notifyDownloadFailure(item);
       return;
     }
 
@@ -841,6 +851,7 @@ class DownloadManagerService {
         ..errorCode = 'DOWNLOAD_CONTENT_INVALID'
         ..failureStage = fallbackStage
         ..responseMessage = null;
+      _notifyDownloadFailure(item);
       return;
     }
 
@@ -849,6 +860,17 @@ class DownloadManagerService {
       ..errorCode = 'DOWNLOAD_UNKNOWN'
       ..failureStage = fallbackStage
       ..responseMessage = _cleanTechnicalMessage(error.toString());
+    _notifyDownloadFailure(item);
+  }
+
+  void _notifyDownloadFailure(ManagedDownload item) {
+    unawaited(
+      AppNotificationService.showDownloadFailed(
+        id: item.id,
+        fileName: item.fileName,
+        message: item.errorMessage ?? 'Não foi possível concluir o download.',
+      ),
+    );
   }
 
   static String _platformFriendlyError(PlatformException error) {

@@ -3,10 +3,12 @@ import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
+import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/features/permissions/domain/repository_permission_preflight.dart';
 import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:github_manager/features/repositories/presentation/repository_file_editor_screen.dart';
+import 'package:github_manager/features/repositories/presentation/repository_text_preview_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:go_router/go_router.dart';
@@ -127,13 +129,46 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
   }
 
   Future<void> _openFile(RepositoryContentItem item) async {
+    if (!_isTextPreviewSupported(item.name)) {
+      final url = item.htmlUrl?.trim();
+      if (url?.isNotEmpty == true) {
+        try {
+          await PlatformActions.openUri(url!);
+        } catch (_) {
+          if (mounted) {
+            showCenteredNotice(
+              context,
+              'Este tipo de arquivo não possui visualização interna. Abra pelo GitHub.',
+            );
+          }
+        }
+      } else if (mounted) {
+        showCenteredNotice(
+          context,
+          'Este tipo de arquivo não possui visualização interna.',
+        );
+      }
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => RepositoryTextPreviewScreen.file(
+          repositoryFullName: widget.repositoryFullName,
+          branch: widget.defaultBranch,
+          item: item,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editFile(RepositoryContentItem item) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => RepositoryFileEditorScreen.existing(
           repositoryFullName: widget.repositoryFullName,
           branch: widget.defaultBranch,
           item: item,
-          readOnly: widget.readOnly,
+          readOnly: false,
         ),
       ),
     );
@@ -471,27 +506,63 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
                             ),
                             trailing: item.isFile
                                 ? widget.readOnly
-                                    ? const Icon(
-                                        Icons.visibility_outlined,
-                                        size: 19,
+                                    ? IconButton(
+                                        tooltip: 'Abrir',
+                                        visualDensity: VisualDensity.compact,
+                                        constraints: const BoxConstraints.tightFor(
+                                          width: 36,
+                                          height: 36,
+                                        ),
+                                        onPressed: () => _openFile(item),
+                                        icon: const Icon(
+                                          Icons.visibility_outlined,
+                                          size: 19,
+                                        ),
                                       )
-                                    : PopupMenuButton<String>(
-                                        tooltip: 'Ações',
-                                        onSelected: (value) {
-                                          if (value == 'open') {
-                                            _openFile(item);
-                                          } else if (value == 'delete') {
-                                            _delete(item);
-                                          }
-                                        },
-                                        itemBuilder: (_) => const [
-                                          PopupMenuItem(
-                                            value: 'open',
-                                            child: Text('Abrir / editar'),
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Abrir',
+                                            visualDensity: VisualDensity.compact,
+                                            constraints:
+                                                const BoxConstraints.tightFor(
+                                              width: 34,
+                                              height: 34,
+                                            ),
+                                            onPressed: () => _openFile(item),
+                                            icon: const Icon(
+                                              Icons.visibility_outlined,
+                                              size: 18,
+                                            ),
                                           ),
-                                          PopupMenuItem(
-                                            value: 'delete',
-                                            child: Text('Excluir'),
+                                          IconButton(
+                                            tooltip: 'Editar',
+                                            visualDensity: VisualDensity.compact,
+                                            constraints:
+                                                const BoxConstraints.tightFor(
+                                              width: 34,
+                                              height: 34,
+                                            ),
+                                            onPressed: () => _editFile(item),
+                                            icon: const Icon(
+                                              Icons.edit_outlined,
+                                              size: 18,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Excluir',
+                                            visualDensity: VisualDensity.compact,
+                                            constraints:
+                                                const BoxConstraints.tightFor(
+                                              width: 34,
+                                              height: 34,
+                                            ),
+                                            onPressed: () => _delete(item),
+                                            icon: const Icon(
+                                              Icons.delete_outline_rounded,
+                                              size: 18,
+                                            ),
                                           ),
                                         ],
                                       )
@@ -517,6 +588,18 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
   }
 
   String _message(Object error) => error is AppException ? error.message : 'Não foi possível carregar os arquivos.';
+
+  static bool _isTextPreviewSupported(String name) {
+    final lower = name.toLowerCase();
+    return const <String>{
+      '.md', '.markdown', '.mdown', '.txt', '.dart', '.json', '.yaml', '.yml',
+      '.xml', '.html', '.htm', '.css', '.js', '.ts', '.mjs', '.cjs', '.java',
+      '.kt', '.kts', '.gradle', '.properties', '.toml', '.ini', '.cfg', '.conf',
+      '.sh', '.py', '.rb', '.go', '.rs', '.c', '.h', '.cpp', '.hpp', '.sql',
+      '.gitignore', '.gitattributes', '.env',
+    }.any(lower.endsWith) ||
+        !lower.contains('.');
+  }
 
   static IconData _fileIcon(String name) {
     final lower = name.toLowerCase();

@@ -639,6 +639,15 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                   sliver: SliverList.list(
                     children: [
                       _WorkspaceTile(
+                        icon: Icons.menu_book_outlined,
+                        title: 'README',
+                        subtitle: 'Ler a apresentação e documentação do projeto',
+                        onTap: () => context.push(
+                          '/repositories/${repository.fullName}/readme?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      _WorkspaceTile(
                         icon: Icons.folder_open_rounded,
                         title: 'Arquivos',
                         subtitle: widget.readOnly

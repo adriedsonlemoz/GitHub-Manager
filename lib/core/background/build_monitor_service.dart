@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
+import 'package:github_manager/core/notifications/app_notification_service.dart';
 import 'package:github_manager/core/persistence/local_database.dart';
 import 'package:github_manager/core/security/secure_storage_service.dart';
 import 'package:github_manager/features/repositories/data/repository_service.dart';
@@ -14,6 +15,7 @@ const _buildMonitorTag = 'github_manager_build_monitor_tag';
 const _enabledKey = 'settings.build_notifications';
 const _startedAtKey = 'notifications.build_monitor_started_at';
 const _notifiedRunsKey = 'notifications.notified_run_ids';
+const _watchedRepositoriesKey = 'notifications.watched_repositories';
 
 @pragma('vm:entry-point')
 void buildMonitorCallbackDispatcher() {
@@ -35,12 +37,12 @@ void buildMonitorCallbackDispatcher() {
 class BuildMonitorService {
   BuildMonitorService._();
 
-  static final FlutterLocalNotificationsPlugin _notifications =
-      FlutterLocalNotificationsPlugin();
+  static Timer? _fastPollTimer;
+  static bool _fastCheckRunning = false;
 
   static Future<void> initialize() async {
     await Workmanager().initialize(buildMonitorCallbackDispatcher);
-    await _initializeNotifications();
+    await AppNotificationService.initialize();
   }
 
   static Future<void> ensureDefaultEnabled() async {
@@ -49,6 +51,7 @@ class BuildMonitorService {
       final stored = await database.readJson(_enabledKey);
       if (stored == false) {
         await Workmanager().cancelByUniqueName(_buildMonitorUniqueName);
+        _stopFastPolling();
         return;
       }
 
@@ -63,9 +66,11 @@ class BuildMonitorService {
       final allowed = await requestPermission();
       if (allowed) {
         await _register();
+        _startFastPolling();
       } else {
         await database.putJson(_enabledKey, false);
         await Workmanager().cancelByUniqueName(_buildMonitorUniqueName);
+        _stopFastPolling();
       }
     } finally {
       await database.close();
@@ -87,6 +92,7 @@ class BuildMonitorService {
       if (!enabled) {
         await database.putJson(_enabledKey, false);
         await Workmanager().cancelByUniqueName(_buildMonitorUniqueName);
+        _stopFastPolling();
         return false;
       }
 
@@ -102,19 +108,15 @@ class BuildMonitorService {
         DateTime.now().millisecondsSinceEpoch,
       );
       await _register();
+      _startFastPolling();
       return true;
     } finally {
       await database.close();
     }
   }
 
-  static Future<bool> requestPermission() async {
-    await _initializeNotifications();
-    final android = _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    final result = await android?.requestNotificationsPermission();
-    return result ?? true;
-  }
+  static Future<bool> requestPermission() =>
+      AppNotificationService.requestPermission();
 
   static Future<void> _register() =>
       Workmanager().registerPeriodicTask(
@@ -125,18 +127,33 @@ class BuildMonitorService {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
         constraints: Constraints(
           networkType: NetworkType.connected,
-          requiresBatteryNotLow: true,
         ),
       );
 
-  static Future<void> _initializeNotifications() async {
-    const settings = InitializationSettings(
-      android: AndroidInitializationSettings('ic_launcher'),
-    );
-    await _notifications.initialize(settings: settings);
+  static Future<void> watchRepository(String fullName) async {
+    final value = fullName.trim();
+    if (value.isEmpty) return;
+    final database = LocalDatabase();
+    try {
+      final raw = await database.readJson(_watchedRepositoriesKey);
+      final items = <String>[
+        value,
+        if (raw is List)
+          ...raw.whereType<String>().where(
+                (item) => item.toLowerCase() != value.toLowerCase(),
+              ),
+      ].take(12).toList(growable: false);
+      await database.putJson(_watchedRepositoriesKey, items);
+    } finally {
+      await database.close();
+    }
+    if (await isEnabled()) {
+      _startFastPolling();
+      unawaited(_runFastCheck());
+    }
   }
 
-  static Future<bool> runBackgroundCheck() async {
+  static Future<bool> runBackgroundCheck({int maxRepositories = 30}) async {
     final database = LocalDatabase();
     try {
       if (await database.readJson(_enabledKey) == false) {
@@ -167,8 +184,23 @@ class BuildMonitorService {
       final client = GitHubApiClient(secureStorage);
       final repositoryService = RepositoryService(client, database);
       final repositories = await repositoryService.listRepositories();
+      final watchedRaw = await database.readJson(_watchedRepositoriesKey);
+      final watched = watchedRaw is List
+          ? watchedRaw.whereType<String>().map((item) => item.toLowerCase()).toList()
+          : const <String>[];
+      final byName = {
+        for (final repository in repositories)
+          repository.fullName.toLowerCase(): repository,
+      };
+      final ordered = [
+        for (final name in watched)
+          if (byName[name] != null) byName[name]!,
+        ...repositories.where(
+          (repository) => !watched.contains(repository.fullName.toLowerCase()),
+        ),
+      ];
 
-      for (final repository in repositories.take(30)) {
+      for (final repository in ordered.take(maxRepositories)) {
         try {
           final response = await client.get<Map<String, dynamic>>(
             '/repos/${repository.fullName}/actions/runs',
@@ -247,36 +279,40 @@ class BuildMonitorService {
     required String workflowName,
     required int? runNumber,
     required String conclusion,
-  }) async {
-    await _initializeNotifications();
+  }) =>
+      AppNotificationService.showBuildResult(
+        id: id,
+        repository: repository,
+        workflowName: workflowName,
+        runNumber: runNumber,
+        conclusion: conclusion,
+      );
 
-    final (title, status) = switch (conclusion) {
-      'success' => ('Build concluída ✓', 'concluída com sucesso'),
-      'failure' => ('Build falhou', 'falhou'),
-      'cancelled' => ('Build cancelada', 'foi cancelada'),
-      'timed_out' => ('Build excedeu o tempo', 'excedeu o tempo limite'),
-      _ => ('Build precisa de atenção', 'precisa de atenção'),
-    };
-
-    const details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        'github_build_status',
-        'Status das builds',
-        channelDescription:
-            'Avisos quando uma execução do GitHub Actions termina.',
-        importance: Importance.high,
-        priority: Priority.high,
-        category: AndroidNotificationCategory.status,
-      ),
+  static void _startFastPolling() {
+    if (_fastPollTimer != null) return;
+    unawaited(_runFastCheck());
+    _fastPollTimer = Timer.periodic(
+      const Duration(seconds: 35),
+      (_) => unawaited(_runFastCheck()),
     );
+  }
 
-    final number = runNumber == null ? '' : ' #$runNumber';
-    await _notifications.show(
-      id: id & 0x7fffffff,
-      title: title,
-      body: '$repository • $workflowName$number $status.',
-      notificationDetails: details,
-      payload: repository,
-    );
+  static void _stopFastPolling() {
+    _fastPollTimer?.cancel();
+    _fastPollTimer = null;
+  }
+
+  static Future<void> _runFastCheck() async {
+    if (_fastCheckRunning) return;
+    _fastCheckRunning = true;
+    try {
+      if (await isEnabled()) {
+        await runBackgroundCheck(maxRepositories: 10);
+      }
+    } catch (_) {
+      // O monitor periódico continua sendo o fallback em segundo plano.
+    } finally {
+      _fastCheckRunning = false;
+    }
   }
 }
