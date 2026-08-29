@@ -15,6 +15,12 @@ class UploadDetailsDialog extends StatelessWidget {
     final statusColor = _statusColor(scheme, item.status);
 
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide.none,
+      ),
       titlePadding: const EdgeInsets.fromLTRB(16, 14, 10, 0),
       contentPadding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
       title: Row(
@@ -26,7 +32,7 @@ class UploadDetailsDialog extends StatelessWidget {
         ],
       ),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: const BoxConstraints(maxWidth: 620),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,8 +50,8 @@ class UploadDetailsDialog extends StatelessWidget {
                   ),
                   _Metric(
                     icon: Icons.edit_outlined,
-                    value: '${item.changedFiles}',
-                    label: 'alterados',
+                    value: '${item.sentFiles}',
+                    label: 'enviados',
                   ),
                   _Metric(
                     icon: Icons.check_circle_outline_rounded,

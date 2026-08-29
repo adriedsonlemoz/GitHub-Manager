@@ -147,12 +147,15 @@ class ManagedUpload {
 
   int get analyzedFiles => unchangedFiles + changedFiles + resumedFiles;
 
+  /// Arquivos que precisaram ser sincronizados com conteúdo novo nesta tentativa.
+  int get sentFiles => changedFiles;
+
   String get syncSummaryLabel {
     if (fileCount <= 0) return 'Sem arquivos contabilizados';
     if (analyzedFiles <= 0) return '$fileCount arquivos no ZIP';
     final parts = <String>[
       '$analyzedFiles analisados',
-      if (changedFiles > 0) '$changedFiles alterados',
+      if (sentFiles > 0) '$sentFiles enviados',
       if (unchangedFiles > 0) '$unchangedFiles já atualizados',
       if (resumedFiles > 0) '$resumedFiles retomados',
       if (removedFiles > 0) '$removedFiles removidos',
@@ -419,7 +422,7 @@ class ManagedUpload {
       'ARQUIVOS',
       'Analisados: ${analyzedFiles > 0 ? analyzedFiles : fileCount}',
       'Já atualizados: $unchangedFiles',
-      'Alterados nesta tentativa: $changedFiles',
+      'Enviados nesta tentativa: $sentFiles',
       'Retomados do checkpoint: $resumedFiles',
       'Removidos do repositório: $removedFiles',
       if (changedFileSamples.isNotEmpty) ...[

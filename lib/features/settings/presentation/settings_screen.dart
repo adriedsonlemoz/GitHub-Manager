@@ -561,16 +561,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.44',
+                      text: 'Relatório de envio sem borda externa e contagem clara de arquivos realmente enviados durante a sincronização.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.43',
-                      text: 'Acompanhados estabilizado: cache parcial imediato, refresh deduplicado e erros reais exibidos sem loading indefinido.',
+                      text: 'Acompanhados com cache imediato, atualização deduplicada, limpeza de referências inválidas e erro claro quando a rede realmente falhar.',
                     ),
                     _ChangeNote(
                       version: '2.0.42',
-                      text: 'Serviços Git reorganizados e janelas de envio ajustadas para aproveitar melhor a largura da tela.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.41',
-                      text: 'Diagnóstico do token e Issues compactados, com componentes grandes separados em arquivos menores.',
+                      text: 'Serviço Git do repositório reorganizado e janelas de envio ajustadas para aproveitar melhor a largura da tela.',
                     ),
                   ],
                 ),
