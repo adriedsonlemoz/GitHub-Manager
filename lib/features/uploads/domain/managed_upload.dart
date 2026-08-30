@@ -422,7 +422,7 @@ class ManagedUpload {
       'ARQUIVOS',
       'Analisados: ${analyzedFiles > 0 ? analyzedFiles : fileCount}',
       'Já atualizados: $unchangedFiles',
-      'Enviados nesta tentativa: $sentFiles',
+      'Alterados nesta tentativa: $sentFiles',
       'Retomados do checkpoint: $resumedFiles',
       'Removidos do repositório: $removedFiles',
       if (changedFileSamples.isNotEmpty) ...[

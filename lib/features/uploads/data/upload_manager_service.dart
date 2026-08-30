@@ -382,7 +382,13 @@ class UploadManagerService {
     _schedulePersist();
 
     try {
-      await BuildMonitorService.watchRepository(item.repositoryFullName);
+      try {
+        await BuildMonitorService.watchRepository(item.repositoryFullName);
+      } catch (_) {
+        // O monitor de notificações é auxiliar: uma falha local não pode
+        // impedir que a build real seja localizada ou iniciada no GitHub.
+        item.addLog('Monitoramento de build indisponível; continuando normalmente');
+      }
       final launch = await _ensureBuild(
         repositoryFullName: item.repositoryFullName,
         branch: item.branch,

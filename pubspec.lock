@@ -260,7 +260,7 @@ packages:
     version: "3.1.1"
   flutter_localizations:
     dependency: transitive
-    description: flutter_localizations
+    description: flutter
     source: sdk
     version: "0.0.0"
   flutter_riverpod:
@@ -314,12 +314,12 @@ packages:
     version: "4.2.2"
   flutter_test:
     dependency: "direct dev"
-    description: flutter_test
+    description: flutter
     source: sdk
     version: "0.0.0"
   flutter_web_plugins:
     dependency: transitive
-    description: flutter_web_plugins
+    description: flutter
     source: sdk
     version: "0.0.0"
   frontend_server_client:
@@ -646,7 +646,7 @@ packages:
     version: "3.0.0"
   sky_engine:
     dependency: transitive
-    description: sky_engine
+    description: flutter
     source: sdk
     version: "0.0.0"
   source_map_stack_trace:

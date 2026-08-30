@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.50+200064`, com correção do assistente de conexão GitHub para distinguir PAT rejeitado de ausência de conta e normalizar tokens colados; mantém a reconciliação da lista de repositórios, proteção de URLs temporárias, timeout Android 15+, dependências travadas, Central de Envios e retomada por checkpoint.
+Estado atual: `2.0.51+200065`, com novo launcher Android/adaptive icon e correção do lockfile que bloqueava CI/APK com exit code 65; mantém as correções do assistente de conexão, reconciliação de repositórios, proteção de URLs temporárias, timeout Android 15+, Central de Envios e retomada por checkpoint.
 
 ## Arquitetura
 
