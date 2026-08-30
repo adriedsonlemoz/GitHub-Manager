@@ -32,6 +32,21 @@ final class AuthenticationRequiredException extends AppException {
         );
 }
 
+final class InvalidGitHubTokenException extends AppException {
+  // ignore: use_super_parameters
+  const InvalidGitHubTokenException({
+    int? httpStatus,
+    String? endpoint,
+    String? apiMessage,
+  }) : super(
+          'O GitHub rejeitou este token. Ele pode ter expirado, sido revogado ou sido copiado incorretamente. Gere um novo Personal Access Token e tente novamente.',
+          technicalCode: 'GITHUB_TOKEN_INVALID',
+          httpStatus: httpStatus,
+          endpoint: endpoint,
+          apiMessage: apiMessage,
+        );
+}
+
 final class NetworkRequiredException extends AppException {
   const NetworkRequiredException()
       : super(

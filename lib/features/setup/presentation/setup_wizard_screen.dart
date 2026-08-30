@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
+import 'package:github_manager/core/security/github_token_normalizer.dart';
 import 'package:github_manager/features/auth/presentation/auth_providers.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
@@ -351,6 +352,12 @@ class _TokenStep extends StatelessWidget {
             autofocus: true,
             autocorrect: false,
             enableSuggestions: false,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) {
+              if (!working) {
+                onConnect();
+              }
+            },
             decoration: InputDecoration(
               labelText: 'Personal Access Token',
               hintText: 'github_pat_... ou ghp_...',
@@ -364,8 +371,9 @@ class _TokenStep extends StatelessWidget {
                       if (text == null || text.isEmpty) {
                         return;
                       }
+                      final normalized = normalizeGitHubToken(text);
                       token
-                        ..text = text.trim()
+                        ..text = normalized
                         ..selection = TextSelection.collapsed(offset: token.text.length);
                     },
                     icon: const Icon(Icons.content_paste_rounded, size: 18),

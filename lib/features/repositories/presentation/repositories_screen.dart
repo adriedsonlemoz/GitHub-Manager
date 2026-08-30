@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,7 +35,7 @@ class RepositoriesScreen extends ConsumerStatefulWidget {
 }
 
 class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
-    with _RepositoriesScreenActions {
+    with WidgetsBindingObserver, _RepositoriesScreenActions {
   final _searchController = TextEditingController();
   String _query = '';
   String _filter = 'Todos';
@@ -45,6 +47,8 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
   void initState() {
     super.initState();
     _section = widget.initialSection;
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleRepositoryReconciliation();
   }
 
   @override
@@ -57,13 +61,46 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
         _filter = 'Todos';
         _searchController.clear();
       });
+      _scheduleRepositoryReconciliation();
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_reconcileRepositories());
+    }
+  }
+
+  void _scheduleRepositoryReconciliation() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_reconcileRepositories());
+      }
+    });
+  }
+
+  Future<void> _reconcileRepositories() async {
+    try {
+      final service = ref.read(repositoryServiceProvider);
+      if (_showingFollowed) {
+        await service.refreshFollowedRepositories();
+        if (mounted) ref.invalidate(followedRepositoriesProvider);
+      } else {
+        await service.refreshRepositories();
+        if (mounted) ref.invalidate(repositoriesProvider);
+      }
+    } catch (_) {
+      // A reconciliação automática é best-effort. O cache continua disponível
+      // offline e o pull-to-refresh permanece responsável por exibir erros.
+    }
   }
 
   List<GitHubRepository> _applyFilters(List<GitHubRepository> source) {

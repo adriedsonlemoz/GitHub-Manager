@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
@@ -7,12 +8,14 @@ import 'package:github_manager/core/utils/commit_message.dart';
 import 'package:github_manager/core/utils/git_object_hash.dart';
 import 'package:github_manager/features/projects/data/local_project_service.dart';
 import 'package:github_manager/features/projects/domain/zip_project.dart';
+import 'package:path/path.dart' as p;
 
 class GitProjectUploadService {
   GitProjectUploadService(this._client);
 
   static const _maxInlineFileBytes = 128 * 1024;
   static const _maxInlineTreeBytes = 4 * 1024 * 1024;
+  static const _streamingFileThreshold = 1024 * 1024;
 
   final GitHubApiClient _client;
 
@@ -115,106 +118,143 @@ class GitProjectUploadService {
         }
         newPaths.add(gitPath);
 
-        final bytes = entry.readBytes();
-        if (bytes == null) {
-          throw InvalidZipException(
-            'Não foi possível ler $gitPath dentro do ZIP.',
-            code: 'ZIP_ENTRY_READ_FAILED',
-          );
-        }
-        final mode = _gitMode(entry.mode);
-        final contentBlobSha = GitObjectHash.blobSha(bytes);
-        final existing = existingEntries[gitPath];
-        if (existing != null &&
-            existing.type == 'blob' &&
-            existing.mode == mode &&
-            (existing.size == null || existing.size == bytes.length) &&
-            existing.sha == contentBlobSha) {
-          treeEntries.add({
-            'path': gitPath,
-            'mode': mode,
-            'type': 'blob',
-            'sha': existing.sha,
-          });
-          processed++;
-          onProgress?.call(
-            ProjectUploadProgress(
-              phase: 'Arquivo já está atualizado',
-              current: processed,
-              total: project.fileCount,
-              fileName: gitPath,
-              kind: ProjectUploadProgressKind.unchanged,
-            ),
-          );
-          continue;
-        }
-
-        final checkpointSha = reusableBlobShas[gitPath];
-        if (checkpointSha == contentBlobSha) {
-          treeEntries.add({
-            'path': gitPath,
-            'mode': mode,
-            'type': 'blob',
-            'sha': checkpointSha,
-          });
-          processed++;
-          onProgress?.call(
-            ProjectUploadProgress(
-              phase: 'Retomando arquivo já enviado',
-              current: processed,
-              total: project.fileCount,
-              fileName: gitPath,
-              kind: ProjectUploadProgressKind.resumed,
-            ),
-          );
-          continue;
-        }
-
-        final text = _tryDecodeText(bytes);
-        final canInline = text != null &&
-            bytes.length <= _maxInlineFileBytes &&
-            inlineBytes + bytes.length <= _maxInlineTreeBytes;
-
-        if (canInline) {
-          treeEntries.add({
-            'path': gitPath,
-            'mode': mode,
-            'type': 'blob',
-            'content': text,
-          });
-          inlineBytes += bytes.length;
-        } else {
-          onProgress?.call(
-            ProjectUploadProgress(
-              phase: 'Enviando arquivo para o GitHub',
-              current: processed,
-              total: project.fileCount,
-              fileName: gitPath,
-              kind: ProjectUploadProgressKind.transferStarted,
-            ),
-          );
-          final blobResponse = await _client.post<Map<String, dynamic>>(
-            '/repos/$repositoryFullName/git/blobs',
-            data: {
-              'content': base64Encode(bytes),
-              'encoding': 'base64',
-            },
-          );
-          final sha = blobResponse.data?['sha'] as String?;
-          if (sha == null || sha.isEmpty) {
-            throw const UnexpectedAppException('BLOB_SHA_MISSING');
+        List<int>? bytes;
+        File? temporaryFile;
+        int contentLength;
+        String contentBlobSha;
+        try {
+          if (entry.size > _streamingFileThreshold) {
+            temporaryFile = File(
+              p.join(
+                Directory.systemTemp.path,
+                'github_manager_blob_${DateTime.now().microsecondsSinceEpoch}_$processed.tmp',
+              ),
+            );
+            final output = OutputFileStream(temporaryFile.path);
+            try {
+              // writeContent descompacta direto no disco e libera o conteúdo
+              // descompactado mantido pelo ArchiveFile, evitando um pico de RAM.
+              entry.writeContent(output);
+            } finally {
+              output.closeSync();
+            }
+            contentLength = await temporaryFile.length();
+            contentBlobSha = await GitObjectHash.blobShaFile(temporaryFile);
+          } else {
+            bytes = entry.readBytes();
+            if (bytes == null) {
+              throw InvalidZipException(
+                'Não foi possível ler $gitPath dentro do ZIP.',
+                code: 'ZIP_ENTRY_READ_FAILED',
+              );
+            }
+            contentLength = bytes.length;
+            contentBlobSha = GitObjectHash.blobSha(bytes);
           }
-          if (sha != contentBlobSha) {
-            throw const UnexpectedAppException('BLOB_SHA_MISMATCH');
+
+          final mode = _gitMode(entry.mode);
+          final existing = existingEntries[gitPath];
+          if (existing != null &&
+              existing.type == 'blob' &&
+              existing.mode == mode &&
+              (existing.size == null || existing.size == contentLength) &&
+              existing.sha == contentBlobSha) {
+            treeEntries.add({
+              'path': gitPath,
+              'mode': mode,
+              'type': 'blob',
+              'sha': existing.sha,
+            });
+            processed++;
+            onProgress?.call(
+              ProjectUploadProgress(
+                phase: 'Arquivo já está atualizado',
+                current: processed,
+                total: project.fileCount,
+                fileName: gitPath,
+                kind: ProjectUploadProgressKind.unchanged,
+              ),
+            );
+            continue;
           }
-          onBlobUploaded?.call(gitPath, sha);
-          treeEntries.add({
-            'path': gitPath,
-            'mode': mode,
-            'type': 'blob',
-            'sha': sha,
-          });
-          await Future<void>.delayed(const Duration(seconds: 1));
+
+          final checkpointSha = reusableBlobShas[gitPath];
+          if (checkpointSha == contentBlobSha) {
+            treeEntries.add({
+              'path': gitPath,
+              'mode': mode,
+              'type': 'blob',
+              'sha': checkpointSha,
+            });
+            processed++;
+            onProgress?.call(
+              ProjectUploadProgress(
+                phase: 'Retomando arquivo já enviado',
+                current: processed,
+                total: project.fileCount,
+                fileName: gitPath,
+                kind: ProjectUploadProgressKind.resumed,
+              ),
+            );
+            continue;
+          }
+
+          final text = bytes == null ? null : _tryDecodeText(bytes);
+          final canInline = text != null &&
+              contentLength <= _maxInlineFileBytes &&
+              inlineBytes + contentLength <= _maxInlineTreeBytes;
+
+          if (canInline) {
+            treeEntries.add({
+              'path': gitPath,
+              'mode': mode,
+              'type': 'blob',
+              'content': text,
+            });
+            inlineBytes += contentLength;
+          } else {
+            onProgress?.call(
+              ProjectUploadProgress(
+                phase: 'Enviando arquivo para o GitHub',
+                current: processed,
+                total: project.fileCount,
+                fileName: gitPath,
+                kind: ProjectUploadProgressKind.transferStarted,
+              ),
+            );
+            final blobResponse = temporaryFile != null
+                ? await _client.postBase64File<Map<String, dynamic>>(
+                    '/repos/$repositoryFullName/git/blobs',
+                    temporaryFile,
+                  )
+                : await _client.post<Map<String, dynamic>>(
+                    '/repos/$repositoryFullName/git/blobs',
+                    data: {
+                      'content': base64Encode(bytes!),
+                      'encoding': 'base64',
+                    },
+                  );
+            final sha = blobResponse.data?['sha'] as String?;
+            if (sha == null || sha.isEmpty) {
+              throw const UnexpectedAppException('BLOB_SHA_MISSING');
+            }
+            if (sha != contentBlobSha) {
+              throw const UnexpectedAppException('BLOB_SHA_MISMATCH');
+            }
+            onBlobUploaded?.call(gitPath, sha);
+            treeEntries.add({
+              'path': gitPath,
+              'mode': mode,
+              'type': 'blob',
+              'sha': sha,
+            });
+            await Future<void>.delayed(const Duration(seconds: 1));
+          }
+        } finally {
+          entry.clear();
+          if (temporaryFile != null && await temporaryFile.exists()) {
+            await temporaryFile.delete();
+          }
         }
         processed++;
         onProgress?.call(

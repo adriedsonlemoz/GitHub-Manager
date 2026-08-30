@@ -1,4 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:github_manager/core/security/github_token_normalizer.dart';
 
 class SecureStorageService {
   SecureStorageService({FlutterSecureStorage? storage})
@@ -16,12 +17,12 @@ class SecureStorageService {
 
   Future<String?> readGitHubToken() async {
     final value = await _storage.read(key: _githubTokenKey);
-    final token = value?.trim();
+    final token = value == null ? null : normalizeGitHubToken(value);
     return token == null || token.isEmpty ? null : token;
   }
 
   Future<void> writeGitHubToken(String token) =>
-      _storage.write(key: _githubTokenKey, value: token.trim());
+      _storage.write(key: _githubTokenKey, value: normalizeGitHubToken(token));
 
   Future<void> deleteGitHubToken() => _storage.delete(key: _githubTokenKey);
 

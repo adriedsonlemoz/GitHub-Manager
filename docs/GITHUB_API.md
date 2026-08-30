@@ -36,13 +36,13 @@ Jobs são obtidos por `GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs`. Pa
 
 ## Downloads
 
-Downloads de logs, artifacts e ZIP do repositório usam endpoints autenticados do GitHub para obter o redirecionamento. Release Assets usam `/repos/{owner}/{repo}/releases/assets/{asset_id}` com `Accept: application/octet-stream`, aceitando resposta direta ou redirecionamento; por isso também funcionam em repositórios privados. URLs temporárias assinadas não são persistidas nem exibidas no log.
+Downloads de logs, artifacts e ZIP do repositório usam endpoints autenticados do GitHub para obter o redirecionamento. Release Assets usam `/repos/{owner}/{repo}/releases/assets/{asset_id}` com `Accept: application/octet-stream`, aceitando resposta direta ou redirecionamento; por isso também funcionam em repositórios privados. URLs temporárias assinadas nunca são usadas como endpoint diagnóstico: erros preservam somente o endpoint original da API e mensagens técnicas removem parâmetros de URLs antes da persistência/log.
 
 Falhas são classificadas, quando possível, em rede, autenticação, permissão, rate limit, 404, artifact expirado/410, URL temporária expirada, interrupção e falha de gravação em Downloads. Downloads ativos são persistidos; se o processo for encerrado, reaparecem como `Interrompido` e podem ser repetidos.
 
 ## Upload de ZIP
 
-A importação usa refs, commits, trees e blobs. Arquivos-texto pequenos podem ser enviados diretamente como `content` da tree; binários e arquivos maiores usam blobs base64. Antes do commit, caminhos existentes que não aparecem no ZIP são enviados na tree com `sha: null`, garantindo sincronização completa. A branch é atualizada somente após o novo commit completo ser criado.
+A importação usa refs, commits, trees e blobs. Arquivos-texto pequenos podem ser enviados diretamente como `content` da tree; binários e arquivos maiores usam blobs base64. Para arquivos maiores, o ZIP é descompactado para arquivo temporário, o SHA Git é calculado por stream e o JSON/base64 é enviado em fluxo, evitando manter o arquivo completo e sua codificação base64 simultaneamente na memória. Antes do commit, caminhos existentes que não aparecem no ZIP são enviados na tree com `sha: null`, garantindo sincronização completa. A branch é atualizada somente após o novo commit completo ser criado.
 
 ## Secrets
 

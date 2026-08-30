@@ -40,6 +40,21 @@ class UploadForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        // Android 15+ limita foreground services do tipo dataSync. Ao atingir
+        // o limite, encerramos o serviço imediatamente para evitar
+        // RemoteServiceException. O estado/checkpoint fica no lado Flutter e
+        // é retomado automaticamente na próxima execução do aplicativo.
+        isRunning = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        stopSelf(startId)
+    }
+
     override fun onDestroy() {
         isRunning = false
         super.onDestroy()

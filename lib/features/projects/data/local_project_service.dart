@@ -11,6 +11,7 @@ class LocalProjectService {
   static const maxUncompressedBytes = 500 * 1024 * 1024;
   static const maxFiles = 5000;
   static const maxFileBytes = 95 * 1024 * 1024;
+  static const _maxIdentityFileBytes = 1024 * 1024;
 
   Future<ZipProjectPreview?> pickAndAnalyzeZip() async {
     final selected = await FilePicker.pickFile(
@@ -118,9 +119,10 @@ class LocalProjectService {
         }
 
         final lowerPath = normalized.toLowerCase();
-        if (_isIdentityFile(lowerPath)) {
+        if (_isIdentityFile(lowerPath) &&
+            entry.size <= _maxIdentityFileBytes) {
           final bytes = entry.readBytes();
-          if (bytes != null && bytes.length <= 1024 * 1024) {
+          if (bytes != null) {
             final text = utf8.decode(bytes, allowMalformed: true);
             if (lowerPath.endsWith('github-manager.json') ||
                 lowerPath.endsWith('app.json') ||
@@ -181,6 +183,7 @@ class LocalProjectService {
               ).firstMatch(text)?.group(1)?.trim();
             }
           }
+          entry.clear();
         }
       }
     } finally {

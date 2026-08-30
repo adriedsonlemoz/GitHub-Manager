@@ -561,16 +561,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.50',
+                      text: 'Assistente de configuração distingue token rejeitado de conta desconectada e normaliza PATs colados para evitar falhas por formatação invisível.',
+                    ),
+                    _ChangeNote(
+                      version: '2.0.49',
+                      text: 'Repositórios externos excluídos são reconciliados ao abrir/retomar o app; downloads protegem URLs temporárias, Android 15+ trata timeout e uploads grandes usam menos memória.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.48',
                       text: 'Downloads de APK priorizam Release direta da mesma versão e artifacts diretos deixam de ser reprocessados; ajuda explica Artifact x Release.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.47',
-                      text: 'Notificações de downloads/builds revisadas, navegação para Projetos corrigida e Arquivos ganhou abertura segura e visualização de README.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.46',
-                      text: 'Central de Envios compactada e Builds reorganizadas com data, versão e separadores verticais.',
                     ),
                   ],
                 ),

@@ -60,7 +60,7 @@ jobs:
           KEYEOF
 
       - name: Dependências
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Validar versão
         run: bash tool/check_version_sync.sh

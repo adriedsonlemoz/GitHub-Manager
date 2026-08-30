@@ -31,7 +31,7 @@ jobs:
           pub-cache: true
 
       - name: Dependências
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Validar versão canônica
         run: bash tool/check_version_sync.sh

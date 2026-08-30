@@ -157,7 +157,7 @@ class DownloadManagerService {
       fileName: fileName,
       type: isApk ? ManagedDownloadType.apk : ManagedDownloadType.file,
       repositoryFullName: repositoryFullName,
-      sourceEndpoint: url,
+      sourceEndpoint: _sanitizeDiagnosticEndpoint(url),
     );
     unawaited(_runDirectUrl(item, url));
     return item;
@@ -311,7 +311,7 @@ class DownloadManagerService {
       final resumeFrom = await partialFile.exists() ? await partialFile.length() : 0;
       item
         ..fileName = p.basename(completedFile.path)
-        ..sourceEndpoint = url
+        ..sourceEndpoint = _sanitizeDiagnosticEndpoint(url)
         ..receivedBytes = resumeFrom;
       _markStarted(item, initialBytes: resumeFrom);
 
@@ -340,7 +340,7 @@ class DownloadManagerService {
               ? DownloadFailureException(
                   error.message ?? 'Falha ao baixar arquivo público.',
                   code: 'PUBLIC_DOWNLOAD_FAILED',
-                  endpoint: url,
+                  endpoint: _sanitizeDiagnosticEndpoint(url),
                   stage: 'baixar_arquivo',
                   httpStatus: error.response?.statusCode,
                 )
@@ -676,7 +676,7 @@ class DownloadManagerService {
       throw DownloadFailureException(
         'O servidor não aceitou a retomada do download.',
         code: 'PUBLIC_DOWNLOAD_RESUME_FAILED',
-        endpoint: url,
+        endpoint: _sanitizeDiagnosticEndpoint(url),
         stage: 'retomar_download',
         httpStatus: response.statusCode,
       );
@@ -952,6 +952,14 @@ class DownloadManagerService {
     return 'Erro ao gravar o arquivo na pasta Downloads.';
   }
 
+  static String _sanitizeDiagnosticEndpoint(String value) {
+    final parsed = Uri.tryParse(value);
+    if (parsed == null || !parsed.hasScheme) {
+      return value.split('?').first.split('#').first;
+    }
+    return parsed.replace(query: null, fragment: null).toString();
+  }
+
   static String? _cleanTechnicalMessage(String? value) {
     if (value == null) {
       return null;
@@ -973,6 +981,12 @@ class DownloadManagerService {
         caseSensitive: false,
       ),
       (match) => '${match.group(1)}=[REMOVIDO]',
+    );
+    // URLs assinadas usadas por artifacts/releases podem carregar credenciais
+    // efêmeras na query string. Nunca persista esses parâmetros no histórico.
+    result = result.replaceAllMapped(
+      RegExp(r'(https?://[^\s?]+)\?[^\s]+', caseSensitive: false),
+      (match) => '${match.group(1)}?[PARAMETROS_REMOVIDOS]',
     );
     return result.length > 700 ? '${result.substring(0, 700)}…' : result;
   }

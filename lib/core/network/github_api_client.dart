@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -104,6 +105,54 @@ class GitHubApiClient {
     }
   }
 
+  Future<Response<T>> postBase64File<T>(
+    String path,
+    File file, {
+    CancelToken? cancelToken,
+  }) async {
+    final token = await _secureStorage.readGitHubToken();
+    if (token == null) {
+      throw const AuthenticationRequiredException();
+    }
+
+    final fileLength = await file.length();
+    const prefix = '{"content":"';
+    const suffix = '","encoding":"base64"}';
+    final base64Length = ((fileLength + 2) ~/ 3) * 4;
+    final contentLength = utf8.encode(prefix).length +
+        base64Length +
+        utf8.encode(suffix).length;
+
+    Stream<List<int>> body() async* {
+      yield utf8.encode(prefix);
+      await for (final chunk in base64.encoder.bind(file.openRead())) {
+        yield utf8.encode(chunk);
+      }
+      yield utf8.encode(suffix);
+    }
+
+    try {
+      return await _dio.post<T>(
+        path,
+        data: body(),
+        cancelToken: cancelToken,
+        options: Options(
+          sendTimeout: const Duration(minutes: 10),
+          receiveTimeout: const Duration(minutes: 2),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+            'Content-Length': contentLength,
+            'Accept': GitHubApi.accept,
+            'X-GitHub-Api-Version': GitHubApi.apiVersion,
+          },
+        ),
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<void> downloadRedirectedFile(
     String path,
     String savePath, {
@@ -161,6 +210,7 @@ class GitHubApiClient {
       await _downloadTemporaryUrl(
         location,
         savePath,
+        diagnosticEndpoint: path,
         resumeFrom: resumeFrom,
         cancelToken: cancelToken,
         onReceiveProgress: onReceiveProgress,
@@ -270,6 +320,7 @@ class GitHubApiClient {
       await _downloadTemporaryUrl(
         location,
         savePath,
+        diagnosticEndpoint: path,
         resumeFrom: resumeFrom,
         cancelToken: cancelToken,
         onReceiveProgress: onReceiveProgress,
@@ -287,6 +338,7 @@ class GitHubApiClient {
   Future<void> _downloadTemporaryUrl(
     String url,
     String savePath, {
+    required String diagnosticEndpoint,
     required int resumeFrom,
     ProgressCallback? onReceiveProgress,
     CancelToken? cancelToken,
@@ -322,7 +374,7 @@ class GitHubApiClient {
       throw DownloadFailureException(
         'O servidor não aceitou a retomada do download.',
         code: 'DOWNLOAD_RESUME_HTTP_${response.statusCode ?? 'UNKNOWN'}',
-        endpoint: url,
+        endpoint: diagnosticEndpoint,
         stage: 'retomar_download',
         httpStatus: response.statusCode,
       );
@@ -341,7 +393,7 @@ class GitHubApiClient {
       requestedResumeFrom: offset,
       cancelToken: cancelToken,
       onReceiveProgress: onReceiveProgress,
-      endpoint: url,
+      endpoint: diagnosticEndpoint,
       stage: 'baixar_arquivo',
     );
   }
@@ -481,14 +533,14 @@ class GitHubApiClient {
           endpoint: endpoint,
           stage: stage,
           httpStatus: status,
-          apiMessage: _responseMessage(response?.data),
+          apiMessage: null,
         );
       }
       return _downloadHttpFailure(
         endpoint: endpoint,
         stage: stage,
         status: status,
-        data: response?.data,
+        data: temporaryUrl ? null : response?.data,
         remaining: response?.headers.value('x-ratelimit-remaining'),
       );
     }
@@ -510,7 +562,7 @@ class GitHubApiClient {
       code: 'DOWNLOAD_INTERRUPTED',
       endpoint: endpoint,
       stage: stage,
-      apiMessage: error.message,
+      apiMessage: temporaryUrl ? null : error.message,
     );
   }
 

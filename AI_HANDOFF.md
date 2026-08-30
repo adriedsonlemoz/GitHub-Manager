@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.48+200062`, com pré-checagem em cache das permissões antes de Enviar build, gerenciar Secrets e excluir repositórios; mantém o diagnóstico seguro por repositório, Secrets reforçados, Central de Envios global/minimizável e downloads em foreground com retomada.
+Estado atual: `2.0.50+200064`, com correção do assistente de conexão GitHub para distinguir PAT rejeitado de ausência de conta e normalizar tokens colados; mantém a reconciliação da lista de repositórios, proteção de URLs temporárias, timeout Android 15+, dependências travadas, Central de Envios e retomada por checkpoint.
 
 ## Arquitetura
 

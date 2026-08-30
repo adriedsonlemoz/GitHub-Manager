@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
@@ -10,6 +11,18 @@ class GitObjectHash {
     final converter = sha1.startChunkedConversion(sink);
     converter.add(utf8.encode('blob ${bytes.length}\u0000'));
     converter.add(bytes);
+    converter.close();
+    return sink.value.toString();
+  }
+
+  static Future<String> blobShaFile(File file) async {
+    final length = await file.length();
+    final sink = _DigestSink();
+    final converter = sha1.startChunkedConversion(sink);
+    converter.add(utf8.encode('blob $length\u0000'));
+    await for (final chunk in file.openRead()) {
+      converter.add(chunk);
+    }
     converter.close();
     return sink.value.toString();
   }

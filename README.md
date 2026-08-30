@@ -1,15 +1,30 @@
-# GitHub Manager 2.0.45
+# GitHub Manager 2.0.50
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
 ## Identidade oficial
 
-- versão: `2.0.48+200062`;
+- versão: `2.0.50+200064`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
 - APK Release universal com `armeabi-v7a` e `arm64-v8a`.
 
+
+
+## Correção da conexão GitHub 2.0.50
+
+O assistente de configuração agora diferencia corretamente ausência de autenticação de um token rejeitado pelo GitHub. Respostas `401` do endpoint `/user` deixam de exibir a mensagem enganosa “Conecte sua conta GitHub para continuar” e passam a explicar que o Personal Access Token pode estar expirado, revogado ou copiado incorretamente.
+
+A entrada do PAT também é normalizada antes do teste e antes de ser gravada: espaços/quebras de linha acidentais, caracteres invisíveis, aspas/backticks e prefixos copiados como `Bearer` ou `Authorization: Bearer` são removidos. O botão Colar usa a mesma normalização, e o teclado pode concluir diretamente com “Testar e conectar”.
+
+## Consolidação de segurança e sincronização 2.0.49
+
+A listagem de repositórios continua abrindo pelo cache local para manter a inicialização rápida, mas agora reconcilia os dados com a API ao entrar na tela e ao retornar ao aplicativo. Repositórios removidos diretamente no site do GitHub deixam de permanecer como itens fantasmas no cache.
+
+Downloads redirecionados deixaram de propagar URLs temporárias assinadas para endpoints diagnósticos e mensagens persistidas. Os serviços Android de upload/download tratam o timeout de `dataSync` do Android 15+, preservando os checkpoints existentes para retomada posterior.
+
+As dependências usadas pela aplicação foram fixadas na resolução utilizada pelo Flutter 3.47.1 e o `pubspec.lock` passou a fazer parte do projeto. No envio de ZIP, arquivos maiores passam por arquivo temporário e base64 em fluxo, evitando manter simultaneamente o binário descompactado e sua representação base64 completa na memória.
 
 
 ## APKs compactos e envio flexível 2.0.31

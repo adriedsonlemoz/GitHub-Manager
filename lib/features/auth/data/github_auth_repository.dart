@@ -3,6 +3,7 @@ import 'package:github_manager/core/constants/github_api.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/persistence/local_database.dart';
 import 'package:github_manager/core/security/secure_storage_service.dart';
+import 'package:github_manager/core/security/github_token_normalizer.dart';
 
 class GitHubAuthRepository {
   GitHubAuthRepository(
@@ -18,7 +19,7 @@ class GitHubAuthRepository {
   Future<bool> isConnected() => _secureStorage.hasGitHubToken();
 
   Future<void> connectWithToken(String rawToken) async {
-    final token = rawToken.trim();
+    final token = normalizeGitHubToken(rawToken);
     if (token.isEmpty) {
       throw const AuthenticationRequiredException();
     }
@@ -38,7 +39,11 @@ class GitHubAuthRepository {
       );
     } on DioException catch (error) {
       if (error.response?.statusCode == 401) {
-        throw const AuthenticationRequiredException();
+        throw InvalidGitHubTokenException(
+          httpStatus: 401,
+          endpoint: '/user',
+          apiMessage: _apiMessage(error.response?.data),
+        );
       }
       if (error.type == DioExceptionType.connectionError ||
           error.type == DioExceptionType.connectionTimeout ||
@@ -49,6 +54,16 @@ class GitHubAuthRepository {
     }
 
     await _secureStorage.writeGitHubToken(token);
+  }
+
+  String? _apiMessage(Object? data) {
+    if (data is Map) {
+      final message = data['message'];
+      if (message is String && message.trim().isNotEmpty) {
+        return message.trim();
+      }
+    }
+    return null;
   }
 
   Future<void> disconnect() async {
