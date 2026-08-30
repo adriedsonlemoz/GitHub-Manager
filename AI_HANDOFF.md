@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.53+200067`, com splash screen Android 12+ branca e ícone em área segura para evitar cortes; mantém o novo launcher/adaptive icon, o ícone monocromático de notificações, as correções do lockfile, assistente de conexão, reconciliação de repositórios, proteção de URLs temporárias, timeout Android 15+, Central de Envios e retomada por checkpoint.
+Estado atual: `2.0.54+200068`, com inicialização não bloqueante: o primeiro frame é desenhado antes de tema, WorkManager e notificações, eliminando o travamento permanente na splash; mantém splash branca, launcher/adaptive icon, ícone monocromático de notificações e demais correções anteriores.
 
 ## Arquitetura
 

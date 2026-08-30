@@ -4,13 +4,15 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.53+200067`
+`version: 2.0.54+200068`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
+
+A versão `2.0.54+200068` corrige a inicialização presa na splash: `runApp()` ocorre antes de qualquer leitura de armazenamento ou inicialização de WorkManager/notificações; os serviços auxiliares passam a iniciar após o primeiro frame com timeout e falha isolada.
 
 A versão `2.0.53+200067` corrige a splash screen do Android 12+: fundo branco em qualquer tema e recurso de splash separado, com área segura maior para impedir o corte do ícone. O launcher/adaptive icon continua inalterado.
 

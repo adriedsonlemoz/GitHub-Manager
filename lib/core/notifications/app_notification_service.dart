@@ -8,7 +8,7 @@ abstract final class AppNotificationService {
   static Future<void> initialize() async {
     if (_initialized) return;
     const settings = InitializationSettings(
-      android: AndroidInitializationSettings('ic_launcher'),
+      android: AndroidInitializationSettings('ic_stat_github_manager'),
     );
     await _notifications.initialize(settings: settings);
     _initialized = true;

@@ -561,16 +561,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.54',
+                      text: 'Corrige a abertura presa no logo: o primeiro frame agora é exibido antes de inicializar tema, WorkManager e notificações.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.53',
                       text: 'Corrige a splash screen do Android 12+: fundo branco e área segura maior para o ícone não ser cortado.',
                     ),
                     _ChangeNote(
                       version: '2.0.52',
                       text: 'Corrige a compilação Kotlin dos serviços de upload/download usando um ícone de notificação dedicado compatível com Android.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.51',
-                      text: 'Novo ícone Android/adaptive icon e correção do pubspec.lock que bloqueava CI e geração do APK com exit code 65.',
                     ),
                   ],
                 ),
