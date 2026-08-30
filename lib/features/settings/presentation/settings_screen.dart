@@ -561,16 +561,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.53',
+                      text: 'Corrige a splash screen do Android 12+: fundo branco e área segura maior para o ícone não ser cortado.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.52',
                       text: 'Corrige a compilação Kotlin dos serviços de upload/download usando um ícone de notificação dedicado compatível com Android.',
                     ),
                     _ChangeNote(
                       version: '2.0.51',
                       text: 'Novo ícone Android/adaptive icon e correção do pubspec.lock que bloqueava CI e geração do APK com exit code 65.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.50',
-                      text: 'Assistente de configuração distingue token rejeitado de conta desconectada e normaliza PATs colados para evitar falhas por formatação invisível.',
                     ),
                   ],
                 ),
