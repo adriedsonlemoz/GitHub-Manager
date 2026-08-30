@@ -175,13 +175,20 @@ class RepositoryProjectInfoService {
         }
       }
 
-      // Nem todo projeto mantém applicationId nos metadados de raiz.
-      // Em Flutter/Android, o Gradle do módulo app é a fonte mais confiável.
-      if (applicationId == null && names.containsKey('android')) {
-        for (final gradlePath in const [
+      // Android nativo mantém o módulo em app/, enquanto Flutter usa android/app/.
+      // O Gradle do módulo é a fonte mais confiável para applicationId e versão.
+      final gradleCandidates = <String>[
+        if (names.containsKey('app')) ...const [
+          'app/build.gradle.kts',
+          'app/build.gradle',
+        ],
+        if (names.containsKey('android')) ...const [
           'android/app/build.gradle.kts',
           'android/app/build.gradle',
-        ]) {
+        ],
+      ];
+      if (applicationId == null || version == null || versionCode == null) {
+        for (final gradlePath in gradleCandidates) {
           try {
             final response = await _client.get<Map<String, dynamic>>(
               '/repos/${repository.fullName}/contents/${gradlePath.split('/').map(Uri.encodeComponent).join('/')}',
@@ -192,13 +199,24 @@ class RepositoryProjectInfoService {
             final encoded = (json['content'] as String? ?? '').replaceAll('\n', '');
             if (encoded.isEmpty) continue;
             final raw = utf8.decode(base64.decode(encoded), allowMalformed: true);
-            applicationId = RegExp(
+            applicationId ??= RegExp(
               r'''applicationId\s*(?:=\s*)?["']([^"']+)["']''',
             ).firstMatch(raw)?.group(1)?.trim();
             applicationId ??= RegExp(
               r'''namespace\s*(?:=\s*)?["']([^"']+)["']''',
             ).firstMatch(raw)?.group(1)?.trim();
-            if (applicationId?.isNotEmpty == true) break;
+            version ??= RegExp(
+              r'''versionName\s*(?:=\s*)?["']([^"']+)["']''',
+            ).firstMatch(raw)?.group(1)?.trim();
+            versionCode ??= int.tryParse(
+              RegExp(r'''versionCode\s*(?:=\s*)?(\d+)''')
+                      .firstMatch(raw)
+                      ?.group(1) ??
+                  '',
+            );
+            if (applicationId != null && version != null && versionCode != null) {
+              break;
+            }
           } catch (_) {
             // Gradle opcional/indisponível: a verificação continua com as demais pistas.
           }
@@ -209,7 +227,7 @@ class RepositoryProjectInfoService {
       if (names.containsKey('pubspec.yaml')) {
         technologies.add('Flutter');
       }
-      if (names.containsKey('android')) {
+      if (gradleCandidates.isNotEmpty || names.containsKey('android')) {
         technologies.add('Android');
       }
       if (names.containsKey('package.json')) {

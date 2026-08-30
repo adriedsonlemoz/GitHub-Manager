@@ -1,10 +1,14 @@
-# GitHub Manager 2.0.54
+# GitHub Manager 2.0.55
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
+## Android/Kotlin nativo 2.0.55
+
+A detecção de projetos agora reconhece `app/build.gradle.kts` e `app/build.gradle`, padrão de Android nativo. O GitHub Manager extrai `versionName`, `versionCode`, `applicationId`/`namespace` para cards de repositório, identificação de ZIP e versão associada aos runs do GitHub Actions. Flutter continua suportado por `android/app/build.gradle(.kts)`.
+
 ## Identidade oficial
 
-- versão: `2.0.54+200068`;
+- versão: `2.0.55+200069`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

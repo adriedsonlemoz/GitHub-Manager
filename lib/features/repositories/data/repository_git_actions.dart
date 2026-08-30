@@ -155,6 +155,10 @@ mixin _RepositoryGitActionsOperations
       'app.json',
       'pubspec.yaml',
       'VERSION',
+      'app/build.gradle.kts',
+      'app/build.gradle',
+      'android/app/build.gradle.kts',
+      'android/app/build.gradle',
     ]) {
       try {
         final file = await readTextFile(
@@ -185,6 +189,18 @@ mixin _RepositoryGitActionsOperations
               ?.group(1)
               ?.trim();
           if (version?.isNotEmpty == true) return version;
+        } else if (path.endsWith('build.gradle') ||
+            path.endsWith('build.gradle.kts')) {
+          final name = RegExp(
+            r'''versionName\s*(?:=\s*)?["']([^"']+)["']''',
+          ).firstMatch(text)?.group(1)?.trim();
+          final code = RegExp(r'''versionCode\s*(?:=\s*)?(\d+)''')
+              .firstMatch(text)
+              ?.group(1)
+              ?.trim();
+          if (name?.isNotEmpty == true) {
+            return code?.isNotEmpty == true ? '$name+$code' : name;
+          }
         } else {
           final version = text.trim();
           if (version.isNotEmpty) return version;

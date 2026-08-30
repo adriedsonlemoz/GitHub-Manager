@@ -181,6 +181,15 @@ class LocalProjectService {
               detectedApplicationId ??= RegExp(
                 r'''namespace\s*(?:=\s*)?["']([^"']+)["']''',
               ).firstMatch(text)?.group(1)?.trim();
+              detectedVersion ??= RegExp(
+                r'''versionName\s*(?:=\s*)?["']([^"']+)["']''',
+              ).firstMatch(text)?.group(1)?.trim();
+              detectedVersionCode ??= int.tryParse(
+                RegExp(r'''versionCode\s*(?:=\s*)?(\d+)''')
+                        .firstMatch(text)
+                        ?.group(1) ??
+                    '',
+              );
             }
           }
           entry.clear();
@@ -264,8 +273,8 @@ class LocalProjectService {
       lowerPath.endsWith('pubspec.yaml') ||
       lowerPath.endsWith('/version') ||
       lowerPath == 'version' ||
-      lowerPath.endsWith('android/app/build.gradle') ||
-      lowerPath.endsWith('android/app/build.gradle.kts');
+      lowerPath.endsWith('app/build.gradle') ||
+      lowerPath.endsWith('app/build.gradle.kts');
 
   static String? _firstString(List<Object?> values) {
     for (final value in values) {
