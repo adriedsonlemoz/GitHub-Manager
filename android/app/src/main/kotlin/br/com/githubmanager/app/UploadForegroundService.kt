@@ -155,7 +155,7 @@ class UploadForegroundService : Service() {
             val max = arguments.total.coerceAtLeast(0)
             val progress = if (max > 0) arguments.current.coerceIn(0, max) else 0
             return NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_launcher)
+                .setSmallIcon(R.drawable.ic_stat_github_manager)
                 .setContentTitle(
                     if (arguments.activeCount > 1) {
                         "${arguments.projectName} • ${arguments.activeCount} envios ativos"

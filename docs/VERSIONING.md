@@ -4,7 +4,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.51+200065`
+`version: 2.0.52+200066`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
@@ -12,7 +12,7 @@ Versão atual:
 - versões oficiais não usam o sufixo `alpha`.
 
 
-A versão `2.0.51+200065` integra o novo ícone Android (legacy + Adaptive Icon) e corrige as entradas de dependências do SDK no `pubspec.lock`, eliminando o exit code 65 de `flutter pub get --enforce-lockfile`.
+A versão `2.0.52+200066` integra o novo ícone Android (legacy + Adaptive Icon) e corrige as entradas de dependências do SDK no `pubspec.lock`, eliminando o exit code 65 de `flutter pub get --enforce-lockfile`.
 
 A versão `2.0.50+200064` corrige o assistente de configuração: `401` no `/user` passa a ser identificado como PAT rejeitado, e tokens colados são normalizados para remover formatação/whitespace invisível antes do teste e armazenamento.
 
