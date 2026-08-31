@@ -40,6 +40,8 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
   String _query = '';
   String _filter = 'Todos';
   late int _section;
+  List<GitHubRepository>? _lastOwnedRepositories;
+  List<GitHubRepository>? _lastFollowedRepositories;
 
   bool get _showingFollowed => _section == 1;
 
@@ -256,63 +258,87 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
             repositories.when(
-              loading: () => const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, _) => SliverPadding(
-                padding: const EdgeInsets.all(14),
-                sliver: SliverToBoxAdapter(
-                  child: AppErrorCard(error: error, onRetry: _refresh),
-                ),
-              ),
-              data: (items) {
-                final filtered = _applyFilters(items);
-                if (filtered.isEmpty) {
-                  return SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(28),
-                        child: Text(
-                          _showingFollowed
-                              ? 'Nenhum repositório acompanhado. Use + para adicionar quantos quiser.'
-                              : 'Nenhum projeto encontrado.',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  );
+              loading: () {
+                final cached = _showingFollowed
+                    ? _lastFollowedRepositories
+                    : _lastOwnedRepositories;
+                if (cached != null) {
+                  return _repositoryListSliver(cached);
+                }
+                return const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              },
+              error: (error, _) {
+                final cached = _showingFollowed
+                    ? _lastFollowedRepositories
+                    : _lastOwnedRepositories;
+                if (cached != null) {
+                  return _repositoryListSliver(cached);
                 }
                 return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 20),
-                  sliver: SliverList.separated(
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final repository = filtered[index];
-                      return RepositoryCard(
-                        repository: repository,
-                        readOnly: _showingFollowed,
-                        onTap: () => context.push(
-                          '/repositories/${repository.fullName}?readOnly=${_showingFollowed ? '1' : '0'}',
-                        ),
-                        onMenu: _showingFollowed
-                            ? () => _removeFollowed(repository)
-                            : () => _manageRepository(repository),
-                        onOpenExternal: () => PlatformActions.openUri(repository.htmlUrl),
-                        onCopyLink: () => _copyLink(repository),
-                        onFork: _showingFollowed
-                            ? () => _forkFollowed(repository)
-                            : null,
-                      );
-                    },
+                  padding: const EdgeInsets.all(14),
+                  sliver: SliverToBoxAdapter(
+                    child: AppErrorCard(error: error, onRetry: _refresh),
                   ),
                 );
+              },
+              data: (items) {
+                if (_showingFollowed) {
+                  _lastFollowedRepositories = items;
+                } else {
+                  _lastOwnedRepositories = items;
+                }
+                return _repositoryListSliver(items);
               },
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _repositoryListSliver(List<GitHubRepository> items) {
+    final filtered = _applyFilters(items);
+    if (filtered.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Text(
+              _showingFollowed
+                  ? 'Nenhum repositório acompanhado. Use + para adicionar quantos quiser.'
+                  : 'Nenhum projeto encontrado.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 20),
+      sliver: SliverList.separated(
+        itemCount: filtered.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final repository = filtered[index];
+          return RepositoryCard(
+            repository: repository,
+            readOnly: _showingFollowed,
+            onTap: () => context.push(
+              '/repositories/${repository.fullName}?readOnly=${_showingFollowed ? '1' : '0'}',
+            ),
+            onMenu: _showingFollowed
+                ? () => _removeFollowed(repository)
+                : () => _manageRepository(repository),
+            onOpenExternal: () => PlatformActions.openUri(repository.htmlUrl),
+            onCopyLink: () => _copyLink(repository),
+            onFork: _showingFollowed ? () => _forkFollowed(repository) : null,
+          );
+        },
       ),
     );
   }

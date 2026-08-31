@@ -4,7 +4,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.55+200069`
+`version: 2.0.56+200070`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
@@ -12,7 +12,7 @@ Versão atual:
 - versões oficiais não usam o sufixo `alpha`.
 
 
-A versão `2.0.55+200069` adiciona reconhecimento de `app/build.gradle.kts`/`app/build.gradle` para projetos Android nativos, lendo `versionName`, `versionCode` e `applicationId`. A 2.0.54 corrige a inicialização presa na splash: `runApp()` ocorre antes de qualquer leitura de armazenamento ou inicialização de WorkManager/notificações; os serviços auxiliares passam a iniciar após o primeiro frame com timeout e falha isolada.
+A versão `2.0.56+200070` mantém a última lista de repositórios renderizada durante invalidações e reconciliações, evitando o spinner central após criar, editar, renomear ou excluir. A 2.0.55 adicionou reconhecimento de `app/build.gradle.kts`/`app/build.gradle` para Android nativo; a 2.0.54 corrigiu a inicialização presa na splash.
 
 A versão `2.0.53+200067` corrige a splash screen do Android 12+: fundo branco em qualquer tema e recurso de splash separado, com área segura maior para impedir o corte do ícone. O launcher/adaptive icon continua inalterado.
 
@@ -35,3 +35,6 @@ A versão `2.0.22+200036` adicionou a Central de Envios minimizável, fila globa
 A versão `2.0.21+200035` corrigiu a trava de identidade/versão, seleção de workflows, Releases privadas e persistência de downloads interrompidos.
 
 A versão `2.0.20+200034` corrigiu os erros de nulabilidade encontrados nos logs #17 e moveu as ações do detalhe da build para o topo.
+
+
+A versão `2.0.56+200070` preserva a última lista renderizada durante refresh/invalidation de repositórios. O spinner central é usado somente quando ainda não existe nenhum dado renderizável.

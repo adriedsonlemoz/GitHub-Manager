@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.55+200069`, com detecção de versão de Android/Kotlin nativo em `app/build.gradle(.kts)` para cards, ZIPs e runs; com inicialização não bloqueante: o primeiro frame é desenhado antes de tema, WorkManager e notificações, eliminando o travamento permanente na splash; mantém splash branca, launcher/adaptive icon, ícone monocromático de notificações e demais correções anteriores.
+Estado atual: `2.0.56+200070`, com listagem stale-while-revalidate que mantém os cards visíveis durante mutações e reconciliação, com detecção de versão de Android/Kotlin nativo em `app/build.gradle(.kts)` para cards, ZIPs e runs; com inicialização não bloqueante: o primeiro frame é desenhado antes de tema, WorkManager e notificações, eliminando o travamento permanente na splash; mantém splash branca, launcher/adaptive icon, ícone monocromático de notificações e demais correções anteriores.
 
 ## Arquitetura
 
