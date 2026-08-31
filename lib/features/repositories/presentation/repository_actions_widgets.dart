@@ -286,8 +286,9 @@ class _WorkflowStepTile extends StatelessWidget {
           ),
         ),
         subtitle: Text(
-          '${_RepositoryActionsScreenState._stepExplanation(step.name)} • '
-          '${_RepositoryActionsScreenState._stepStatus(step)}',
+          '${_RepositoryActionsScreenState._stepStatus(step)} • '
+          '${_RepositoryActionsScreenState._formatSpan(step.startedAt, step.completedAt)} • '
+          '${_RepositoryActionsScreenState._stepExplanation(step.name)}',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context)

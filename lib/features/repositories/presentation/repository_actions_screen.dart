@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:github_manager/core/widgets/app_main_navigation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
@@ -39,6 +40,8 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
   RepositoryWorkflow? _selectedWorkflow;
   Timer? _timer;
   bool _hasRunning = false;
+  bool _refreshing = false;
+  DateTime? _lastUpdatedAt;
   bool _starting = false;
   bool _showDiagnostics = false;
   RepositoryActionsData? _currentData;
@@ -52,11 +55,14 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
     WidgetsBinding.instance.addObserver(this);
     unawaited(BuildMonitorService.watchRepository(widget.repositoryFullName));
     _future = _load();
-    _timer = Timer.periodic(const Duration(seconds: 6), (_) {
-      if (_hasRunning && mounted) {
-        _refresh(silent: true);
-      }
-    });
+    _future.then<void>(
+      (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+      onError: (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+    );
   }
 
   Future<RepositoryActionsData> _load() async {
@@ -66,12 +72,18 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
         );
     _hasRunning = data.allRuns.any((run) => run.isRunning);
     _currentData = data;
+    _lastUpdatedAt = DateTime.now();
     return data;
   }
 
-  Future<void> _refresh({bool silent = false}) async {
+  Future<void> _refresh({
+    bool silent = false,
+    bool lightweight = false,
+  }) async {
+    if (_refreshing) return;
+    _refreshing = true;
     try {
-      final data = await _load();
+      final data = lightweight ? await _pollRecentRuns() : await _load();
       if (mounted) {
         setState(() => _future = Future<RepositoryActionsData>.value(data));
       }
@@ -79,16 +91,103 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
       if (!silent) {
         rethrow;
       }
+    } finally {
+      _refreshing = false;
+      if (mounted) _scheduleAutoRefresh();
     }
   }
 
+  Future<RepositoryActionsData> _pollRecentRuns() async {
+    final current = _currentData;
+    if (current == null) return _load();
+    if (_selectedWorkflow != null &&
+        current.diagnostic.reason == 'fallback_workflow_especifico') {
+      return _load();
+    }
+    final recent = await ref
+        .read(repositoryGitServiceProvider)
+        .listRecentWorkflowRuns(widget.repositoryFullName);
+    final previousById = <int, RepositoryWorkflowRun>{
+      for (final run in current.allRuns) run.id: run,
+    };
+    final allRuns = recent.map((run) {
+      final previousVersion = previousById[run.id]?.buildVersion;
+      if (run.buildVersion == null && previousVersion != null) {
+        return run.withBuildVersion(previousVersion);
+      }
+      return run;
+    }).toList(growable: false)
+      ..sort((a, b) {
+        final aDate = a.createdAt ?? a.startedAt;
+        final bDate = b.createdAt ?? b.startedAt;
+        if (aDate == null && bDate == null) return b.id.compareTo(a.id);
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
+      });
+    final selected = _selectedWorkflow;
+    final visibleRuns = selected == null
+        ? allRuns
+        : allRuns.where((run) => run.belongsTo(selected)).toList(growable: false);
+    final oldDiagnostic = current.diagnostic;
+    final data = RepositoryActionsData(
+      workflows: current.workflows,
+      allRuns: List<RepositoryWorkflowRun>.unmodifiable(allRuns),
+      runs: List<RepositoryWorkflowRun>.unmodifiable(visibleRuns),
+      selectedWorkflow: selected,
+      diagnostic: RepositoryActionsDiagnostic(
+        endpoint: oldDiagnostic.endpoint,
+        httpStatus: oldDiagnostic.httpStatus,
+        repositoryRunsReceived: allRuns.length,
+        runsAfterFilter: visibleRuns.length,
+        totalCountReported: oldDiagnostic.totalCountReported,
+        reason: oldDiagnostic.reason,
+        workflowId: selected?.id,
+        workflowName: selected?.name,
+        workflowPath: selected?.path,
+        workflowState: selected?.state,
+        fallbackEndpoint: oldDiagnostic.fallbackEndpoint,
+        fallbackHttpStatus: oldDiagnostic.fallbackHttpStatus,
+        fallbackRunsReceived: oldDiagnostic.fallbackRunsReceived,
+      ),
+    );
+    _hasRunning = allRuns.any((run) => run.isRunning);
+    final availableIds = allRuns.map((run) => run.id).toSet();
+    _selectedRunIds.removeWhere((id) => !availableIds.contains(id));
+    _selectionMode = _selectedRunIds.isNotEmpty;
+    _currentData = data;
+    _lastUpdatedAt = DateTime.now();
+    return data;
+  }
+
+  void _scheduleAutoRefresh() {
+    _timer?.cancel();
+    if (!mounted) return;
+    final interval = _hasRunning
+        ? const Duration(seconds: 6)
+        : const Duration(seconds: 15);
+    _timer = Timer(interval, () {
+      if (mounted) unawaited(_refresh(silent: true, lightweight: true));
+    });
+  }
+
   void _selectWorkflow(RepositoryWorkflow? workflow) {
+    _timer?.cancel();
+    _selectedWorkflow = workflow;
+    final next = _load();
     setState(() {
       _selectedRunIds.clear();
       _selectionMode = false;
-      _selectedWorkflow = workflow;
-      _future = _load();
+      _future = next;
     });
+    next.then<void>(
+      (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+      onError: (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+    );
   }
 
   void _clearRunSelection() {
@@ -109,6 +208,20 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
         _selectionMode = false;
       }
     });
+  }
+
+  void _handleRunLongPress(RepositoryWorkflowRun run) {
+    if (widget.readOnly) return;
+    if (!_selectionMode) {
+      final hasFailures = (_currentData?.runs ?? const <RepositoryWorkflowRun>[])
+          .any((item) => !item.isRunning && item.conclusion == 'failure');
+      if (hasFailures) {
+        _selectAllVisibleRuns(failedOnly: true);
+        return;
+      }
+    }
+    if (run.isRunning) return;
+    _toggleRunSelection(run);
   }
 
   void _selectAllVisibleRuns({bool failedOnly = false}) {
@@ -133,14 +246,27 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
   Future<void> _deleteSelectedRuns() async {
     if (_selectedRunIds.isEmpty || widget.readOnly || _deletingSelected) return;
     final count = _selectedRunIds.length;
+    final selectedRuns = (_currentData?.runs ?? const <RepositoryWorkflowRun>[])
+        .where((run) => _selectedRunIds.contains(run.id))
+        .toList(growable: false);
+    final failuresOnly = selectedRuns.length == count &&
+        selectedRuns.every((run) => run.conclusion == 'failure');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Excluir $count execução(ões)?'),
-        content: const Text(
-          'As execuções selecionadas serão removidas permanentemente do GitHub Actions. '
-          'Artifacts ligados a essas execuções também podem ser removidos pelo GitHub. '
-          'Esta ação não pode ser desfeita.',
+        title: Text(
+          failuresOnly
+              ? 'Excluir $count build(s) com falha?'
+              : 'Excluir $count execução(ões)?',
+        ),
+        content: Text(
+          failuresOnly
+              ? 'Somente as execuções que falharam serão removidas permanentemente do GitHub Actions. '
+                  'As execuções concluídas com sucesso serão mantidas. Artifacts ligados às falhas também podem ser removidos pelo GitHub. '
+                  'Esta ação não pode ser desfeita.'
+              : 'As execuções selecionadas serão removidas permanentemente do GitHub Actions. '
+                  'Artifacts ligados a essas execuções também podem ser removidos pelo GitHub. '
+                  'Esta ação não pode ser desfeita.',
         ),
         actions: [
           TextButton(
@@ -159,17 +285,31 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
 
     setState(() => _deletingSelected = true);
     try {
-      final deleted = await ref
+      final result = await ref
           .read(repositoryGitServiceProvider)
           .deleteWorkflowRuns(
             repositoryFullName: widget.repositoryFullName,
             runIds: _selectedRunIds,
           );
       if (!mounted) return;
-      _clearRunSelection();
+      setState(() {
+        _selectedRunIds
+          ..clear()
+          ..addAll(result.failedIds);
+        _selectionMode = _selectedRunIds.isNotEmpty;
+      });
       await _refresh(silent: true);
-      if (mounted) {
-        showCenteredNotice(context, '$deleted execução(ões) excluída(s) permanentemente.');
+      if (!mounted) return;
+      if (result.hasFailures) {
+        showCenteredNotice(
+          context,
+          '${result.deletedCount} excluída(s) • ${result.failedCount} não puderam ser excluída(s). As falhas restantes continuam selecionadas.',
+        );
+      } else {
+        showCenteredNotice(
+          context,
+          '${result.deletedCount} execução(ões) excluída(s) permanentemente.',
+        );
       }
     } catch (error) {
       if (mounted) _showError(error);
@@ -323,7 +463,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
             : null,
         title: Text(
           _selectionMode
-              ? '${_selectedRunIds.length} selecionada(s)'
+              ? _selectionTitle()
               : screenTitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -428,13 +568,28 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                   _ActionsDiagnosticCard(diagnostic: data.diagnostic),
                 ],
                 const SizedBox(height: 8),
-                Text(
-                  data.selectedWorkflow == null
-                      ? 'Todas as execuções'
-                      : 'Execuções — ${data.selectedWorkflow!.name}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        data.selectedWorkflow == null
+                            ? 'Todas as execuções'
+                            : 'Execuções — ${data.selectedWorkflow!.name}',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _refreshStatusLabel(),
+                      textAlign: TextAlign.right,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 if (runs.isEmpty)
@@ -450,7 +605,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                         onRunTap: _selectionMode
                             ? _toggleRunSelection
                             : _showRunDetails,
-                        onRunLongPress: _toggleRunSelection,
+                        onRunLongPress: _handleRunLongPress,
                       ),
                     ),
                   ),
@@ -506,6 +661,29 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
     });
 
     return List<_RunGroup>.unmodifiable(groups);
+  }
+
+  String _selectionTitle() {
+    final runs = _currentData?.runs ?? const <RepositoryWorkflowRun>[];
+    final selected = runs.where((run) => _selectedRunIds.contains(run.id));
+    final failures = selected.where((run) => run.conclusion == 'failure').length;
+    if (failures == _selectedRunIds.length && failures > 0) {
+      return '$failures falha(s) selecionada(s)';
+    }
+    return '${_selectedRunIds.length} selecionada(s)';
+  }
+
+  String _refreshStatusLabel() {
+    final updated = _lastUpdatedAt;
+    final cadence = _hasRunning ? '6 s' : '15 s';
+    if (updated == null) return 'Atualizando • auto $cadence';
+    final seconds = DateTime.now().difference(updated).inSeconds.abs();
+    final when = seconds < 5
+        ? 'Atualizado agora'
+        : seconds < 60
+            ? 'há ${seconds}s'
+            : 'há ${seconds ~/ 60}min';
+    return '$when • auto $cadence';
   }
 
   String _message(Object error) {
@@ -564,8 +742,9 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
       'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
       'jul', 'ago', 'set', 'out', 'nov', 'dez',
     ];
+    String two(int value) => value.toString().padLeft(2, '0');
     final year = (date.year % 100).toString().padLeft(2, '0');
-    return '${date.day} ${months[date.month - 1]} $year';
+    return '${date.day} ${months[date.month - 1]} $year • ${two(date.hour)}:${two(date.minute)}';
   }
 
   static String _formatDate(DateTime? value) {
@@ -576,6 +755,19 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
     String two(int value) => value.toString().padLeft(2, '0');
     return '${two(date.day)}/${two(date.month)}/${date.year} '
         '${two(date.hour)}:${two(date.minute)}:${two(date.second)}';
+  }
+
+  static String _formatSpan(DateTime? start, DateTime? end) {
+    if (start == null) return '-';
+    final effectiveEnd = end ?? DateTime.now();
+    final duration = effectiveEnd.difference(start).abs();
+    if (duration.inHours > 0) {
+      return '${duration.inHours}h ${duration.inMinutes.remainder(60)}min';
+    }
+    if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}min ${duration.inSeconds.remainder(60)}s';
+    }
+    return '${duration.inSeconds}s';
   }
 
   static String _jobStatus(RepositoryWorkflowJob job) {
@@ -616,8 +808,29 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
 
   static String _stepExplanation(String name) {
     final value = name.toLowerCase();
+    if (value.contains('set up job') || value.contains('setup job')) {
+      return 'Preparando a máquina e o ambiente onde o workflow será executado.';
+    }
+    if (value.contains('complete job') ||
+        value.contains('post job') ||
+        value.contains('cleanup')) {
+      return 'Finalizando o job e limpando recursos temporários.';
+    }
     if (value.contains('checkout')) {
-      return 'Baixando os arquivos do projeto.';
+      return 'Baixando os arquivos do projeto para a máquina do GitHub Actions.';
+    }
+    if (value.contains('cache')) {
+      return 'Restaurando ou salvando arquivos reutilizáveis para acelerar a build.';
+    }
+    if (value.contains('versão') || value.contains('version')) {
+      return 'Lendo e conferindo a versão usada por esta execução.';
+    }
+    if (value.contains('ícone') || value.contains('icon')) {
+      return 'Conferindo os recursos de ícone exigidos pelo aplicativo Android.';
+    }
+    if (value.contains('plataforma android') ||
+        (value.contains('android') && value.contains('platform'))) {
+      return 'Conferindo se a estrutura Android necessária está presente e versionada.';
     }
     if (value.contains('java')) {
       return 'Preparando o Java necessário para compilar o aplicativo Android.';

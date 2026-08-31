@@ -561,12 +561,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.59',
-                      text: 'Dados do GitHub são consultados diretamente na API; a listagem não usa snapshots locais de repositórios, descrições ou perfil.',
+                      version: '2.0.60',
+                      text: 'Builds atualizam automaticamente mesmo sem execução ativa, falhas podem ser selecionadas em lote e o detalhe mostra diagnóstico com contexto real dos logs.',
                     ),
                     _ChangeNote(
-                      version: '2.0.57',
-                      text: 'Reforça Renomear repositório com validação, prévia do novo endereço e verificação de conflito diretamente no GitHub.',
+                      version: '2.0.59',
+                      text: 'Dados do GitHub são consultados diretamente na API; a listagem não usa snapshots locais de repositórios, descrições ou perfil.',
                     ),
                     _ChangeNote(
                       version: '2.0.58',

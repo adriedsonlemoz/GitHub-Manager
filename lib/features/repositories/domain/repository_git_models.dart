@@ -413,9 +413,35 @@ class RepositoryWorkflowFailure {
     required this.jobName,
     required this.stepName,
     required this.message,
+    this.annotationMessage,
+    this.logHeadline,
+    this.logContext = const <String>[],
+    this.logsInspected = false,
+    this.logUnavailableReason,
   });
 
   final String jobName;
   final String stepName;
   final String message;
+  final String? annotationMessage;
+  final String? logHeadline;
+  final List<String> logContext;
+  final bool logsInspected;
+  final String? logUnavailableReason;
+}
+
+class RepositoryBulkDeleteResult {
+  const RepositoryBulkDeleteResult({
+    required this.deletedIds,
+    required this.failedIds,
+    required this.failureMessages,
+  });
+
+  final List<int> deletedIds;
+  final List<int> failedIds;
+  final Map<int, String> failureMessages;
+
+  int get deletedCount => deletedIds.length;
+  int get failedCount => failedIds.length;
+  bool get hasFailures => failedIds.isNotEmpty;
 }
