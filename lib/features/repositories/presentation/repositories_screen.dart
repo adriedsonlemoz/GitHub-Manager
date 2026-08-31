@@ -15,6 +15,7 @@ import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/home/presentation/github_profile_edit_dialog.dart';
 import 'package:github_manager/features/permissions/domain/repository_permission_preflight.dart';
 import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
+import 'package:github_manager/features/permissions/presentation/token_permission_providers.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
 import 'package:github_manager/features/repositories/presentation/repository_card.dart';
 import 'package:github_manager/features/repositories/presentation/repository_management_dialogs.dart';
@@ -40,8 +41,6 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
   String _query = '';
   String _filter = 'Todos';
   late int _section;
-  List<GitHubRepository>? _lastOwnedRepositories;
-  List<GitHubRepository>? _lastFollowedRepositories;
 
   bool get _showingFollowed => _section == 1;
 
@@ -91,17 +90,16 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
 
   Future<void> _reconcileRepositories() async {
     try {
-      final service = ref.read(repositoryServiceProvider);
       if (_showingFollowed) {
-        await service.refreshFollowedRepositories();
-        if (mounted) ref.invalidate(followedRepositoriesProvider);
+        await ref.refresh(followedRepositoriesProvider.future);
       } else {
-        await service.refreshRepositories();
-        if (mounted) ref.invalidate(repositoriesProvider);
+        final fresh = await ref.refresh(repositoriesProvider.future);
+        for (final repository in fresh) {
+          ref.invalidate(repositoryProjectInfoProvider(repository));
+        }
       }
     } catch (_) {
-      // A reconciliação automática é best-effort. O cache continua disponível
-      // offline e o pull-to-refresh permanece responsável por exibir erros.
+      // Sem fallback local: a tela continua refletindo o resultado da API.
     }
   }
 
@@ -121,16 +119,13 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
   Future<void> _refresh() async {
     try {
       if (_showingFollowed) {
-        await ref
-            .read(repositoryServiceProvider)
-            .refreshFollowedRepositories();
-        ref.invalidate(followedRepositoriesProvider);
-        await ref.read(followedRepositoriesProvider.future);
+        await ref.refresh(followedRepositoriesProvider.future);
       } else {
-        await ref.read(repositoryServiceProvider).refreshRepositories();
-        ref.invalidate(repositoriesProvider);
+        final fresh = await ref.refresh(repositoriesProvider.future);
+        for (final repository in fresh) {
+          ref.invalidate(repositoryProjectInfoProvider(repository));
+        }
         ref.invalidate(githubProfileProvider);
-        await ref.read(repositoriesProvider.future);
       }
     } catch (error) {
       if (mounted) _showError(error);
@@ -258,40 +253,17 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
             repositories.when(
-              loading: () {
-                final cached = _showingFollowed
-                    ? _lastFollowedRepositories
-                    : _lastOwnedRepositories;
-                if (cached != null) {
-                  return _repositoryListSliver(cached);
-                }
-                return const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              },
-              error: (error, _) {
-                final cached = _showingFollowed
-                    ? _lastFollowedRepositories
-                    : _lastOwnedRepositories;
-                if (cached != null) {
-                  return _repositoryListSliver(cached);
-                }
-                return SliverPadding(
-                  padding: const EdgeInsets.all(14),
-                  sliver: SliverToBoxAdapter(
-                    child: AppErrorCard(error: error, onRetry: _refresh),
-                  ),
-                );
-              },
-              data: (items) {
-                if (_showingFollowed) {
-                  _lastFollowedRepositories = items;
-                } else {
-                  _lastOwnedRepositories = items;
-                }
-                return _repositoryListSliver(items);
-              },
+              loading: () => const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (error, _) => SliverPadding(
+                padding: const EdgeInsets.all(14),
+                sliver: SliverToBoxAdapter(
+                  child: AppErrorCard(error: error, onRetry: _refresh),
+                ),
+              ),
+              data: (items) => _repositoryListSliver(items),
             ),
           ],
         ),
@@ -328,9 +300,18 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
           return RepositoryCard(
             repository: repository,
             readOnly: _showingFollowed,
-            onTap: () => context.push(
-              '/repositories/${repository.fullName}?readOnly=${_showingFollowed ? '1' : '0'}',
-            ),
+            onTap: () async {
+              await context.push(
+                '/repositories/${repository.fullName}?readOnly=${_showingFollowed ? '1' : '0'}',
+              );
+              if (mounted) {
+                ref.invalidate(
+                  _showingFollowed
+                      ? followedRepositoriesProvider
+                      : repositoriesProvider,
+                );
+              }
+            },
             onMenu: _showingFollowed
                 ? () => _removeFollowed(repository)
                 : () => _manageRepository(repository),

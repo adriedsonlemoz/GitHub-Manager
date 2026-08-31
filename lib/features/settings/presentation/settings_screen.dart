@@ -548,7 +548,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   leading: Icon(Icons.info_outline_rounded),
                   title: Text('GitHub Manager'),
                   subtitle: Text(
-                    'Gerenciador GitHub local-first para Android\n'
+                    'Gerenciador GitHub para Android\n'
                     'Desenvolvedor: @AdriedsonLemos',
                   ),
                 ),
@@ -561,16 +561,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.56',
-                      text: 'Mantém os cards de repositórios visíveis durante criar, editar, renomear, excluir e reconciliar; loading total só na primeira carga sem cache.',
+                      version: '2.0.59',
+                      text: 'Dados do GitHub são consultados diretamente na API; a listagem não usa snapshots locais de repositórios, descrições ou perfil.',
                     ),
                     _ChangeNote(
-                      version: '2.0.55',
-                      text: 'Reconhece versão, versionCode e applicationId de projetos Android/Kotlin nativos em app/build.gradle(.kts), inclusive nos builds e ZIPs.',
+                      version: '2.0.57',
+                      text: 'Reforça Renomear repositório com validação, prévia do novo endereço e verificação de conflito diretamente no GitHub.',
                     ),
                     _ChangeNote(
-                      version: '2.0.54',
-                      text: 'Corrige a abertura presa no logo: o primeiro frame agora é exibido antes de inicializar tema, WorkManager e notificações.',
+                      version: '2.0.58',
+                      text: 'Reestruturou a sincronização da listagem e preparou a remoção dos snapshots antigos de dados remotos.',
                     ),
                   ],
                 ),

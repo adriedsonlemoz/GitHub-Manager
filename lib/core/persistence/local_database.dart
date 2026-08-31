@@ -68,6 +68,20 @@ class LocalDatabase {
     return jsonDecode(rows.first['json_value']! as String);
   }
 
+
+  Future<void> clearLegacyRemoteGitHubData() async {
+    final db = await database;
+    await db.delete(
+      'cache_entries',
+      where: 'cache_key IN (?, ?, ?)',
+      whereArgs: const [
+        'github.repositories',
+        'github.profile',
+        'followed.repositories.cache',
+      ],
+    );
+  }
+
   Future<void> clearGitHubCache() async {
     final db = await database;
     await db.delete('cache_entries', where: 'cache_key LIKE ?', whereArgs: ['github.%']);

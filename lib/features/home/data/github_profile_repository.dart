@@ -1,29 +1,16 @@
 import 'package:github_manager/core/network/github_api_client.dart';
-import 'package:github_manager/core/persistence/local_database.dart';
 import 'package:github_manager/features/home/domain/github_profile.dart';
 
 class GitHubProfileRepository {
-  GitHubProfileRepository(this._client, this._database);
+  GitHubProfileRepository(this._client);
 
-  static const _cacheKey = 'github.profile';
   final GitHubApiClient _client;
-  final LocalDatabase _database;
 
   Future<GitHubProfile> loadProfile() async {
-    try {
-      final response = await _client.get<Map<String, dynamic>>('/user');
-      final profile = GitHubProfile.fromJson(
-        response.data ?? const <String, dynamic>{},
-      );
-      await _database.putJson(_cacheKey, profile.toJson());
-      return profile;
-    } catch (_) {
-      final cached = await _database.readJson(_cacheKey);
-      if (cached is Map) {
-        return GitHubProfile.fromJson(Map<String, dynamic>.from(cached));
-      }
-      rethrow;
-    }
+    final response = await _client.get<Map<String, dynamic>>('/user');
+    return GitHubProfile.fromJson(
+      response.data ?? const <String, dynamic>{},
+    );
   }
 
   Future<GitHubProfile> updateProfile({
@@ -51,10 +38,8 @@ class GitHubProfileRepository {
         'hireable': hireable,
       },
     );
-    final profile = GitHubProfile.fromJson(
+    return GitHubProfile.fromJson(
       response.data ?? const <String, dynamic>{},
     );
-    await _database.putJson(_cacheKey, profile.toJson());
-    return profile;
   }
 }

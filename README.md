@@ -1,23 +1,42 @@
-# GitHub Manager 2.0.56
+# GitHub Manager 2.0.59
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
+## Dados do GitHub sem cache local 2.0.59
+
+- Repositórios, descrições e perfil agora são consultados diretamente na API do GitHub, sem fallback para snapshots persistidos.
+- Acompanhados persiste apenas a lista `owner/repo` escolhida pelo usuário; os dados exibidos são buscados novamente no GitHub.
+- Diagnóstico de permissões não reutiliza relatório remoto em TTL local.
+- Snapshots legados `github.repositories`, `github.profile` e `followed.repositories.cache` são apagados automaticamente.
+- Providers de perfil, repositórios e metadados de projeto usam `autoDispose` para não manter dados remotos fora da tela.
+
+A lista agora usa o cache somente para abrir imediatamente e passa a tratar a resposta mais recente da API como fonte autoritativa. Criar, editar, renomear, excluir e criar fork atualizam os cards no mesmo instante. Ao voltar da tela interna, a listagem reconcilia silenciosamente com o GitHub, corrigindo descrições e demais metadados antigos sem spinner de tela inteira.
+
+`GitHubRepository` também possui igualdade por valor, estabilizando o cache de versão/tecnologias dos cards: o mesmo repositório não cria providers duplicados a cada reconstrução e, quando os dados realmente mudam, os metadados são renovados.
+
+## Rename de repositório reforçado 2.0.57
+
+- valida o novo nome antes de chamar o GitHub;
+- mostra a prévia do novo endereço `owner/nome`;
+- bloqueia nome vazio, igual ao atual, acima de 100 caracteres, com espaços, barras ou caracteres incompatíveis;
+- detecta previamente quando já existe um repositório com o nome escolhido;
+- atualiza cache principal, Acompanhados, informações do projeto e permissões após renomear.
+
 ## Listagem estável 2.0.56
 
-A lista de repositórios preserva os cards durante criação, edição, renomeação, exclusão e reconciliação automática. O spinner central fica restrito à primeira carga sem dados disponíveis (stale-while-revalidate).
+A lista preserva os cards durante atualizações e deixa o spinner central restrito à primeira carga sem dados disponíveis.
 
+## Android/Kotlin nativo 2.0.55
 
-A detecção de projetos agora reconhece `app/build.gradle.kts` e `app/build.gradle`, padrão de Android nativo. O GitHub Manager extrai `versionName`, `versionCode`, `applicationId`/`namespace` para cards de repositório, identificação de ZIP e versão associada aos runs do GitHub Actions. Flutter continua suportado por `android/app/build.gradle(.kts)`.
+A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `versionName`, `versionCode`, `applicationId`/`namespace` para cards, ZIPs e builds.
 
 ## Identidade oficial
 
-- versão: `2.0.56+200070`;
+- versão: `2.0.59+200073`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
 - APK Release universal com `armeabi-v7a` e `arm64-v8a`.
-
-
 
 
 ## Inicialização sem travar na splash 2.0.54

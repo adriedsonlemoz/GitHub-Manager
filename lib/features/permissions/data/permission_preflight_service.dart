@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/security/secure_storage_service.dart';
 import 'package:github_manager/features/permissions/data/token_permission_diagnostics_service.dart';
@@ -10,27 +7,16 @@ import 'package:github_manager/features/permissions/domain/repository_permission
 class PermissionPreflightService {
   PermissionPreflightService(
     this._diagnostics,
-    SecureStorageService secureStorage, {
-    Duration cacheTtl = const Duration(minutes: 3),
-    DateTime Function()? clock,
-  })  : _readToken = secureStorage.readGitHubToken,
-        _cacheTtl = cacheTtl,
-        _clock = clock ?? DateTime.now;
+    SecureStorageService secureStorage,
+  ) : _readToken = secureStorage.readGitHubToken;
 
   PermissionPreflightService.withTokenReader(
     this._diagnostics,
-    Future<String?> Function() tokenReader, {
-    Duration cacheTtl = const Duration(minutes: 3),
-    DateTime Function()? clock,
-  })  : _readToken = tokenReader,
-        _cacheTtl = cacheTtl,
-        _clock = clock ?? DateTime.now;
+    Future<String?> Function() tokenReader,
+  ) : _readToken = tokenReader;
 
   final TokenPermissionDiagnosticsService _diagnostics;
   final Future<String?> Function() _readToken;
-  final Duration _cacheTtl;
-  final DateTime Function() _clock;
-  final Map<String, _CachedPermissionReport> _cache = {};
 
   Future<RepositoryPermissionReport> getReport(
     String repositoryFullName, {
@@ -40,20 +26,7 @@ class PermissionPreflightService {
     if (token == null || token.isEmpty) {
       throw const AuthenticationRequiredException();
     }
-
-    final key = _cacheKey(repositoryFullName, token);
-    final now = _clock();
-    final cached = _cache[key];
-    if (!forceRefresh &&
-        cached != null &&
-        now.difference(cached.storedAt) <= _cacheTtl) {
-      return cached.report;
-    }
-
-    final report = await _diagnostics.diagnose(repositoryFullName);
-    _removeRepositoryEntries(repositoryFullName, exceptKey: key);
-    _cache[key] = _CachedPermissionReport(report: report, storedAt: now);
-    return report;
+    return _diagnostics.diagnose(repositoryFullName);
   }
 
   Future<RepositoryPermissionPreflightDecision> check(
@@ -149,11 +122,9 @@ class PermissionPreflightService {
     }
   }
 
-  void invalidateRepository(String repositoryFullName) {
-    _removeRepositoryEntries(repositoryFullName);
-  }
+  void invalidateRepository(String repositoryFullName) {}
 
-  void clear() => _cache.clear();
+  void clear() {}
 
   List<PermissionAccessResult> _resultsFor(
     RepositoryPermissionReport report,
@@ -190,28 +161,4 @@ class PermissionPreflightService {
     return results;
   }
 
-  String _cacheKey(String repositoryFullName, String token) {
-    final fingerprint = sha256.convert(utf8.encode(token)).toString();
-    return '${repositoryFullName.toLowerCase()}|$fingerprint';
-  }
-
-  void _removeRepositoryEntries(
-    String repositoryFullName, {
-    String? exceptKey,
-  }) {
-    final prefix = '${repositoryFullName.toLowerCase()}|';
-    _cache.removeWhere(
-      (key, _) => key.startsWith(prefix) && key != exceptKey,
-    );
-  }
-}
-
-class _CachedPermissionReport {
-  const _CachedPermissionReport({
-    required this.report,
-    required this.storedAt,
-  });
-
-  final RepositoryPermissionReport report;
-  final DateTime storedAt;
 }

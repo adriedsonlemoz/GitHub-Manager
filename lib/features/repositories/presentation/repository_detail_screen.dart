@@ -13,6 +13,7 @@ import 'package:github_manager/features/downloads/presentation/download_center_b
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
 import 'package:github_manager/features/permissions/domain/repository_permission_preflight.dart';
 import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
+import 'package:github_manager/features/permissions/presentation/token_permission_providers.dart';
 import 'package:github_manager/features/projects/domain/project_safety_check.dart';
 import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/projects/presentation/project_providers.dart';
@@ -59,10 +60,6 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
 
   Future<GitHubRepository> _loadRepository() async {
     final service = ref.read(repositoryServiceProvider);
-    if (widget.readOnly) {
-      final cached = await service.getFollowedRepository(widget.repositoryFullName);
-      if (cached != null) return cached;
-    }
     return service.getRepository(widget.repositoryFullName);
   }
 
@@ -123,7 +120,6 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
       final fork = await ref
           .read(repositoryServiceProvider)
           .forkRepository(repository.fullName);
-      ref.invalidate(repositoriesProvider);
       if (!mounted) return;
       showCenteredNotice(context, fork.fullName.isEmpty
                 ? 'Fork solicitado. O GitHub pode levar alguns segundos para criar a cópia.'
@@ -396,7 +392,6 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
               isPrivate: result.isPrivate,
               isArchived: result.isArchived,
             );
-        ref.invalidate(repositoriesProvider);
         if (!mounted) return;
         if (updated.fullName != widget.repositoryFullName) {
           context.go('/repositories/${updated.fullName}');
@@ -416,7 +411,10 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
               fullName: repository.fullName,
               newName: newName,
             );
-        ref.invalidate(repositoriesProvider);
+        ref
+            .read(permissionPreflightServiceProvider)
+            .invalidateRepository(repository.fullName);
+        ref.invalidate(repositoryProjectInfoProvider(repository));
         if (!mounted) return;
         showCenteredNotice(
           context,
@@ -441,7 +439,6 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
       }
       try {
         await ref.read(repositoryServiceProvider).deleteRepository(repository.fullName);
-        ref.invalidate(repositoriesProvider);
         if (mounted) {
       context.go('/');
     }

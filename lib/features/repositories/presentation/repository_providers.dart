@@ -13,11 +13,11 @@ final repositoryServiceProvider = Provider<RepositoryService>(
   ),
 );
 
-final repositoriesProvider = FutureProvider<List<GitHubRepository>>(
+final repositoriesProvider = FutureProvider.autoDispose<List<GitHubRepository>>(
   (ref) => ref.watch(repositoryServiceProvider).listRepositories(),
 );
 
-final followedRepositoriesProvider = FutureProvider<List<GitHubRepository>>(
+final followedRepositoriesProvider = FutureProvider.autoDispose<List<GitHubRepository>>(
   (ref) => ref.watch(repositoryServiceProvider).listFollowedRepositories(),
 );
 
@@ -29,6 +29,6 @@ final repositoryProjectInfoServiceProvider = Provider<RepositoryProjectInfoServi
   (ref) => RepositoryProjectInfoService(ref.watch(githubApiClientProvider)),
 );
 
-final repositoryProjectInfoProvider = FutureProvider.family<RepositoryProjectInfo, GitHubRepository>(
+final repositoryProjectInfoProvider = FutureProvider.autoDispose.family<RepositoryProjectInfo, GitHubRepository>(
   (ref, repository) => ref.watch(repositoryProjectInfoServiceProvider).load(repository),
 );

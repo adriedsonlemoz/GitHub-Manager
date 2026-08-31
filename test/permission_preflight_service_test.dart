@@ -79,7 +79,7 @@ void main() {
       expect(decision.requiredPermissions, contains('delete_repo'));
     });
 
-    test('reutiliza cache e troca de token invalida a chave automaticamente', () async {
+    test('consulta o GitHub novamente em cada diagnóstico', () async {
       var currentToken = 'ghp_primeiro';
       final gateway = _CountingGateway(
         token: currentToken,
@@ -90,17 +90,16 @@ void main() {
       final service = PermissionPreflightService.withTokenReader(
         diagnostics,
         () async => currentToken,
-        cacheTtl: const Duration(minutes: 5),
       );
 
       await service.check('owner/repo', RepositoryCriticalAction.sendBuild);
       await service.check('owner/repo', RepositoryCriticalAction.manageSecrets);
-      expect(gateway.userCalls, 1);
+      expect(gateway.userCalls, 2);
 
       currentToken = 'ghp_segundo';
       gateway.token = currentToken;
       await service.check('owner/repo', RepositoryCriticalAction.sendBuild);
-      expect(gateway.userCalls, 2);
+      expect(gateway.userCalls, 3);
     });
   });
 }

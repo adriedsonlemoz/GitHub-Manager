@@ -4,7 +4,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.56+200070`
+`version: 2.0.59+200073`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
@@ -12,7 +12,7 @@ Versão atual:
 - versões oficiais não usam o sufixo `alpha`.
 
 
-A versão `2.0.56+200070` mantém a última lista de repositórios renderizada durante invalidações e reconciliações, evitando o spinner central após criar, editar, renomear ou excluir. A 2.0.55 adicionou reconhecimento de `app/build.gradle.kts`/`app/build.gradle` para Android nativo; a 2.0.54 corrigiu a inicialização presa na splash.
+A versão `2.0.59+200073` remove o uso de cache local para dados remotos do GitHub. Repositórios, descrições, perfil, permissões e metadados são consultados diretamente; Acompanhados guarda somente referências owner/repo; snapshots legados são removidos no startup.
 
 A versão `2.0.53+200067` corrige a splash screen do Android 12+: fundo branco em qualquer tema e recurso de splash separado, com área segura maior para impedir o corte do ícone. O launcher/adaptive icon continua inalterado.
 
@@ -37,4 +37,4 @@ A versão `2.0.21+200035` corrigiu a trava de identidade/versão, seleção de w
 A versão `2.0.20+200034` corrigiu os erros de nulabilidade encontrados nos logs #17 e moveu as ações do detalhe da build para o topo.
 
 
-A versão `2.0.56+200070` preserva a última lista renderizada durante refresh/invalidation de repositórios. O spinner central é usado somente quando ainda não existe nenhum dado renderizável.
+A 2.0.58 preserva stale-while-revalidate, mas deixa de depender de invalidações para atualizar a Home: a lista fresca retornada pela API é aplicada diretamente, enquanto falhas de rede mantêm o último snapshot válido.

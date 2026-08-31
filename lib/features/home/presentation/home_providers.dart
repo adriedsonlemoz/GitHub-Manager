@@ -4,12 +4,9 @@ import 'package:github_manager/features/home/data/github_profile_repository.dart
 import 'package:github_manager/features/home/domain/github_profile.dart';
 
 final githubProfileRepositoryProvider = Provider<GitHubProfileRepository>(
-  (ref) => GitHubProfileRepository(
-    ref.watch(githubApiClientProvider),
-    ref.watch(localDatabaseProvider),
-  ),
+  (ref) => GitHubProfileRepository(ref.watch(githubApiClientProvider)),
 );
 
-final githubProfileProvider = FutureProvider<GitHubProfile>(
+final githubProfileProvider = FutureProvider.autoDispose<GitHubProfile>(
   (ref) => ref.watch(githubProfileRepositoryProvider).loadProfile(),
 );

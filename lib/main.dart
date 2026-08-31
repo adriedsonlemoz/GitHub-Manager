@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/app/github_manager_app.dart';
 import 'package:github_manager/app/theme/app_theme_controller.dart';
 import 'package:github_manager/core/background/build_monitor_service.dart';
+import 'package:github_manager/core/persistence/local_database.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,14 @@ Future<void> main() async {
 }
 
 Future<void> _initializeAfterFirstFrame() async {
+  try {
+    final database = LocalDatabase();
+    await database.clearLegacyRemoteGitHubData();
+    await database.close();
+  } catch (_) {
+    // Limpeza de snapshots legados nunca bloqueia o app.
+  }
+
   try {
     await AppThemeController.instance.initialize().timeout(
       const Duration(seconds: 3),

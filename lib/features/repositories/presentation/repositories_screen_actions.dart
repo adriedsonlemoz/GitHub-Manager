@@ -42,7 +42,6 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
             homepage: result.homepage,
             isPrivate: result.isPrivate,
           );
-      ref.invalidate(repositoriesProvider);
       if (mounted) {
         setState(() => _section = 0);
         showCenteredNotice(
@@ -50,6 +49,7 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
           'Repositório ${created.name} criado com sucesso.',
           kind: CenteredNoticeKind.success,
         );
+        await _refresh();
       }
     } catch (error) {
       if (mounted) _showError(error);
@@ -175,9 +175,7 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
         }
       }
 
-      await service.refreshFollowedRepositories();
-      ref.invalidate(followedRepositoriesProvider);
-      if (mounted) setState(() {});
+      await ref.refresh(followedRepositoriesProvider.future);
       if (mounted) {
         showCenteredNotice(
           context,
@@ -283,13 +281,13 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
               isPrivate: result.isPrivate,
               isArchived: result.isArchived,
             );
-        ref.invalidate(repositoriesProvider);
         if (mounted) {
           showCenteredNotice(
             context,
             'Repositório ${updated.name} atualizado com sucesso.',
             kind: CenteredNoticeKind.success,
           );
+          await _refresh();
         }
       } catch (error) {
         if (mounted) _showError(error);
@@ -302,13 +300,17 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
               fullName: repository.fullName,
               newName: newName,
             );
-        ref.invalidate(repositoriesProvider);
+        ref
+            .read(permissionPreflightServiceProvider)
+            .invalidateRepository(repository.fullName);
+        ref.invalidate(repositoryProjectInfoProvider(repository));
         if (mounted) {
           showCenteredNotice(
             context,
             'Repositório renomeado para ${renamed.name}.',
             kind: CenteredNoticeKind.success,
           );
+          await _refresh();
         }
       } catch (error) {
         if (mounted) _showError(error);
@@ -325,13 +327,13 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
       if (confirmed != true || !mounted) return;
       try {
         await ref.read(repositoryServiceProvider).deleteRepository(repository.fullName);
-        ref.invalidate(repositoriesProvider);
         if (mounted) {
           showCenteredNotice(
             context,
             'Repositório ${repository.name} excluído com sucesso.',
             kind: CenteredNoticeKind.success,
           );
+          await _refresh();
         }
       } catch (error) {
         if (mounted) _showError(error);
@@ -367,8 +369,9 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
       final fork = await ref.read(repositoryServiceProvider).forkRepository(
             repository.fullName,
           );
-      ref.invalidate(repositoriesProvider);
       if (!mounted) return;
+      if (fork.fullName.isNotEmpty) {
+      }
       showCenteredNotice(context, fork.fullName.isEmpty
                 ? 'Fork solicitado ao GitHub. Ele pode levar alguns segundos para aparecer.'
                 : 'Fork criado: ${fork.fullName}');
@@ -400,13 +403,13 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
     );
     if (confirmed != true || !mounted) return;
     await ref.read(repositoryServiceProvider).unfollowRepository(repository.fullName);
-    ref.invalidate(followedRepositoriesProvider);
     if (mounted) {
       showCenteredNotice(
         context,
         '${repository.name} removido dos acompanhados.',
         kind: CenteredNoticeKind.success,
       );
+      await _refresh();
     }
   }
 

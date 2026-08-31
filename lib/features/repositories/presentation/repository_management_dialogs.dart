@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
+import 'package:github_manager/features/repositories/domain/repository_name_rules.dart';
 
 class RepositoryDraft {
   const RepositoryDraft({
@@ -501,6 +502,18 @@ class _RenameRepositoryDialogState extends State<_RenameRepositoryDialog> {
   late final TextEditingController _name =
       TextEditingController(text: widget.repository.name);
 
+  String? get _validationError => RepositoryNameRules.validate(_name.text);
+  bool get _changed =>
+      RepositoryNameRules.isChanged(widget.repository.name, _name.text);
+  bool get _canSubmit => _validationError == null && _changed;
+
+  String get _owner {
+    final slash = widget.repository.fullName.indexOf('/');
+    return slash > 0
+        ? widget.repository.fullName.substring(0, slash)
+        : widget.repository.fullName;
+  }
+
   @override
   void dispose() {
     _name.dispose();
@@ -508,36 +521,97 @@ class _RenameRepositoryDialogState extends State<_RenameRepositoryDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-        title: const Text('Renomear repositório'),
-        content: AdaptiveDialogBody(
-          child: TextField(
-            controller: _name,
-            autofocus: true,
-            autocorrect: false,
-            decoration: const InputDecoration(
-              labelText: 'Novo nome',
-              helperText:
-                  'O GitHub mantém redirecionamento do nome antigo enquanto ele não for reutilizado.',
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = _name.text.trim();
-              if (value.isEmpty || value == widget.repository.name) return;
-              Navigator.pop(context, value);
-            },
-            child: const Text('Renomear'),
-          ),
+  Widget build(BuildContext context) {
+    final normalized = RepositoryNameRules.normalize(_name.text);
+    final preview = normalized.isEmpty ? '$_owner/…' : '$_owner/$normalized';
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      title: const Row(
+        children: [
+          Icon(Icons.drive_file_rename_outline_rounded),
+          SizedBox(width: 10),
+          Expanded(child: Text('Renomear repositório')),
         ],
-      );
+      ),
+      content: AdaptiveDialogBody(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _name,
+              autofocus: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              maxLength: RepositoryNameRules.maxLength,
+              textInputAction: TextInputAction.done,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) {
+                if (_canSubmit) {
+                  Navigator.pop(
+                    context,
+                    RepositoryNameRules.normalize(_name.text),
+                  );
+                }
+              },
+              decoration: InputDecoration(
+                labelText: 'Novo nome',
+                prefixIcon: const Icon(Icons.folder_outlined),
+                errorText: _name.text.isEmpty ? null : _validationError,
+                helperText: 'Letras, números, ponto, hífen e sublinhado.',
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Novo endereço',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    'github.com/$preview',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'O GitHub normalmente redireciona o endereço antigo enquanto ele não for reutilizado. '
+              'O GitHub Manager consultará o GitHub novamente e atualizará referências locais de Acompanhados para o novo nome.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton.icon(
+          onPressed: _canSubmit
+              ? () => Navigator.pop(
+                    context,
+                    RepositoryNameRules.normalize(_name.text),
+                  )
+              : null,
+          icon: const Icon(Icons.drive_file_rename_outline_rounded),
+          label: const Text('Renomear'),
+        ),
+      ],
+    );
+  }
 }
 
 class _DeleteRepositoryDialog extends StatefulWidget {

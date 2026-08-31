@@ -39,6 +39,39 @@ class GitHubRepository {
         htmlUrl: json['html_url'] as String? ?? '',
       );
 
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is GitHubRepository &&
+        other.id == id &&
+        other.name == name &&
+        other.fullName == fullName &&
+        other.description == description &&
+        other.isPrivate == isPrivate &&
+        other.isArchived == isArchived &&
+        other.defaultBranch == defaultBranch &&
+        other.language == language &&
+        other.homepage == homepage &&
+        other.updatedAt == updatedAt &&
+        other.htmlUrl == htmlUrl;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        name,
+        fullName,
+        description,
+        isPrivate,
+        isArchived,
+        defaultBranch,
+        language,
+        homepage,
+        updatedAt,
+        htmlUrl,
+      );
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
