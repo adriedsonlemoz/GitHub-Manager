@@ -1,6 +1,19 @@
-# GitHub Manager 2.0.60
+# GitHub Manager 2.0.61
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
+
+
+## Diagnóstico detalhado de falhas no envio 2.0.61
+
+- o diálogo de falha informa exatamente **onde o envio parou**, preservando a última operação real em vez de mostrar apenas “Falha no envio”;
+- exibe **até onde o processo chegou**, incluindo arquivos já analisados e se a falha ocorreu depois da leitura do ZIP;
+- preserva e mostra **HTTP, endpoint, código interno e resposta detalhada da API do GitHub**;
+- respostas `422` passam a explicar separadamente falhas ao criar árvore Git, commit, atualizar branch, enviar blob ou usar a API de conteúdo;
+- quando for possível determinar com segurança, informa o **impacto no repositório** — por exemplo, se a branch permaneceu no commit anterior;
+- o GitHub Manager mostra blocos separados de **Resposta do GitHub**, **O que isso significa** e **O que fazer agora**;
+- o parser da API inclui detalhes do array `errors` retornado pelo GitHub, não apenas a mensagem genérica `Validation Failed`;
+- **Copiar diagnóstico** reúne etapa, progresso, HTTP, endpoint, resposta do GitHub, interpretação e ação sugerida;
+- as etapas recentes deixam de cortar a mensagem em uma única linha no diálogo de envio.
 
 
 ## Builds em tempo quase real e diagnóstico 2.0.60
@@ -44,7 +57,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.60+200074`;
+- versão: `2.0.61+200075`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

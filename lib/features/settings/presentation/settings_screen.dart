@@ -561,16 +561,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.61',
+                      text: 'Falhas de envio agora mostram onde pararam, progresso, resposta HTTP do GitHub, endpoint, impacto no repositório e orientação específica para corrigir.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.60',
                       text: 'Builds atualizam automaticamente mesmo sem execução ativa, falhas podem ser selecionadas em lote e o detalhe mostra diagnóstico com contexto real dos logs.',
                     ),
                     _ChangeNote(
                       version: '2.0.59',
                       text: 'Dados do GitHub são consultados diretamente na API; a listagem não usa snapshots locais de repositórios, descrições ou perfil.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.58',
-                      text: 'Reestruturou a sincronização da listagem e preparou a remoção dos snapshots antigos de dados remotos.',
                     ),
                   ],
                 ),

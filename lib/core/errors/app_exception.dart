@@ -122,8 +122,24 @@ final class GitHubValidationException extends AppException {
     String? endpoint,
     String? apiMessage,
   }) : super(
-          'O GitHub rejeitou os dados enviados. Confira nome, branch e permissões do token.',
+          'O GitHub recusou esta etapa porque os dados não passaram pela validação da API.',
           technicalCode: 'GITHUB_VALIDATION',
+          httpStatus: httpStatus,
+          endpoint: endpoint,
+          apiMessage: apiMessage,
+        );
+}
+
+final class GitHubHttpException extends AppException {
+  const GitHubHttpException({
+    int? httpStatus,
+    String? endpoint,
+    String? apiMessage,
+  }) : super(
+          httpStatus == null
+              ? 'O GitHub não respondeu como esperado.'
+              : 'O GitHub retornou HTTP $httpStatus e a operação não pôde ser concluída.',
+          technicalCode: 'GITHUB_HTTP_${httpStatus ?? 'UNKNOWN'}',
           httpStatus: httpStatus,
           endpoint: endpoint,
           apiMessage: apiMessage,

@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.60+200074`
+`version: 2.0.61+200075`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.61+200075` torna as falhas de envio explicáveis: preserva a operação exata que falhou, HTTP/endpoint/resposta completa do GitHub, progresso alcançado, impacto seguro no repositório e orientação específica por tipo de erro.
 
 A versão `2.0.60+200074` melhora Builds: polling leve a cada 6/15 segundos, seleção automática de falhas por toque longo, exclusão em lote tolerante a falhas individuais e diagnóstico que combina annotations com contexto extraído dos logs do GitHub Actions.
 

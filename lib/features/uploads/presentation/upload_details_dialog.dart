@@ -125,51 +125,7 @@ class UploadDetailsDialog extends StatelessWidget {
               ),
               if (item.errorMessage?.isNotEmpty == true) ...[
                 const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: scheme.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Erro',
-                        style: TextStyle(
-                          color: scheme.onErrorContainer,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.errorMessage!,
-                        style: TextStyle(color: scheme.onErrorContainer),
-                      ),
-                      if (item.failedFilePath?.isNotEmpty == true) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Arquivo: ${item.failedFilePath}',
-                          style: TextStyle(
-                            color: scheme.onErrorContainer,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                      if (item.errorCode?.isNotEmpty == true) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Código: ${item.errorCode}',
-                          style: TextStyle(
-                            color: scheme.onErrorContainer,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                _FailureReportCard(item: item),
               ],
               if (item.changedFileSamples.isNotEmpty) ...[
                 const SizedBox(height: 12),

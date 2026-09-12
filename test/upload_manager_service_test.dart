@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:github_manager/features/uploads/data/upload_manager_service.dart';
@@ -355,6 +356,71 @@ void main() {
     expect(item.status, ManagedUploadStatus.completed);
     expect(item.workflowRunId, 99);
   });
+
+  test('upload failure preserves GitHub response and exact operation', () async {
+    Future<ProjectUploadResult> upload({
+      required ZipProjectPreview project,
+      required String repositoryFullName,
+      required String branch,
+      required String commitMessage,
+      void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
+    }) async {
+      onProgress?.call(
+        ProjectUploadProgress(
+          phase: 'Removendo 2 arquivo(s) antigo(s)',
+          current: project.fileCount,
+          total: project.fileCount,
+          kind: ProjectUploadProgressKind.removed,
+          affectedCount: 2,
+        ),
+      );
+      throw const GitHubValidationException(
+        httpStatus: 422,
+        endpoint: '/repos/owner/repo/git/trees',
+        apiMessage: 'Validation Failed | Tree • campo sha • código invalid',
+      );
+    }
+
+    Future<RepositoryBuildLaunchResult> ensure({
+      required String repositoryFullName,
+      required String branch,
+      required String commitSha,
+      void Function(String status)? onStatus,
+      required int verificationAttempts,
+      required Duration verificationDelay,
+      required Duration postDispatchDelay,
+    }) async {
+      throw StateError('Build should not start after upload failure');
+    }
+
+    final zip = File('${temp.path}/failure.zip')..writeAsBytesSync([1]);
+    final manager = UploadManagerService.forTest(
+      uploadZip: upload,
+      ensureBuild: ensure,
+      historyFileFactory: () async => File('${temp.path}/failure-history.json'),
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
+    );
+    addTearDown(manager.dispose);
+
+    final item = manager.startBuild(
+      project: _preview(zip.path, 'Failure'),
+      repositoryFullName: 'owner/repo',
+      branch: 'main',
+    );
+    await manager.waitUntilIdle();
+
+    expect(item.status, ManagedUploadStatus.failed);
+    expect(item.failureOperation, 'Removendo 2 arquivo(s) antigo(s)');
+    expect(item.errorCode, 'GITHUB_VALIDATION');
+    expect(item.errorHttpStatus, 422);
+    expect(item.errorEndpoint, '/repos/owner/repo/git/trees');
+    expect(item.errorApiMessage, contains('Validation Failed'));
+    expect(item.failureRepositoryImpact, contains('branch não foi alterada'));
+    expect(item.timelineLines.join(' '), contains('Falha durante'));
+  });
+
 }
 
 ZipProjectPreview _preview(String path, String name) => ZipProjectPreview(

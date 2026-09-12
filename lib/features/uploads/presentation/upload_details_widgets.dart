@@ -242,3 +242,172 @@ class _InfoRow extends StatelessWidget {
         ),
       );
 }
+
+
+class _FailureReportCard extends StatelessWidget {
+  const _FailureReportCard({required this.item});
+
+  final ManagedUpload item;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.error.withValues(alpha: 0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.error_outline_rounded, color: scheme.error),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Falha em “${item.failureOperationLabel}”',
+                  style: TextStyle(
+                    color: scheme.onErrorContainer,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            item.errorMessage!,
+            style: TextStyle(
+              color: scheme.onErrorContainer,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _FailureParagraph(
+            title: 'Até onde chegou',
+            text: item.failureProgressExplanation,
+          ),
+          if (item.failureRepositoryImpact != null) ...[
+            const SizedBox(height: 8),
+            _FailureParagraph(
+              title: 'Impacto no repositório',
+              text: item.failureRepositoryImpact!,
+            ),
+          ],
+          const SizedBox(height: 8),
+          _FailureParagraph(
+            title: 'Resposta do GitHub',
+            text: item.githubFailureResponse,
+          ),
+          const SizedBox(height: 8),
+          _FailureParagraph(
+            title: 'O que isso significa',
+            text: item.failureMeaning,
+          ),
+          const SizedBox(height: 8),
+          _FailureParagraph(
+            title: 'O que fazer agora',
+            text: item.failureSuggestedAction,
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: scheme.surface.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Detalhes técnicos',
+                  style: TextStyle(
+                    color: scheme.onErrorContainer,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (item.errorCode?.isNotEmpty == true)
+                  _FailureDetail(label: 'Código', value: item.errorCode!),
+                if (item.errorHttpStatus != null)
+                  _FailureDetail(
+                    label: 'HTTP',
+                    value: '${item.errorHttpStatus}',
+                  ),
+                if (item.errorEndpoint?.isNotEmpty == true)
+                  _FailureDetail(
+                    label: 'Endpoint',
+                    value: item.errorEndpoint!,
+                  ),
+                if (item.failedFilePath?.isNotEmpty == true)
+                  _FailureDetail(
+                    label: 'Arquivo',
+                    value: item.failedFilePath!,
+                  ),
+                if (item.failureStage?.isNotEmpty == true)
+                  _FailureDetail(
+                    label: 'Etapa interna',
+                    value: item.failureStage!,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FailureParagraph extends StatelessWidget {
+  const _FailureParagraph({required this.title, required this.text});
+
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onErrorContainer;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 2),
+        SelectableText(text, style: TextStyle(color: color)),
+      ],
+    );
+  }
+}
+
+class _FailureDetail extends StatelessWidget {
+  const _FailureDetail({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onErrorContainer;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: TextStyle(color: color, fontWeight: FontWeight.w800),
+            ),
+          ),
+          Expanded(child: SelectableText(value, style: TextStyle(color: color))),
+        ],
+      ),
+    );
+  }
+}

@@ -208,7 +208,11 @@ class UploadManagerService {
       ..failedAt = null
       ..errorMessage = null
       ..errorCode = null
-      ..failureStage = null;
+      ..errorHttpStatus = null
+      ..errorEndpoint = null
+      ..errorApiMessage = null
+      ..failureStage = null
+      ..failureOperation = null;
     item.addLog('Execução da build solicitada mesmo sem alterações no ZIP');
     _queue.add(_QueuedUploadTask(item.id, buildOnly: true));
     _emit();
@@ -417,7 +421,11 @@ class UploadManagerService {
         ..failedAt = null
         ..errorMessage = null
         ..errorCode = null
-        ..failureStage = null;
+        ..errorHttpStatus = null
+        ..errorEndpoint = null
+        ..errorApiMessage = null
+        ..failureStage = null
+        ..failureOperation = null;
       item.addLog(item.phase);
       _emit();
       await _persistHistory();
@@ -430,16 +438,32 @@ class UploadManagerService {
   void _fail(ManagedUpload item, Object error, {required String stage}) {
     final appError = error is AppException ? error : null;
     final failedFile = item.currentFile;
+    final failedOperation = item.phase.trim();
     item
       ..status = ManagedUploadStatus.failed
       ..failedAt = DateTime.now()
       ..phase = stage == 'build' ? 'Falha ao iniciar a build' : 'Falha no envio'
       ..errorMessage = appError?.message ?? 'Não foi possível concluir o envio.'
       ..errorCode = appError?.technicalCode ?? error.runtimeType.toString()
+      ..errorHttpStatus = appError?.httpStatus
+      ..errorEndpoint = appError?.endpoint
+      ..errorApiMessage = appError?.apiMessage
       ..failureStage = stage
+      ..failureOperation = failedOperation.isEmpty ? null : failedOperation
       ..failedFilePath = failedFile
       ..currentFile = null;
+    if (failedOperation.isNotEmpty) {
+      item.addLog('Falha durante: $failedOperation');
+    }
     item.addLog('${item.phase}: ${item.errorMessage}');
+    if (appError?.httpStatus != null || appError?.apiMessage?.isNotEmpty == true) {
+      item.addLog(
+        [
+          if (appError?.httpStatus != null) 'HTTP ${appError!.httpStatus}',
+          if (appError?.apiMessage?.isNotEmpty == true) appError!.apiMessage!,
+        ].join(' • '),
+      );
+    }
     _emit();
     unawaited(_persistHistory());
   }

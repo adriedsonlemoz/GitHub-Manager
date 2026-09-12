@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/features/uploads/data/upload_manager_service.dart';
@@ -105,8 +106,6 @@ class UploadProgressDialog extends ConsumerWidget {
                               padding: const EdgeInsets.only(bottom: 2),
                               child: Text(
                                 '• $line',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
@@ -129,11 +128,10 @@ class UploadProgressDialog extends ConsumerWidget {
                         ),
                   ),
                 ],
-                if (item.errorMessage?.isNotEmpty == true)
-                  Text(
-                    item.errorMessage!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
-                  ),
+                if (item.errorMessage?.isNotEmpty == true) ...[
+                  const SizedBox(height: 10),
+                  _FailureDiagnostic(item: item),
+                ],
                 if (item.status == ManagedUploadStatus.noChanges)
                   const Text(
                     'O ZIP é idêntico ao repositório. Você pode iniciar a build do commit atual mesmo assim.',
@@ -224,4 +222,196 @@ class UploadProgressDialog extends ConsumerWidget {
         ManagedUploadStatus.interrupted => 'Envio interrompido',
         _ => 'Enviando build',
       };
+}
+
+
+class _FailureDiagnostic extends StatelessWidget {
+  const _FailureDiagnostic({required this.item});
+
+  final ManagedUpload item;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final githubResponse = item.githubFailureResponse;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.error.withValues(alpha: 0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.error_outline_rounded, color: scheme.error, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'O envio parou em “${item.failureOperationLabel}”',
+                  style: TextStyle(
+                    color: scheme.onErrorContainer,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            item.errorMessage!,
+            style: TextStyle(
+              color: scheme.onErrorContainer,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _DiagnosticBlock(
+            title: 'Até onde chegou',
+            text: item.failureProgressExplanation,
+            color: scheme.onErrorContainer,
+          ),
+          if (item.failureRepositoryImpact != null) ...[
+            const SizedBox(height: 8),
+            _DiagnosticBlock(
+              title: 'Impacto no repositório',
+              text: item.failureRepositoryImpact!,
+              color: scheme.onErrorContainer,
+            ),
+          ],
+          const SizedBox(height: 8),
+          _DiagnosticBlock(
+            title: 'Resposta do GitHub',
+            text: githubResponse,
+            color: scheme.onErrorContainer,
+          ),
+          const SizedBox(height: 8),
+          _DiagnosticBlock(
+            title: 'O que isso significa',
+            text: item.failureMeaning,
+            color: scheme.onErrorContainer,
+          ),
+          const SizedBox(height: 8),
+          _DiagnosticBlock(
+            title: 'O que fazer agora',
+            text: item.failureSuggestedAction,
+            color: scheme.onErrorContainer,
+          ),
+          if (item.errorCode?.isNotEmpty == true ||
+              item.errorEndpoint?.isNotEmpty == true ||
+              item.failedFilePath?.isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              iconColor: scheme.onErrorContainer,
+              collapsedIconColor: scheme.onErrorContainer,
+              title: Text(
+                'Detalhes técnicos',
+                style: TextStyle(
+                  color: scheme.onErrorContainer,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              children: [
+                if (item.errorCode?.isNotEmpty == true)
+                  _TechnicalLine(label: 'Código', value: item.errorCode!),
+                if (item.errorHttpStatus != null)
+                  _TechnicalLine(
+                    label: 'HTTP',
+                    value: '${item.errorHttpStatus}',
+                  ),
+                if (item.errorEndpoint?.isNotEmpty == true)
+                  _TechnicalLine(label: 'Endpoint', value: item.errorEndpoint!),
+                if (item.failedFilePath?.isNotEmpty == true)
+                  _TechnicalLine(
+                    label: 'Arquivo',
+                    value: item.failedFilePath!,
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: item.failureDiagnosticText),
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Diagnóstico copiado')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.copy_all_rounded, size: 18),
+              label: const Text('Copiar diagnóstico'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiagnosticBlock extends StatelessWidget {
+  const _DiagnosticBlock({
+    required this.title,
+    required this.text,
+    required this.color,
+  });
+
+  final String title;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 2),
+          Text(text, style: TextStyle(color: color)),
+        ],
+      );
+}
+
+class _TechnicalLine extends StatelessWidget {
+  const _TechnicalLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onErrorContainer;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 72,
+            child: Text(
+              label,
+              style: TextStyle(color: color, fontWeight: FontWeight.w800),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(value, style: TextStyle(color: color)),
+          ),
+        ],
+      ),
+    );
+  }
 }

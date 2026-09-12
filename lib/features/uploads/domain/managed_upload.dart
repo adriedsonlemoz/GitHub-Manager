@@ -47,7 +47,11 @@ class ManagedUpload {
     this.dispatchTriggered,
     this.errorMessage,
     this.errorCode,
+    this.errorHttpStatus,
+    this.errorEndpoint,
+    this.errorApiMessage,
     this.failureStage,
+    this.failureOperation,
     this.failedFilePath,
     this.unchangedFiles = 0,
     this.changedFiles = 0,
@@ -100,7 +104,11 @@ class ManagedUpload {
   bool? dispatchTriggered;
   String? errorMessage;
   String? errorCode;
+  int? errorHttpStatus;
+  String? errorEndpoint;
+  String? errorApiMessage;
   String? failureStage;
+  String? failureOperation;
   String? failedFilePath;
   int unchangedFiles;
   int changedFiles;
@@ -189,6 +197,162 @@ class ManagedUpload {
     if (dispatchTriggered == true) return 'Iniciada manualmente';
     if (dispatchTriggered == false) return 'Iniciada automaticamente pelo push';
     return 'Iniciada';
+  }
+
+  String get failureOperationLabel {
+    final value = failureOperation?.trim();
+    if (value != null && value.isNotEmpty) return value;
+    if (failureStage == 'build') return 'Inicialização da build';
+    return 'Sincronização com o repositório';
+  }
+
+  String get githubFailureResponse {
+    final parts = <String>[
+      if (errorHttpStatus != null) 'HTTP $errorHttpStatus',
+      if (errorApiMessage?.trim().isNotEmpty == true) errorApiMessage!.trim(),
+    ];
+    if (parts.isEmpty) return 'O GitHub não retornou detalhes adicionais.';
+    return parts.join(' • ');
+  }
+
+  String get failureProgressExplanation {
+    if (total <= 0) {
+      return 'O envio parou durante “$failureOperationLabel”.';
+    }
+    final done = current.clamp(0, total);
+    if (done >= total) {
+      return 'Os $total arquivos do ZIP já tinham sido analisados. A falha aconteceu depois dessa análise, durante “$failureOperationLabel”.';
+    }
+    return 'O processo chegou a $done de $total arquivos antes de parar durante “$failureOperationLabel”.';
+  }
+
+  String? get failureRepositoryImpact {
+    final endpoint = (errorEndpoint ?? '').toLowerCase();
+    if (endpoint.contains('/git/trees')) {
+      return 'A nova árvore não foi aceita; nenhum commit novo desta tentativa foi criado e a branch não foi alterada.';
+    }
+    if (endpoint.contains('/git/commits')) {
+      return 'A branch não foi atualizada por esta tentativa, porque a criação do commit falhou.';
+    }
+    if (endpoint.contains('/git/refs/heads/')) {
+      return 'O commit pode ter sido criado, mas a branch não foi movida para ele; os arquivos visíveis na branch permanecem no commit anterior.';
+    }
+    if (endpoint.contains('/git/blobs')) {
+      return 'A falha ocorreu antes da criação do commit; a branch não foi atualizada por esta tentativa.';
+    }
+    return null;
+  }
+
+  String get failureMeaning {
+    final code = errorCode ?? '';
+    final endpoint = (errorEndpoint ?? '').toLowerCase();
+
+    if (code == 'AUTH_REQUIRED' || code == 'GITHUB_TOKEN_INVALID') {
+      return 'A autenticação deixou de ser aceita pelo GitHub. O token pode ter expirado, sido revogado ou não estar mais disponível.';
+    }
+    if (code == 'GITHUB_RATE_LIMIT') {
+      return 'O GitHub bloqueou temporariamente novas chamadas porque o limite da API foi atingido.';
+    }
+    if (code == 'GITHUB_PERMISSION') {
+      return 'O GitHub recebeu a solicitação, mas o token não tem permissão suficiente para concluir esta operação.';
+    }
+    if (code == 'GITHUB_NOT_FOUND') {
+      return 'O recurso usado nesta etapa não foi encontrado ou não está visível para o token atual.';
+    }
+    if (code == 'GITHUB_CONFLICT') {
+      return 'O estado do repositório mudou durante o envio e o GitHub recusou continuar com dados que já não correspondem ao estado atual.';
+    }
+    if (code == 'GITHUB_VALIDATION') {
+      if (endpoint.contains('/git/trees')) {
+        return 'O GitHub recusou a árvore Git que reunia os arquivos do ZIP e as remoções detectadas. A falha ocorreu ao montar a nova estrutura do repositório, antes de criar o commit.';
+      }
+      if (endpoint.contains('/git/commits')) {
+        return 'O GitHub recusou a criação do novo commit. A árvore já havia sido preparada, mas os dados do commit não passaram pela validação da API.';
+      }
+      if (endpoint.contains('/git/refs/heads/')) {
+        return 'O commit foi preparado, mas o GitHub recusou atualizar a branch para apontar para ele. Proteções, rulesets ou uma mudança concorrente na branch podem causar esse tipo de rejeição.';
+      }
+      if (endpoint.contains('/git/blobs')) {
+        return 'O GitHub recusou um dos conteúdos de arquivo enviados antes da criação da árvore do commit.';
+      }
+      if (endpoint.contains('/contents')) {
+        return 'O GitHub recusou uma alteração de arquivo feita pela API de conteúdo do repositório.';
+      }
+      return 'O GitHub recebeu os dados, mas recusou a operação porque eles não passaram pelas regras de validação da API.';
+    }
+    if (code == 'NETWORK_REQUIRED') {
+      return 'A comunicação com o GitHub foi interrompida ou não pôde ser estabelecida nesta etapa.';
+    }
+    if (code.startsWith('GITHUB_HTTP_')) {
+      return 'O GitHub respondeu com um status HTTP que o aplicativo não classificou como um dos casos comuns. A resposta e o endpoint abaixo mostram exatamente qual chamada falhou.';
+    }
+    if (code.startsWith('UPLOAD_')) {
+      return errorMessage ?? 'O GitHub Manager não conseguiu concluir esta etapa do envio.';
+    }
+    return 'O envio parou nesta etapa antes de ser concluído. Os detalhes técnicos abaixo ajudam a identificar a origem exata.';
+  }
+
+  String get failureSuggestedAction {
+    final code = errorCode ?? '';
+    final endpoint = (errorEndpoint ?? '').toLowerCase();
+
+    if (code == 'AUTH_REQUIRED' || code == 'GITHUB_TOKEN_INVALID') {
+      return 'Reconecte a conta ou gere um token válido e tente novamente.';
+    }
+    if (code == 'GITHUB_RATE_LIMIT') {
+      return 'Aguarde o limite da API liberar e tente novamente depois.';
+    }
+    if (code == 'GITHUB_PERMISSION') {
+      return 'Abra o Diagnóstico do token e confirme principalmente a permissão Contents: write para este repositório.';
+    }
+    if (code == 'GITHUB_NOT_FOUND') {
+      return 'Confirme o repositório, a branch e se o token possui acesso a esse repositório.';
+    }
+    if (code == 'GITHUB_CONFLICT') {
+      return 'Atualize os dados do repositório e tente novamente para refazer a sincronização sobre o estado atual.';
+    }
+    if (code == 'GITHUB_VALIDATION') {
+      if (endpoint.contains('/git/refs/heads/')) {
+        return 'Confira as regras/proteções da branch e tente novamente. Se a branch mudou durante o envio, uma nova tentativa refaz a comparação.';
+      }
+      if (endpoint.contains('/git/trees')) {
+        return 'Tente novamente para reconstruir a comparação com o repositório atual. Se repetir, copie o diagnóstico: a resposta do GitHub e o endpoint indicam qual validação da árvore falhou.';
+      }
+      return 'Tente novamente uma vez. Se a rejeição se repetir, copie o diagnóstico completo para identificar a validação exata retornada pelo GitHub.';
+    }
+    if (code == 'NETWORK_REQUIRED') {
+      return 'Verifique a conexão e tente novamente. O checkpoint evita reenviar o que já foi concluído quando possível.';
+    }
+    if (code.startsWith('GITHUB_HTTP_')) {
+      if (errorHttpStatus != null && errorHttpStatus! >= 500) {
+        return 'Tente novamente depois de alguns instantes. Se continuar, copie o diagnóstico para conferir a resposta do serviço do GitHub.';
+      }
+      return 'Confira a resposta do GitHub e o endpoint nos detalhes técnicos. Se repetir, copie o diagnóstico antes de tentar novamente.';
+    }
+    return 'Tente novamente. Se a falha persistir, use “Copiar diagnóstico” para registrar a etapa, o código e a resposta recebida.';
+  }
+
+  String get failureDiagnosticText {
+    final lines = <String>[
+      'DIAGNÓSTICO DA FALHA',
+      'Onde parou: $failureOperationLabel',
+      'Progresso: $failureProgressExplanation',
+      if (failureRepositoryImpact != null) 'Impacto: $failureRepositoryImpact',
+      if (failureStage?.isNotEmpty == true) 'Etapa interna: $failureStage',
+      if (failedFilePath?.isNotEmpty == true) 'Arquivo: $failedFilePath',
+      if (errorCode?.isNotEmpty == true) 'Código: $errorCode',
+      if (errorHttpStatus != null) 'HTTP: $errorHttpStatus',
+      if (errorEndpoint?.isNotEmpty == true) 'Endpoint: $errorEndpoint',
+      if (errorApiMessage?.isNotEmpty == true) 'GitHub: $errorApiMessage',
+      if (errorMessage?.isNotEmpty == true) 'Mensagem do app: $errorMessage',
+      '',
+      'O que significa:',
+      failureMeaning,
+      '',
+      'O que fazer:',
+      failureSuggestedAction,
+    ];
+    return lines.join('\n');
   }
 
   List<String> get timelineLines {
@@ -361,7 +525,11 @@ class ManagedUpload {
     failedAt = null;
     errorMessage = null;
     errorCode = null;
+    errorHttpStatus = null;
+    errorEndpoint = null;
+    errorApiMessage = null;
     failureStage = null;
+    failureOperation = null;
     failedFilePath = null;
     addLog(
       buildOnly
@@ -385,7 +553,11 @@ class ManagedUpload {
     failedAt = null;
     errorMessage = null;
     errorCode = null;
+    errorHttpStatus = null;
+    errorEndpoint = null;
+    errorApiMessage = null;
     failureStage = null;
+    failureOperation = null;
     failedFilePath = null;
     if (!buildOnly) {
       commitSha = null;
@@ -441,9 +613,17 @@ class ManagedUpload {
       if (uploadedBlobShas.isNotEmpty)
         'Checkpoint ativo: ${uploadedBlobShas.length} blob(s)',
       if (failureStage != null) 'Falha na etapa: $failureStage',
+      if (failureOperation?.isNotEmpty == true) 'Onde parou: $failureOperation',
       if (failedFilePath?.isNotEmpty == true) 'Arquivo da falha: $failedFilePath',
       if (errorCode != null) 'Código interno: $errorCode',
+      if (errorHttpStatus != null) 'HTTP: $errorHttpStatus',
+      if (errorEndpoint?.isNotEmpty == true) 'Endpoint: $errorEndpoint',
+      if (errorApiMessage?.isNotEmpty == true) 'Resposta do GitHub: $errorApiMessage',
       if (errorMessage != null) 'Erro: $errorMessage',
+      if (errorMessage != null) ...[
+        '',
+        failureDiagnosticText,
+      ],
       if (timelineLines.isNotEmpty) ...[
         '',
         'LINHA DO TEMPO',
@@ -509,7 +689,11 @@ class ManagedUpload {
         'dispatchTriggered': dispatchTriggered,
         'errorMessage': errorMessage,
         'errorCode': errorCode,
+        'errorHttpStatus': errorHttpStatus,
+        'errorEndpoint': errorEndpoint,
+        'errorApiMessage': errorApiMessage,
         'failureStage': failureStage,
+        'failureOperation': failureOperation,
         'failedFilePath': failedFilePath,
         'unchangedFiles': unchangedFiles,
         'changedFiles': changedFiles,
@@ -567,7 +751,11 @@ class ManagedUpload {
       dispatchTriggered: json['dispatchTriggered'] as bool?,
       errorMessage: json['errorMessage']?.toString(),
       errorCode: json['errorCode']?.toString(),
+      errorHttpStatus: (json['errorHttpStatus'] as num?)?.toInt(),
+      errorEndpoint: json['errorEndpoint']?.toString(),
+      errorApiMessage: json['errorApiMessage']?.toString(),
       failureStage: json['failureStage']?.toString(),
+      failureOperation: json['failureOperation']?.toString(),
       failedFilePath: json['failedFilePath']?.toString(),
       unchangedFiles: (json['unchangedFiles'] as num?)?.toInt() ?? 0,
       changedFiles: (json['changedFiles'] as num?)?.toInt() ?? 0,

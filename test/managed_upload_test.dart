@@ -186,4 +186,47 @@ void main() {
     expect(restored.removedFiles, 3);
     expect(restored.changedFileSamples, ['pubspec.yaml']);
   });
+
+  test('failure diagnostics survive JSON round trip and explain Git tree rejection', () {
+    final item = ManagedUpload(
+      id: '6',
+      repositoryFullName: 'owner/repo',
+      branch: 'main',
+      zipPath: '/tmp/repo.zip',
+      zipName: 'repo.zip',
+      projectName: 'Repo',
+      projectType: 'Flutter',
+      archiveBytes: 10,
+      uncompressedBytes: 20,
+      fileCount: 824,
+      folderCount: 20,
+      importantFiles: const ['pubspec.yaml'],
+      commonRoot: null,
+      status: ManagedUploadStatus.failed,
+      createdAt: DateTime(2026, 9, 11),
+      phase: 'Falha no envio',
+      current: 824,
+      total: 824,
+      errorMessage: 'O GitHub recusou esta etapa porque os dados não passaram pela validação da API.',
+      errorCode: 'GITHUB_VALIDATION',
+      errorHttpStatus: 422,
+      errorEndpoint: '/repos/owner/repo/git/trees',
+      errorApiMessage: 'Validation Failed | Tree • campo sha • código invalid',
+      failureStage: 'upload',
+      failureOperation: 'Removendo 2 arquivo(s) antigo(s)',
+      removedFiles: 2,
+    );
+
+    final restored = ManagedUpload.fromJson(item.toJson());
+
+    expect(restored.errorHttpStatus, 422);
+    expect(restored.errorEndpoint, contains('/git/trees'));
+    expect(restored.failureOperationLabel, contains('Removendo 2'));
+    expect(restored.failureProgressExplanation, contains('824 arquivos'));
+    expect(restored.failureMeaning, contains('árvore Git'));
+    expect(restored.failureRepositoryImpact, contains('nenhum commit novo'));
+    expect(restored.failureDiagnosticText, contains('HTTP: 422'));
+    expect(restored.technicalLog, contains('Resposta do GitHub'));
+  });
+
 }

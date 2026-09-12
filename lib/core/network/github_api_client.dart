@@ -638,17 +638,43 @@ class GitHubApiClient {
   }
 
   static String? _responseMessage(Object? data) {
+    String limit(String value) =>
+        value.length > 900 ? '${value.substring(0, 900)}…' : value;
+
     if (data is Map) {
+      final parts = <String>[];
       final message = data['message']?.toString().trim();
       if (message != null && message.isNotEmpty) {
-        return message.length > 500 ? '${message.substring(0, 500)}…' : message;
+        parts.add(message);
       }
+
+      final errors = data['errors'];
+      if (errors is List) {
+        for (final raw in errors.take(4)) {
+          if (raw is Map) {
+            final detailParts = <String>[
+              if (raw['resource']?.toString().trim().isNotEmpty == true)
+                raw['resource'].toString().trim(),
+              if (raw['field']?.toString().trim().isNotEmpty == true)
+                'campo ${raw['field'].toString().trim()}',
+              if (raw['code']?.toString().trim().isNotEmpty == true)
+                'código ${raw['code'].toString().trim()}',
+              if (raw['message']?.toString().trim().isNotEmpty == true)
+                raw['message'].toString().trim(),
+            ];
+            if (detailParts.isNotEmpty) parts.add(detailParts.join(' • '));
+          } else {
+            final detail = raw.toString().trim();
+            if (detail.isNotEmpty) parts.add(detail);
+          }
+        }
+      }
+
+      if (parts.isNotEmpty) return limit(parts.join(' | '));
     }
     if (data is String) {
       final value = data.trim();
-      if (value.isNotEmpty) {
-        return value.length > 500 ? '${value.substring(0, 500)}…' : value;
-      }
+      if (value.isNotEmpty) return limit(value);
     }
     return null;
   }
@@ -721,7 +747,11 @@ class GitHubApiClient {
       return const NetworkRequiredException();
     }
 
-    return UnexpectedAppException('GITHUB_HTTP_${status ?? 'UNKNOWN'}');
+    return GitHubHttpException(
+      httpStatus: status,
+      endpoint: endpoint,
+      apiMessage: apiMessage,
+    );
   }
 }
 
