@@ -229,4 +229,47 @@ void main() {
     expect(restored.technicalLog, contains('Resposta do GitHub'));
   });
 
+  test('tree validation recommends safer recovery methods and persists history', () {
+    final item = ManagedUpload(
+      id: '7',
+      repositoryFullName: 'owner/repo',
+      branch: 'main',
+      zipPath: '/tmp/repo.zip',
+      zipName: 'repo.zip',
+      projectName: 'Repo',
+      projectType: 'Flutter',
+      archiveBytes: 10,
+      uncompressedBytes: 20,
+      fileCount: 10,
+      folderCount: 2,
+      importantFiles: const ['pubspec.yaml'],
+      commonRoot: null,
+      status: ManagedUploadStatus.failed,
+      createdAt: DateTime(2026, 9, 11),
+      errorMessage: 'Validation Failed',
+      errorCode: 'GITHUB_VALIDATION',
+      errorHttpStatus: 422,
+      errorEndpoint: '/repos/owner/repo/git/trees',
+      failureStage: 'upload',
+      uploadMethod: ProjectUploadMethod.incremental,
+    );
+
+    expect(item.recommendedRecoveryMethod, ProjectUploadMethod.fullTree);
+    expect(item.hasAlternativeRecoveryMethod, isTrue);
+
+    item.recordProgress(
+      const ProjectUploadProgress(
+        phase: 'HTTP 422 • GITHUB_VALIDATION • /git/trees • método incremental falhou; tentando reconstrução da árvore completa',
+        kind: ProjectUploadProgressKind.recovery,
+        method: ProjectUploadMethod.fullTree,
+      ),
+    );
+
+    final restored = ManagedUpload.fromJson(item.toJson());
+    expect(restored.uploadMethod, ProjectUploadMethod.fullTree);
+    expect(restored.recoveryEvents, isNotEmpty);
+    expect(restored.recommendedRecoveryMethod, ProjectUploadMethod.contentsApi);
+    expect(restored.failureDiagnosticText, contains('Tentativas de recuperação'));
+  });
+
 }

@@ -744,7 +744,11 @@ class GitHubApiClient {
         error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.sendTimeout) {
-      return const NetworkRequiredException();
+      return NetworkRequiredException(
+        httpStatus: status,
+        endpoint: endpoint,
+        apiMessage: apiMessage,
+      );
     }
 
     return GitHubHttpException(

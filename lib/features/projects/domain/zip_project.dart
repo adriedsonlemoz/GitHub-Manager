@@ -46,6 +46,35 @@ class ZipProjectPreview {
   }
 }
 
+enum ProjectUploadMethod {
+  incremental,
+  fullTree,
+  contentsApi,
+}
+
+extension ProjectUploadMethodLabel on ProjectUploadMethod {
+  String get label => switch (this) {
+        ProjectUploadMethod.incremental => 'Atualização incremental',
+        ProjectUploadMethod.fullTree => 'Reconstrução da árvore',
+        ProjectUploadMethod.contentsApi => 'Arquivos individuais',
+      };
+
+  String get shortLabel => switch (this) {
+        ProjectUploadMethod.incremental => 'Incremental',
+        ProjectUploadMethod.fullTree => 'Árvore completa',
+        ProjectUploadMethod.contentsApi => 'Individual',
+      };
+
+  String get description => switch (this) {
+        ProjectUploadMethod.incremental =>
+          'Atualiza a árvore Git existente em um único commit.',
+        ProjectUploadMethod.fullTree =>
+          'Reconstrói a árvore final do projeto sem reaproveitar a árvore anterior.',
+        ProjectUploadMethod.contentsApi =>
+          'Atualiza poucos arquivos pela API de Contents. Pode criar mais de um commit.',
+      };
+}
+
 enum ProjectUploadProgressKind {
   stage,
   unchanged,
@@ -53,6 +82,8 @@ enum ProjectUploadProgressKind {
   resumed,
   transferStarted,
   removed,
+  recovery,
+  commitCreated,
 }
 
 class ProjectUploadProgress {
@@ -63,6 +94,7 @@ class ProjectUploadProgress {
     this.fileName,
     this.kind = ProjectUploadProgressKind.stage,
     this.affectedCount = 0,
+    this.method,
   });
 
   final String phase;
@@ -71,12 +103,15 @@ class ProjectUploadProgress {
   final String? fileName;
   final ProjectUploadProgressKind kind;
   final int affectedCount;
+  final ProjectUploadMethod? method;
 
   double? get fraction => total <= 0 ? null : current / total;
 
   bool get isFileActivity =>
-      kind != ProjectUploadProgressKind.stage &&
-      kind != ProjectUploadProgressKind.removed;
+      kind == ProjectUploadProgressKind.unchanged ||
+      kind == ProjectUploadProgressKind.changed ||
+      kind == ProjectUploadProgressKind.resumed ||
+      kind == ProjectUploadProgressKind.transferStarted;
 }
 
 class ProjectUploadResult {
@@ -84,9 +119,13 @@ class ProjectUploadResult {
     required this.commitSha,
     required this.fileCount,
     required this.changed,
+    this.method = ProjectUploadMethod.incremental,
+    this.commitCount = 0,
   });
 
   final String commitSha;
   final int fileCount;
   final bool changed;
+  final ProjectUploadMethod method;
+  final int commitCount;
 }

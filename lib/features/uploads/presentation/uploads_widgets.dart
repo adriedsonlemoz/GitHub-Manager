@@ -78,8 +78,10 @@ class _UploadCard extends StatelessWidget {
     final actionItems = <_UploadAction>[
       if (onRetry != null)
         _UploadAction(
-          icon: Icons.refresh_rounded,
-          label: 'Repetir',
+          icon: item.hasAlternativeRecoveryMethod
+              ? Icons.alt_route_rounded
+              : Icons.refresh_rounded,
+          label: item.hasAlternativeRecoveryMethod ? 'Recuperar' : 'Repetir',
           onPressed: onRetry!,
         ),
       if (onRunAnyway != null)
@@ -224,6 +226,10 @@ class _UploadCard extends StatelessWidget {
                         label: 'Atualizados',
                         value: '${item.unchangedFiles}',
                       ),
+                    _UploadMetric(
+                      label: 'Método',
+                      value: item.uploadMethod.shortLabel,
+                    ),
                     _UploadMetric(
                       label: 'Duração',
                       value: item.elapsedLabel,

@@ -14,6 +14,7 @@ import 'package:github_manager/features/home/domain/github_profile.dart';
 import 'package:github_manager/features/home/presentation/github_profile_edit_dialog.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
+import 'package:github_manager/features/uploads/data/upload_recovery_settings.dart';
 import 'package:go_router/go_router.dart';
 
 part 'settings_widgets.dart';
@@ -29,6 +30,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late ThemeMode _themeMode;
   Map<String, String>? _apiSettings;
   bool? _buildNotificationsEnabled;
+  bool? _automaticUploadRecoveryEnabled;
 
   @override
   void initState() {
@@ -36,6 +38,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _themeMode = AppThemeController.instance.value;
     _loadApiSettings();
     _loadNotificationSettings();
+    _loadUploadRecoverySettings();
   }
 
   Future<void> _loadApiSettings() async {
@@ -51,6 +54,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       setState(() => _buildNotificationsEnabled = enabled);
     }
+  }
+
+  Future<void> _loadUploadRecoverySettings() async {
+    var enabled = true;
+    try {
+      enabled = await UploadRecoverySettings.isAutomaticRecoveryEnabled(
+        database: ref.read(localDatabaseProvider),
+      );
+    } catch (_) {
+      // Preferência local auxiliar: uma falha de leitura não deve bloquear envios.
+    }
+    if (mounted) {
+      setState(() => _automaticUploadRecoveryEnabled = enabled);
+    }
+  }
+
+  Future<void> _setUploadAutomaticRecovery(bool enabled) async {
+    try {
+      await UploadRecoverySettings.setAutomaticRecoveryEnabled(
+        enabled,
+        database: ref.read(localDatabaseProvider),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showCenteredNotice(
+        context,
+        'Não foi possível salvar a preferência de recuperação.',
+        kind: CenteredNoticeKind.error,
+      );
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _automaticUploadRecoveryEnabled = enabled);
+    showCenteredNotice(
+      context,
+      enabled
+          ? 'Recuperação automática de envios ativada.'
+          : 'Recuperação automática de envios desativada.',
+      kind: CenteredNoticeKind.success,
+    );
   }
 
   Future<void> _setBuildNotifications(bool enabled) async {
@@ -458,6 +501,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 18),
+          const _SectionTitle('Envios'),
+          Card(
+            child: SwitchListTile(
+              secondary: const Icon(Icons.health_and_safety_outlined),
+              title: const Text('Recuperação automática de envios'),
+              subtitle: const Text(
+                'Se a atualização incremental for recusada na criação da árvore Git, tenta reconstruir a árvore completa. Erros temporários de rede e HTTP 5xx também podem ser repetidos com espera curta. O método de arquivos individuais nunca é iniciado automaticamente.',
+              ),
+              value: _automaticUploadRecoveryEnabled ?? true,
+              onChanged: _automaticUploadRecoveryEnabled == null
+                  ? null
+                  : _setUploadAutomaticRecovery,
+            ),
+          ),
+          const SizedBox(height: 18),
           const _SectionTitle('Integrações'),
           profile.when(
             loading: () => const _IntegrationLoadingCard(title: 'GitHub'),
@@ -561,16 +619,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.62',
+                      text: 'Envios identificam o método que falhou, repetem erros temporários e podem trocar com segurança da árvore incremental para reconstrução completa, com proteção contra mudança da branch.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.61',
-                      text: 'Falhas de envio agora mostram onde pararam, progresso, resposta HTTP do GitHub, endpoint, impacto no repositório e orientação específica para corrigir.',
+                      text: 'Falhas de envio mostram onde pararam, progresso, resposta HTTP do GitHub, endpoint, impacto no repositório e orientação específica para corrigir.',
                     ),
                     _ChangeNote(
                       version: '2.0.60',
                       text: 'Builds atualizam automaticamente mesmo sem execução ativa, falhas podem ser selecionadas em lote e o detalhe mostra diagnóstico com contexto real dos logs.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.59',
-                      text: 'Dados do GitHub são consultados diretamente na API; a listagem não usa snapshots locais de repositórios, descrições ou perfil.',
                     ),
                   ],
                 ),

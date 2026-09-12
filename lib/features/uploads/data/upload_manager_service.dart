@@ -9,6 +9,7 @@ import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/repositories/data/repository_git_service.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:github_manager/features/uploads/data/upload_foreground_service.dart';
+import 'package:github_manager/features/uploads/data/upload_recovery_settings.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -21,6 +22,8 @@ typedef ProjectUploadExecutor = Future<ProjectUploadResult> Function({
   void Function(ProjectUploadProgress progress)? onProgress,
   required Map<String, String> reusableBlobShas,
   void Function(String path, String sha)? onBlobUploaded,
+  required ProjectUploadMethod method,
+  required bool allowAutomaticRecovery,
 });
 
 typedef BuildEnsureExecutor = Future<RepositoryBuildLaunchResult> Function({
@@ -40,6 +43,7 @@ class UploadManagerService {
     Future<File> Function()? historyFileFactory,
     Future<Directory> Function()? queueDirectoryFactory,
     UploadForegroundController? foregroundController,
+    Future<bool> Function()? automaticRecoveryEnabled,
     bool restoreHistory = true,
   })  : _uploadZip = (({
           required ZipProjectPreview project,
@@ -49,6 +53,8 @@ class UploadManagerService {
           void Function(ProjectUploadProgress progress)? onProgress,
           required Map<String, String> reusableBlobShas,
           void Function(String path, String sha)? onBlobUploaded,
+          required ProjectUploadMethod method,
+          required bool allowAutomaticRecovery,
         }) =>
             uploadService.uploadZip(
               project: project,
@@ -58,6 +64,8 @@ class UploadManagerService {
               onProgress: onProgress,
               reusableBlobShas: reusableBlobShas,
               onBlobUploaded: onBlobUploaded,
+              method: method,
+              allowAutomaticRecovery: allowAutomaticRecovery,
             )),
         _ensureBuild = (({
           required String repositoryFullName,
@@ -80,7 +88,9 @@ class UploadManagerService {
         _historyFileFactory = historyFileFactory,
         _queueDirectoryFactory = queueDirectoryFactory,
         _foregroundController = foregroundController ??
-            PlatformUploadForegroundController() {
+            PlatformUploadForegroundController(),
+        _automaticRecoveryEnabled = automaticRecoveryEnabled ??
+            (() => UploadRecoverySettings.isAutomaticRecoveryEnabled()) {
     if (restoreHistory) {
       unawaited(_restoreHistory());
     } else {
@@ -94,12 +104,14 @@ class UploadManagerService {
     Future<File> Function()? historyFileFactory,
     Future<Directory> Function()? queueDirectoryFactory,
     UploadForegroundController? foregroundController,
+    Future<bool> Function()? automaticRecoveryEnabled,
     bool restoreHistory = false,
   })  : _uploadZip = uploadZip,
         _ensureBuild = ensureBuild,
         _historyFileFactory = historyFileFactory,
         _queueDirectoryFactory = queueDirectoryFactory,
-        _foregroundController = foregroundController {
+        _foregroundController = foregroundController,
+        _automaticRecoveryEnabled = automaticRecoveryEnabled ?? (() async => true) {
     if (restoreHistory) {
       unawaited(_restoreHistory());
     } else {
@@ -112,6 +124,7 @@ class UploadManagerService {
   final Future<File> Function()? _historyFileFactory;
   final Future<Directory> Function()? _queueDirectoryFactory;
   final UploadForegroundController? _foregroundController;
+  final Future<bool> Function() _automaticRecoveryEnabled;
   final _controller = StreamController<List<ManagedUpload>>.broadcast();
   final Completer<void> _restoreCompleter = Completer<void>();
   final List<ManagedUpload> _items = [];
@@ -171,7 +184,13 @@ class UploadManagerService {
     )..addLog('Envio adicionado à fila');
 
     _items.insert(0, item);
-    _queue.add(_QueuedUploadTask(item.id, buildOnly: false));
+    _queue.add(
+      _QueuedUploadTask(
+        item.id,
+        buildOnly: false,
+        method: ProjectUploadMethod.incremental,
+      ),
+    );
     _emit();
     _schedulePersist();
     unawaited(_drainQueue());
@@ -191,8 +210,69 @@ class UploadManagerService {
     final buildOnly = item.failureStage == 'build' &&
         item.commitSha != null &&
         item.commitSha!.isNotEmpty;
-    item.resetForRetry(buildOnly: buildOnly);
-    _queue.add(_QueuedUploadTask(item.id, buildOnly: buildOnly));
+    final recommended = item.recommendedRecoveryMethod;
+    final method = buildOnly
+        ? item.uploadMethod
+        : (recommended ?? item.uploadMethod);
+    await _queueRetry(
+      item,
+      buildOnly: buildOnly,
+      method: method,
+      allowAutomaticRecovery: !buildOnly,
+      reason: recommended != null && recommended != item.uploadMethod
+          ? 'Recuperação recomendada selecionada: ${recommended.label}'
+          : null,
+    );
+  }
+
+  Future<void> retrySameMethod(String id) async {
+    final item = find(id);
+    if (item == null || item.isActive || !item.canRetry) return;
+    final buildOnly = item.failureStage == 'build' &&
+        item.commitSha != null &&
+        item.commitSha!.isNotEmpty;
+    await _queueRetry(
+      item,
+      buildOnly: buildOnly,
+      method: item.uploadMethod,
+      allowAutomaticRecovery: false,
+      reason: buildOnly
+          ? 'Repetindo a inicialização da build'
+          : 'Repetindo exatamente o método ${item.uploadMethod.label}',
+    );
+  }
+
+  Future<void> retryAlternative(String id) async {
+    final item = find(id);
+    if (item == null || item.isActive || !item.canRetry) return;
+    final method = item.recommendedRecoveryMethod;
+    if (method == null || method == item.uploadMethod) return;
+    await _queueRetry(
+      item,
+      buildOnly: false,
+      method: method,
+      allowAutomaticRecovery: false,
+      reason: 'Método alternativo solicitado: ${method.label}',
+    );
+  }
+
+  Future<void> _queueRetry(
+    ManagedUpload item, {
+    required bool buildOnly,
+    required ProjectUploadMethod method,
+    required bool allowAutomaticRecovery,
+    String? reason,
+  }) async {
+    item.resetForRetry(buildOnly: buildOnly, method: method);
+    if (reason != null) item.addLog(reason);
+    _queue.add(
+      _QueuedUploadTask(
+        item.id,
+        buildOnly: buildOnly,
+        method: method,
+        allowAutomaticRecovery: allowAutomaticRecovery,
+      ),
+    );
     _emit();
     await _persistHistory();
     unawaited(_drainQueue());
@@ -214,7 +294,13 @@ class UploadManagerService {
       ..failureStage = null
       ..failureOperation = null;
     item.addLog('Execução da build solicitada mesmo sem alterações no ZIP');
-    _queue.add(_QueuedUploadTask(item.id, buildOnly: true));
+    _queue.add(
+      _QueuedUploadTask(
+        item.id,
+        buildOnly: true,
+        method: item.uploadMethod,
+      ),
+    );
     _emit();
     await _persistHistory();
     unawaited(_drainQueue());
@@ -260,6 +346,8 @@ class UploadManagerService {
           item,
           buildOnly: task.buildOnly,
           continueBuildOnNoChanges: task.continueBuildOnNoChanges,
+          method: task.method,
+          allowAutomaticRecovery: task.allowAutomaticRecovery,
         );
       }
     } finally {
@@ -271,11 +359,29 @@ class UploadManagerService {
     ManagedUpload item, {
     required bool buildOnly,
     required bool continueBuildOnNoChanges,
+    required ProjectUploadMethod method,
+    required bool? allowAutomaticRecovery,
   }) async {
     if (buildOnly) {
       await _runBuild(item);
       return;
     }
+
+    var automaticRecovery = allowAutomaticRecovery ?? true;
+    if (allowAutomaticRecovery == null) {
+      try {
+        automaticRecovery = await _automaticRecoveryEnabled();
+      } catch (_) {
+        automaticRecovery = true;
+        item.addLog(
+          'Não foi possível ler a preferência de recuperação; usando o padrão seguro ativado',
+        );
+      }
+    }
+    item.uploadMethod = method;
+    item.addLog(
+      'Método selecionado: ${method.label} • recuperação automática ${automaticRecovery ? 'ativada' : 'desativada'}',
+    );
 
     item
       ..status = ManagedUploadStatus.syncing
@@ -307,6 +413,8 @@ class UploadManagerService {
           _emit();
           unawaited(_persistHistory());
         },
+        method: method,
+        allowAutomaticRecovery: automaticRecovery,
         onProgress: (progress) {
           item
             ..status = ManagedUploadStatus.syncing
@@ -322,9 +430,14 @@ class UploadManagerService {
           _schedulePersist();
         },
       );
+      final resolvedCommitCount = result.commitCount > item.fallbackCommitCount
+          ? result.commitCount
+          : item.fallbackCommitCount;
       item
         ..commitSha = result.commitSha
         ..changed = result.changed
+        ..uploadMethod = result.method
+        ..fallbackCommitCount = resolvedCommitCount
         ..current = item.fileCount
         ..total = item.fileCount
         ..currentFile = null;
@@ -508,6 +621,7 @@ class UploadManagerService {
                 item.id,
                 buildOnly: buildOnly,
                 continueBuildOnNoChanges: !buildOnly,
+                method: item.uploadMethod,
               ),
             );
           } else {
@@ -728,12 +842,16 @@ class _QueuedUploadTask {
   const _QueuedUploadTask(
     this.id, {
     required this.buildOnly,
+    required this.method,
     this.continueBuildOnNoChanges = false,
+    this.allowAutomaticRecovery,
   });
 
   final String id;
   final bool buildOnly;
+  final ProjectUploadMethod method;
   final bool continueBuildOnNoChanges;
+  final bool? allowAutomaticRecovery;
 }
 
 extension _FirstWhereOrNull<T> on Iterable<T> {

@@ -1,6 +1,18 @@
-# GitHub Manager 2.0.61
+# GitHub Manager 2.0.62
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
+
+
+## Recuperação inteligente de envios 2.0.62
+
+- cada tentativa registra o **método de sincronização** usado: incremental, reconstrução completa da árvore ou arquivos individuais;
+- falhas temporárias de rede, `408`, `429` e `5xx` recebem repetição automática controlada, com espera e histórico visível;
+- quando o GitHub rejeita a árvore incremental com `422`, a recuperação automática revalida o SHA da branch e tenta **reconstruir a árvore final completa**, em vez de repetir os mesmos dados;
+- antes de publicar um commit, trocar de método ou alterar um arquivo individual, o app confirma novamente o SHA da branch e interrompe se houver mudança concorrente;
+- como último recurso manual, alterações pequenas e seguras podem usar a **API de arquivos individuais**, com limite de operações/tamanho e bloqueio para executáveis ou objetos Git não compatíveis;
+- o diálogo de erro diferencia **Repetir método atual** de **Tentar método alternativo** e mostra qual opção é recomendada;
+- o histórico do envio registra cada recuperação, código HTTP/endpoint relevante e o método que efetivamente concluiu a sincronização;
+- Configurações ganhou **Recuperação automática de envios**, ativada por padrão e limitada a alternativas consideradas seguras.
 
 
 ## Diagnóstico detalhado de falhas no envio 2.0.61
@@ -57,7 +69,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.61+200075`;
+- versão: `2.0.62+200076`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

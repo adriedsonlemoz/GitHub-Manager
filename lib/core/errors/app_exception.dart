@@ -48,10 +48,17 @@ final class InvalidGitHubTokenException extends AppException {
 }
 
 final class NetworkRequiredException extends AppException {
-  const NetworkRequiredException()
-      : super(
+  // ignore: use_super_parameters
+  const NetworkRequiredException({
+    int? httpStatus,
+    String? endpoint,
+    String? apiMessage,
+  }) : super(
           'Conexão com a internet necessária para esta operação.',
           technicalCode: 'NETWORK_REQUIRED',
+          httpStatus: httpStatus,
+          endpoint: endpoint,
+          apiMessage: apiMessage,
         );
 }
 
@@ -185,8 +192,19 @@ final class InvalidZipException extends AppException {
 
 final class RepositoryFileException extends AppException {
   // ignore: use_super_parameters
-  const RepositoryFileException(String message, {String code = 'REPOSITORY_FILE'})
-      : super(message, technicalCode: code);
+  const RepositoryFileException(
+    String message, {
+    String code = 'REPOSITORY_FILE',
+    int? httpStatus,
+    String? endpoint,
+    String? apiMessage,
+  }) : super(
+          message,
+          technicalCode: code,
+          httpStatus: httpStatus,
+          endpoint: endpoint,
+          apiMessage: apiMessage,
+        );
 }
 
 final class UnexpectedAppException extends AppException {

@@ -32,6 +32,8 @@ void main() {
       void Function(ProjectUploadProgress progress)? onProgress,
       required Map<String, String> reusableBlobShas,
       void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
     }) async {
       uploadCount++;
       activeUploads++;
@@ -150,6 +152,8 @@ void main() {
       void Function(ProjectUploadProgress progress)? onProgress,
       required Map<String, String> reusableBlobShas,
       void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
     }) async {
       receivedCheckpoint = Map<String, String>.from(reusableBlobShas);
       onProgress?.call(
@@ -242,6 +246,8 @@ void main() {
       void Function(ProjectUploadProgress progress)? onProgress,
       required Map<String, String> reusableBlobShas,
       void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
     }) async {
       uploads++;
       throw StateError('Upload should not run for a commit checkpoint');
@@ -300,6 +306,8 @@ void main() {
       void Function(ProjectUploadProgress progress)? onProgress,
       required Map<String, String> reusableBlobShas,
       void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
     }) async {
       uploadCount++;
       return ProjectUploadResult(
@@ -366,6 +374,8 @@ void main() {
       void Function(ProjectUploadProgress progress)? onProgress,
       required Map<String, String> reusableBlobShas,
       void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
     }) async {
       onProgress?.call(
         ProjectUploadProgress(
@@ -419,6 +429,79 @@ void main() {
     expect(item.errorApiMessage, contains('Validation Failed'));
     expect(item.failureRepositoryImpact, contains('branch não foi alterada'));
     expect(item.timelineLines.join(' '), contains('Falha durante'));
+  });
+
+  test('retry alternative switches tree validation from incremental to full tree', () async {
+    final methods = <ProjectUploadMethod>[];
+    final automaticFlags = <bool>[];
+
+    Future<ProjectUploadResult> upload({
+      required ZipProjectPreview project,
+      required String repositoryFullName,
+      required String branch,
+      required String commitMessage,
+      void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
+    }) async {
+      methods.add(method);
+      automaticFlags.add(allowAutomaticRecovery);
+      if (methods.length == 1) {
+        throw const GitHubValidationException(
+          httpStatus: 422,
+          endpoint: '/repos/owner/repo/git/trees',
+          apiMessage: 'Validation Failed',
+        );
+      }
+      return ProjectUploadResult(
+        commitSha: 'abcdef0123456789',
+        fileCount: project.fileCount,
+        changed: false,
+        method: method,
+      );
+    }
+
+    Future<RepositoryBuildLaunchResult> ensure({
+      required String repositoryFullName,
+      required String branch,
+      required String commitSha,
+      void Function(String status)? onStatus,
+      required int verificationAttempts,
+      required Duration verificationDelay,
+      required Duration postDispatchDelay,
+    }) async {
+      throw StateError('Build should not run in this test');
+    }
+
+    final zip = File('${temp.path}/recovery.zip')..writeAsBytesSync([1]);
+    final manager = UploadManagerService.forTest(
+      uploadZip: upload,
+      ensureBuild: ensure,
+      historyFileFactory: () async => File('${temp.path}/recovery-history.json'),
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
+      automaticRecoveryEnabled: () async => true,
+    );
+    addTearDown(manager.dispose);
+
+    final item = manager.startBuild(
+      project: _preview(zip.path, 'Recovery'),
+      repositoryFullName: 'owner/repo',
+      branch: 'main',
+    );
+    await manager.waitUntilIdle();
+
+    expect(item.status, ManagedUploadStatus.failed);
+    expect(item.recommendedRecoveryMethod, ProjectUploadMethod.fullTree);
+
+    await manager.retryAlternative(item.id);
+    await manager.waitUntilIdle();
+
+    expect(methods, [ProjectUploadMethod.incremental, ProjectUploadMethod.fullTree]);
+    expect(automaticFlags, [true, false]);
+    expect(item.uploadMethod, ProjectUploadMethod.fullTree);
+    expect(item.status, ManagedUploadStatus.noChanges);
   });
 
 }

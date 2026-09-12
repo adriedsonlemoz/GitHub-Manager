@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 import 'package:github_manager/features/uploads/presentation/upload_details_dialog.dart';
 import 'package:github_manager/features/uploads/presentation/upload_providers.dart';

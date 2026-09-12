@@ -289,6 +289,23 @@ class _FailureReportCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _FailureParagraph(
+            title: 'Método usado',
+            text: '${item.uploadMethod.label} — ${item.uploadMethod.description}',
+          ),
+          const SizedBox(height: 8),
+          _FailureParagraph(
+            title: 'Próxima tentativa recomendada',
+            text: item.recoveryRecommendationLabel,
+          ),
+          if (item.recoveryEvents.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _FailureParagraph(
+              title: 'Histórico de recuperação',
+              text: item.recoveryEvents.map((event) => '• $event').join('\n'),
+            ),
+          ],
+          const SizedBox(height: 8),
+          _FailureParagraph(
             title: 'Até onde chegou',
             text: item.failureProgressExplanation,
           ),
@@ -333,6 +350,10 @@ class _FailureReportCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
+                _FailureDetail(
+                  label: 'Método',
+                  value: item.uploadMethod.label,
+                ),
                 if (item.errorCode?.isNotEmpty == true)
                   _FailureDetail(label: 'Código', value: item.errorCode!),
                 if (item.errorHttpStatus != null)

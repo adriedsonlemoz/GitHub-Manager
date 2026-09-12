@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/features/uploads/data/upload_manager_service.dart';
+import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 import 'package:github_manager/features/uploads/presentation/upload_providers.dart';
 import 'package:go_router/go_router.dart';
@@ -190,7 +191,25 @@ class UploadProgressDialog extends ConsumerWidget {
           onPressed: () => Navigator.pop(context),
           child: const Text('Fechar'),
         ),
-        if (item.canRetry)
+        if (item.canRetry && item.hasAlternativeRecoveryMethod)
+          OutlinedButton.icon(
+            onPressed: () => manager.retrySameMethod(item.id),
+            icon: const Icon(Icons.replay_rounded),
+            label: const Text('Repetir método atual'),
+          ),
+        if (item.canRetry && item.hasAlternativeRecoveryMethod)
+          FilledButton.icon(
+            onPressed: () => manager.retryAlternative(item.id),
+            icon: const Icon(Icons.alt_route_rounded),
+            label: const Text('Tentar método alternativo'),
+          )
+        else if (item.canRetry && item.shouldRetrySameMethod)
+          FilledButton.icon(
+            onPressed: () => manager.retrySameMethod(item.id),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Repetir método atual'),
+          )
+        else if (item.canRetry)
           FilledButton.icon(
             onPressed: () => manager.retry(item.id),
             icon: const Icon(Icons.refresh_rounded),
@@ -270,6 +289,26 @@ class _FailureDiagnostic extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
+          _DiagnosticBlock(
+            title: 'Método usado',
+            text: '${item.uploadMethod.label} — ${item.uploadMethod.description}',
+            color: scheme.onErrorContainer,
+          ),
+          const SizedBox(height: 8),
+          _DiagnosticBlock(
+            title: 'Próxima tentativa recomendada',
+            text: item.recoveryRecommendationLabel,
+            color: scheme.onErrorContainer,
+          ),
+          if (item.recoveryEvents.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _DiagnosticBlock(
+              title: 'Histórico de recuperação',
+              text: item.recoveryEvents.map((event) => '• $event').join('\n'),
+              color: scheme.onErrorContainer,
+            ),
+          ],
+          const SizedBox(height: 8),
           _DiagnosticBlock(
             title: 'Até onde chegou',
             text: item.failureProgressExplanation,

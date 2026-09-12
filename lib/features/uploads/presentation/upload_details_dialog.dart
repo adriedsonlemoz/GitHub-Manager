@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 
 part 'upload_details_widgets.dart';
@@ -94,6 +95,16 @@ class UploadDetailsDialog extends StatelessWidget {
                 icon: Icons.account_tree_outlined,
                 title: 'GitHub e build',
                 children: [
+                  _InfoRow(
+                    label: 'Método',
+                    value: item.uploadMethod.label,
+                    strong: true,
+                  ),
+                  if (item.fallbackCommitCount > 0)
+                    _InfoRow(
+                      label: 'Commits individuais',
+                      value: '${item.fallbackCommitCount}',
+                    ),
                   _InfoRow(
                     label: 'Build',
                     value: item.buildTriggerLabel,

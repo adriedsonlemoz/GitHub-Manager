@@ -57,8 +57,11 @@ class ManagedUpload {
     this.changedFiles = 0,
     this.resumedFiles = 0,
     this.removedFiles = 0,
+    this.uploadMethod = ProjectUploadMethod.incremental,
+    this.fallbackCommitCount = 0,
     Map<String, String>? uploadedBlobShas,
     List<String>? changedFileSamples,
+    List<String>? recoveryEvents,
     List<String>? logLines,
   }) : sourceZipPath = sourceZipPath ?? zipPath,
         uploadedBlobShas = Map<String, String>.from(
@@ -66,6 +69,9 @@ class ManagedUpload {
         ),
         changedFileSamples = List<String>.from(
           changedFileSamples ?? const <String>[],
+        ),
+        recoveryEvents = List<String>.from(
+          recoveryEvents ?? const <String>[],
         ),
         logLines = logLines ?? <String>[];
 
@@ -114,8 +120,11 @@ class ManagedUpload {
   int changedFiles;
   int resumedFiles;
   int removedFiles;
+  ProjectUploadMethod uploadMethod;
+  int fallbackCommitCount;
   final Map<String, String> uploadedBlobShas;
   final List<String> changedFileSamples;
+  final List<String> recoveryEvents;
   final List<String> logLines;
 
   bool get isActive =>
@@ -215,6 +224,60 @@ class ManagedUpload {
     return parts.join(' • ');
   }
 
+  int get recoveryOperationEstimate =>
+      changedFiles + resumedFiles + removedFiles;
+
+  bool get canSuggestContentsRecovery =>
+      recoveryOperationEstimate == 0 || recoveryOperationEstimate <= 12;
+
+  ProjectUploadMethod? get recommendedRecoveryMethod {
+    if (failureStage != 'upload') return null;
+    final code = errorCode ?? '';
+    final endpoint = (errorEndpoint ?? '').toLowerCase();
+
+    if (code == 'NETWORK_REQUIRED' ||
+        code == 'GITHUB_RATE_LIMIT' ||
+        (code.startsWith('GITHUB_HTTP_') &&
+            errorHttpStatus != null &&
+            errorHttpStatus! >= 500)) {
+      return uploadMethod;
+    }
+    if (code == 'UPLOAD_BRANCH_CHANGED' || code == 'GITHUB_CONFLICT') {
+      return ProjectUploadMethod.incremental;
+    }
+    if (endpoint.contains('/git/trees') && code == 'GITHUB_VALIDATION') {
+      return switch (uploadMethod) {
+        ProjectUploadMethod.incremental => ProjectUploadMethod.fullTree,
+        ProjectUploadMethod.fullTree => canSuggestContentsRecovery
+            ? ProjectUploadMethod.contentsApi
+            : null,
+        ProjectUploadMethod.contentsApi => null,
+      };
+    }
+    if (code == 'UPLOAD_CONTENTS_FALLBACK_UNAVAILABLE' ||
+        code == 'UPLOAD_CONTENTS_FALLBACK_TOO_LARGE' ||
+        code == 'UPLOAD_CONTENTS_FALLBACK_EXECUTABLE') {
+      return ProjectUploadMethod.fullTree;
+    }
+    return null;
+  }
+
+  bool get hasAlternativeRecoveryMethod {
+    final method = recommendedRecoveryMethod;
+    return method != null && method != uploadMethod;
+  }
+
+  bool get shouldRetrySameMethod => recommendedRecoveryMethod == uploadMethod;
+
+  String get recoveryRecommendationLabel {
+    final method = recommendedRecoveryMethod;
+    if (method == null) return 'Nenhum método alternativo foi identificado com segurança.';
+    if (method == uploadMethod) {
+      return 'A falha parece temporária. A recomendação é repetir ${uploadMethod.label.toLowerCase()}.';
+    }
+    return 'Próxima tentativa recomendada: ${method.label}.';
+  }
+
   String get failureProgressExplanation {
     if (total <= 0) {
       return 'O envio parou durante “$failureOperationLabel”.';
@@ -227,6 +290,19 @@ class ManagedUpload {
   }
 
   String? get failureRepositoryImpact {
+    if (errorCode == 'UPLOAD_BRANCH_CHANGED') {
+      final operation = (failureOperation ?? '').toLowerCase();
+      if (operation.contains('publicar o commit')) {
+        return 'O novo commit já pode ter sido criado como objeto Git, mas o GitHub Manager não moveu a branch porque detectou uma alteração concorrente. O conteúdo visível da branch foi preservado.';
+      }
+      return 'O GitHub Manager detectou que a branch mudou e interrompeu a tentativa antes de publicar sobre o novo estado. Uma nova tentativa refará toda a comparação.';
+    }
+    if (fallbackCommitCount > 0) {
+      return 'O método de arquivos individuais já publicou $fallbackCommitCount commit(s) antes da falha. A branch pode estar parcialmente atualizada; a próxima tentativa deve refazer a comparação antes de continuar.';
+    }
+    if (uploadMethod == ProjectUploadMethod.contentsApi) {
+      return 'O método de arquivos individuais cria um commit por operação. Se a conexão caiu depois de o GitHub aceitar a última chamada, a branch pode ter mudado mesmo sem resposta no aplicativo. A próxima tentativa reconsulta a branch antes de continuar.';
+    }
     final endpoint = (errorEndpoint ?? '').toLowerCase();
     if (endpoint.contains('/git/trees')) {
       return 'A nova árvore não foi aceita; nenhum commit novo desta tentativa foi criado e a branch não foi alterada.';
@@ -247,6 +323,14 @@ class ManagedUpload {
     final code = errorCode ?? '';
     final endpoint = (errorEndpoint ?? '').toLowerCase();
 
+    if (code == 'UPLOAD_BRANCH_CHANGED') {
+      return 'A branch mudou enquanto o GitHub Manager preparava ou recuperava o envio. O aplicativo interrompeu a operação para não publicar sobre um estado diferente do que foi comparado.';
+    }
+    if (code == 'UPLOAD_CONTENTS_FALLBACK_UNAVAILABLE' ||
+        code == 'UPLOAD_CONTENTS_FALLBACK_TOO_LARGE' ||
+        code == 'UPLOAD_CONTENTS_FALLBACK_EXECUTABLE') {
+      return errorMessage ?? 'O método de arquivos individuais não é seguro para este conjunto de alterações.';
+    }
     if (code == 'AUTH_REQUIRED' || code == 'GITHUB_TOKEN_INVALID') {
       return 'A autenticação deixou de ser aceita pelo GitHub. O token pode ter expirado, sido revogado ou não estar mais disponível.';
     }
@@ -296,6 +380,14 @@ class ManagedUpload {
     final code = errorCode ?? '';
     final endpoint = (errorEndpoint ?? '').toLowerCase();
 
+    if (code == 'UPLOAD_BRANCH_CHANGED') {
+      return 'Tente novamente pelo método incremental. O projeto será comparado de novo com o SHA atual da branch antes de qualquer publicação.';
+    }
+    if (code == 'UPLOAD_CONTENTS_FALLBACK_UNAVAILABLE' ||
+        code == 'UPLOAD_CONTENTS_FALLBACK_TOO_LARGE' ||
+        code == 'UPLOAD_CONTENTS_FALLBACK_EXECUTABLE') {
+      return 'Use a reconstrução da árvore ou corrija a causa indicada. O GitHub Manager não fará atualização individual quando houver risco de perder modo executável, exceder o limite seguro ou gerar alterações demais.';
+    }
     if (code == 'AUTH_REQUIRED' || code == 'GITHUB_TOKEN_INVALID') {
       return 'Reconecte a conta ou gere um token válido e tente novamente.';
     }
@@ -316,7 +408,16 @@ class ManagedUpload {
         return 'Confira as regras/proteções da branch e tente novamente. Se a branch mudou durante o envio, uma nova tentativa refaz a comparação.';
       }
       if (endpoint.contains('/git/trees')) {
-        return 'Tente novamente para reconstruir a comparação com o repositório atual. Se repetir, copie o diagnóstico: a resposta do GitHub e o endpoint indicam qual validação da árvore falhou.';
+        if (uploadMethod == ProjectUploadMethod.incremental) {
+          return 'O método incremental foi recusado. Use “Tentar método alternativo” para reconstruir a árvore final do projeto sem reaproveitar a árvore anterior.';
+        }
+        if (uploadMethod == ProjectUploadMethod.fullTree) {
+          if (!canSuggestContentsRecovery) {
+            return 'A reconstrução completa também foi recusada. O método individual não é recomendado porque foram detectadas cerca de $recoveryOperationEstimate alterações, acima do limite seguro de 12 operações. Copie o diagnóstico para investigar a validação retornada pelo GitHub.';
+          }
+          return 'A reconstrução completa também foi recusada. O conjunto de mudanças é pequeno o suficiente para oferecer, manualmente, a API de arquivos individuais; o método ainda fará validações de tamanho, modo executável e tipo Git antes de alterar a branch.';
+        }
+        return 'O método individual também falhou. Copie o diagnóstico antes de repetir para evitar uma sequência de commits parciais.';
       }
       return 'Tente novamente uma vez. Se a rejeição se repetir, copie o diagnóstico completo para identificar a validação exata retornada pelo GitHub.';
     }
@@ -336,7 +437,9 @@ class ManagedUpload {
     final lines = <String>[
       'DIAGNÓSTICO DA FALHA',
       'Onde parou: $failureOperationLabel',
+      'Método usado: ${uploadMethod.label}',
       'Progresso: $failureProgressExplanation',
+      'Recomendação: $recoveryRecommendationLabel',
       if (failureRepositoryImpact != null) 'Impacto: $failureRepositoryImpact',
       if (failureStage?.isNotEmpty == true) 'Etapa interna: $failureStage',
       if (failedFilePath?.isNotEmpty == true) 'Arquivo: $failedFilePath',
@@ -345,6 +448,11 @@ class ManagedUpload {
       if (errorEndpoint?.isNotEmpty == true) 'Endpoint: $errorEndpoint',
       if (errorApiMessage?.isNotEmpty == true) 'GitHub: $errorApiMessage',
       if (errorMessage?.isNotEmpty == true) 'Mensagem do app: $errorMessage',
+      if (recoveryEvents.isNotEmpty) ...[
+        '',
+        'Tentativas de recuperação:',
+        ...recoveryEvents.map((event) => '• $event'),
+      ],
       '',
       'O que significa:',
       failureMeaning,
@@ -412,10 +520,14 @@ class ManagedUpload {
     changedFiles = 0;
     resumedFiles = 0;
     removedFiles = 0;
+    fallbackCommitCount = 0;
     changedFileSamples.clear();
   }
 
   void recordProgress(ProjectUploadProgress progress) {
+    if (progress.method != null) {
+      uploadMethod = progress.method!;
+    }
     switch (progress.kind) {
       case ProjectUploadProgressKind.unchanged:
         unchangedFiles++;
@@ -436,9 +548,27 @@ class ManagedUpload {
       case ProjectUploadProgressKind.removed:
         removedFiles = progress.affectedCount;
         break;
+      case ProjectUploadProgressKind.recovery:
+        _addRecoveryEvent(progress.phase);
+        break;
+      case ProjectUploadProgressKind.commitCreated:
+        fallbackCommitCount += progress.affectedCount <= 0 ? 1 : progress.affectedCount;
+        _addRecoveryEvent(progress.phase);
+        break;
       case ProjectUploadProgressKind.stage:
       case ProjectUploadProgressKind.transferStarted:
         break;
+    }
+  }
+
+  void _addRecoveryEvent(String value) {
+    final text = value.trim();
+    if (text.isEmpty || (recoveryEvents.isNotEmpty && recoveryEvents.last == text)) {
+      return;
+    }
+    recoveryEvents.add(text);
+    if (recoveryEvents.length > 20) {
+      recoveryEvents.removeRange(0, recoveryEvents.length - 20);
     }
   }
 
@@ -540,7 +670,10 @@ class ManagedUpload {
     );
   }
 
-  void resetForRetry({required bool buildOnly}) {
+  void resetForRetry({
+    required bool buildOnly,
+    ProjectUploadMethod? method,
+  }) {
     status = ManagedUploadStatus.queued;
     phase = buildOnly
         ? 'Aguardando nova tentativa da build'
@@ -559,6 +692,10 @@ class ManagedUpload {
     failureStage = null;
     failureOperation = null;
     failedFilePath = null;
+    fallbackCommitCount = 0;
+    if (!buildOnly && method != null) {
+      uploadMethod = method;
+    }
     if (!buildOnly) {
       commitSha = null;
       changed = null;
@@ -568,7 +705,9 @@ class ManagedUpload {
       dispatchTriggered = null;
     }
     addLog(
-      buildOnly ? 'Nova tentativa da build solicitada' : 'Reenvio solicitado',
+      buildOnly
+          ? 'Nova tentativa da build solicitada'
+          : 'Reenvio solicitado • método: ${uploadMethod.label}',
     );
   }
 
@@ -589,6 +728,7 @@ class ManagedUpload {
       'Data: ${_formatDateTime(when)}',
       'Duração: $elapsedLabel',
       'ZIP: $zipName',
+      'Método de sincronização: ${uploadMethod.label}',
       if (zipPath != sourceZipPath) 'Cópia segura: ativa',
       '',
       'ARQUIVOS',
@@ -620,6 +760,11 @@ class ManagedUpload {
       if (errorEndpoint?.isNotEmpty == true) 'Endpoint: $errorEndpoint',
       if (errorApiMessage?.isNotEmpty == true) 'Resposta do GitHub: $errorApiMessage',
       if (errorMessage != null) 'Erro: $errorMessage',
+      if (recoveryEvents.isNotEmpty) ...[
+        '',
+        'RECUPERAÇÃO',
+        ...recoveryEvents.map((event) => '• $event'),
+      ],
       if (errorMessage != null) ...[
         '',
         failureDiagnosticText,
@@ -699,8 +844,11 @@ class ManagedUpload {
         'changedFiles': changedFiles,
         'resumedFiles': resumedFiles,
         'removedFiles': removedFiles,
+        'uploadMethod': uploadMethod.name,
+        'fallbackCommitCount': fallbackCommitCount,
         'uploadedBlobShas': uploadedBlobShas,
         'changedFileSamples': changedFileSamples,
+        'recoveryEvents': recoveryEvents,
         'logLines': logLines,
       };
 
@@ -761,11 +909,20 @@ class ManagedUpload {
       changedFiles: (json['changedFiles'] as num?)?.toInt() ?? 0,
       resumedFiles: (json['resumedFiles'] as num?)?.toInt() ?? 0,
       removedFiles: (json['removedFiles'] as num?)?.toInt() ?? 0,
+      uploadMethod: ProjectUploadMethod.values.firstWhere(
+        (value) => value.name == json['uploadMethod']?.toString(),
+        orElse: () => ProjectUploadMethod.incremental,
+      ),
+      fallbackCommitCount: (json['fallbackCommitCount'] as num?)?.toInt() ?? 0,
       uploadedBlobShas: (json['uploadedBlobShas'] as Map?)?.map(
             (key, value) => MapEntry(key.toString(), value.toString()),
           ) ??
           <String, String>{},
       changedFileSamples: (json['changedFileSamples'] as List?)
+              ?.map((value) => value.toString())
+              .toList(growable: true) ??
+          <String>[],
+      recoveryEvents: (json['recoveryEvents'] as List?)
               ?.map((value) => value.toString())
               .toList(growable: true) ??
           <String>[],
