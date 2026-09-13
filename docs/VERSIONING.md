@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.62+200076`
+`version: 2.0.63+200077`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.63+200077` redesenha a tela de APKs/Releases: remove a lista recolhível de Releases, exibe cada arquivo diretamente em cards identificados, adiciona busca e filtros, simplifica a barra superior e mantém Artifacts claramente separados das Releases.
 
 A versão `2.0.62+200076` adiciona recuperação inteligente de envios: repetição controlada para falhas temporárias, fallback automático de árvore incremental para reconstrução completa, proteção por SHA da branch, método manual por arquivos individuais para alterações pequenas/seguras e histórico de tentativas no diagnóstico.
 

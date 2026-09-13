@@ -104,6 +104,10 @@ class _ArtifactCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
+                  const _ArtifactBadge(
+                    label: 'Artifact',
+                    icon: Icons.inventory_2_outlined,
+                  ),
                   _ArtifactBadge(label: descriptor.format, icon: descriptor.formatIcon),
                   _ArtifactBadge(label: descriptor.buildType, icon: Icons.build_circle_outlined),
                   _ArtifactBadge(
@@ -360,6 +364,302 @@ class _ArtifactDescriptor {
               : Icons.inventory_2_outlined,
       version: version,
       note: note,
+    );
+  }
+}
+
+
+class _ArtifactsOverview extends StatelessWidget {
+  const _ArtifactsOverview({
+    required this.releases,
+    required this.artifacts,
+    required this.filterLabel,
+  });
+
+  final int releases;
+  final int artifacts;
+  final String filterLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .55)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.android_rounded, size: 18, color: scheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$releases Release(s) • $artifacts Artifact(s)',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            filterLabel,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArtifactsSectionHeader extends StatelessWidget {
+  const _ArtifactsSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.count,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final int count;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(3, 4, 3, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: 19, color: scheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$title ($count)',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReleaseAssetCard extends StatelessWidget {
+  const _ReleaseAssetCard({
+    required this.asset,
+    required this.onDownload,
+  });
+
+  final ReleaseAsset asset;
+  final VoidCallback onDownload;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final version = _RepositoryArtifactsScreenState._versionFromName(
+          asset.tagName,
+        ) ??
+        _RepositoryArtifactsScreenState._versionFromName(asset.name);
+    final metadata = <String>[
+      _RepositoryArtifactsScreenState._formatBytes(asset.sizeBytes),
+      _RepositoryArtifactsScreenState._formatDate(asset.publishedAt),
+    ];
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onDownload,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer.withValues(alpha: .72),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(
+                      asset.isApk
+                          ? Icons.android_rounded
+                          : Icons.insert_drive_file_outlined,
+                      color: scheme.onPrimaryContainer,
+                      size: 23,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          asset.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          metadata.join(' • '),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  const _ArtifactBadge(
+                    label: 'Release',
+                    icon: Icons.new_releases_outlined,
+                    emphasized: true,
+                  ),
+                  _ArtifactBadge(
+                    label: asset.isApk ? 'APK' : 'Arquivo',
+                    icon: asset.isApk
+                        ? Icons.android_rounded
+                        : Icons.insert_drive_file_outlined,
+                  ),
+                  _ArtifactBadge(
+                    label: 'Direto',
+                    icon: Icons.bolt_rounded,
+                  ),
+                  _ArtifactBadge(
+                    label: version == null ? asset.tagName : 'v$version',
+                    icon: Icons.sell_outlined,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 11),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Publicado em ${asset.tagName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton.icon(
+                    onPressed: onDownload,
+                    icon: const Icon(Icons.download_rounded, size: 17),
+                    label: const Text('Baixar'),
+                    style: const ButtonStyle(
+                      minimumSize: WidgetStatePropertyAll(Size(96, 38)),
+                      padding: WidgetStatePropertyAll(
+                        EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArtifactsInlineNotice extends StatelessWidget {
+  const _ArtifactsInlineNotice({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(icon, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 10),
+            Expanded(child: Text(text)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ArtifactsEmptyState extends StatelessWidget {
+  const _ArtifactsEmptyState({required this.filtered});
+
+  final bool filtered;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 70, 18, 24),
+      child: Column(
+        children: [
+          Icon(
+            filtered ? Icons.search_off_rounded : Icons.inventory_2_outlined,
+            size: 42,
+            color: scheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            filtered
+                ? 'Nenhum arquivo corresponde à busca ou filtro.'
+                : 'Nenhum APK, Release ou Artifact disponível neste repositório.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
     );
   }
 }

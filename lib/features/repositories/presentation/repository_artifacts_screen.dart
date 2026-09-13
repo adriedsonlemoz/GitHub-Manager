@@ -6,12 +6,15 @@ import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
-import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 
 part 'repository_artifacts_widgets.dart';
+
+enum _ArtifactListFilter { all, releases, artifacts }
+
+enum _ArtifactsMenuAction { select, deleteOlder, help }
 
 class RepositoryArtifactsScreen extends ConsumerStatefulWidget {
   const RepositoryArtifactsScreen({
@@ -33,13 +36,22 @@ class _RepositoryArtifactsScreenState
   late Future<List<ActionArtifact>> _future;
   late Future<List<ReleaseAsset>> _releaseFuture;
   final Set<int> _selectedArtifactIds = <int>{};
+  final TextEditingController _searchController = TextEditingController();
   bool _selectionMode = false;
+  bool _searchMode = false;
+  _ArtifactListFilter _listFilter = _ArtifactListFilter.all;
 
   @override
   void initState() {
     super.initState();
     _future = _load();
     _releaseFuture = _loadReleases();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<List<ActionArtifact>> _load() async {
@@ -64,6 +76,61 @@ class _RepositoryArtifactsScreenState
     }
   }
 
+
+  bool _matchesSearch(String value) {
+    final query = _searchController.text.trim().toLowerCase();
+    return query.isEmpty || value.toLowerCase().contains(query);
+  }
+
+  List<ActionArtifact> _visibleArtifacts(List<ActionArtifact> items) {
+    if (_listFilter == _ArtifactListFilter.releases && !_selectionMode) {
+      return const <ActionArtifact>[];
+    }
+    return items.where((item) => _matchesSearch(item.name)).toList();
+  }
+
+  List<ReleaseAsset> _visibleReleases(List<ReleaseAsset> releases) {
+    if (_selectionMode || _listFilter == _ArtifactListFilter.artifacts) {
+      return const <ReleaseAsset>[];
+    }
+    return releases
+        .where((asset) => _matchesSearch('${asset.name} ${asset.tagName}'))
+        .toList();
+  }
+
+  String get _filterLabel => switch (_listFilter) {
+        _ArtifactListFilter.all => 'Todos',
+        _ArtifactListFilter.releases => 'Releases',
+        _ArtifactListFilter.artifacts => 'Artifacts',
+      };
+
+  void _toggleSearch() {
+    setState(() {
+      _searchMode = !_searchMode;
+      if (!_searchMode) {
+        _searchController.clear();
+      }
+    });
+  }
+
+  void _handleMoreAction(_ArtifactsMenuAction action) {
+    switch (action) {
+      case _ArtifactsMenuAction.select:
+        setState(() {
+          _selectionMode = true;
+          _searchMode = false;
+          _searchController.clear();
+          _listFilter = _ArtifactListFilter.all;
+        });
+        return;
+      case _ArtifactsMenuAction.deleteOlder:
+        _deleteOlderApks();
+        return;
+      case _ArtifactsMenuAction.help:
+        _showArtifactReleaseHelp();
+        return;
+    }
+  }
   Future<void> _refresh() async {
     final future = _load();
     final releases = _loadReleases();
@@ -450,9 +517,10 @@ class _RepositoryArtifactsScreenState
     if (!mounted) return;
     setState(() {
       _selectionMode = true;
+      final visibleItems = items.where((item) => _matchesSearch(item.name));
       _selectedArtifactIds
         ..clear()
-        ..addAll(items.map((item) => item.id));
+        ..addAll(visibleItems.map((item) => item.id));
     });
   }
 
@@ -548,11 +616,19 @@ class _RepositoryArtifactsScreenState
                 icon: const Icon(Icons.close_rounded),
               )
             : null,
-        title: Text(
-          _selectionMode
-              ? '${_selectedArtifactIds.length} selecionado(s)'
-              : 'APKs e Artifacts',
-        ),
+        title: _selectionMode
+            ? Text('${_selectedArtifactIds.length} selecionado(s)')
+            : const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('APKs'),
+                  Text(
+                    'Releases e artifacts',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
         actions: [
           if (!widget.readOnly && _selectionMode) ...[
             IconButton(
@@ -567,35 +643,86 @@ class _RepositoryArtifactsScreenState
               tooltip: 'Excluir selecionados',
               icon: const Icon(Icons.delete_forever_outlined),
             ),
-          ] else if (!widget.readOnly) ...[
+          ] else ...[
             IconButton(
-              onPressed: () => setState(() => _selectionMode = true),
-              tooltip: 'Selecionar artifacts',
-              icon: const Icon(Icons.checklist_rounded),
+              onPressed: _toggleSearch,
+              tooltip: _searchMode ? 'Fechar busca' : 'Buscar arquivo',
+              icon: Icon(
+                _searchMode ? Icons.search_off_rounded : Icons.search_rounded,
+              ),
             ),
-            IconButton(
-              onPressed: _deleteOlderApks,
-              tooltip: 'Excluir APKs anteriores',
-              icon: const Icon(Icons.auto_delete_outlined),
+            PopupMenuButton<_ArtifactListFilter>(
+              tooltip: 'Filtrar: $_filterLabel',
+              initialValue: _listFilter,
+              onSelected: (value) => setState(() => _listFilter = value),
+              icon: Badge(
+                isLabelVisible: _listFilter != _ArtifactListFilter.all,
+                smallSize: 7,
+                child: const Icon(Icons.filter_list_rounded),
+              ),
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: _ArtifactListFilter.all,
+                  child: Text('Todos'),
+                ),
+                PopupMenuItem(
+                  value: _ArtifactListFilter.releases,
+                  child: Text('Somente Releases'),
+                ),
+                PopupMenuItem(
+                  value: _ArtifactListFilter.artifacts,
+                  child: Text('Somente Artifacts'),
+                ),
+              ],
             ),
+            const UploadCenterButton(),
+            if (!widget.readOnly)
+              PopupMenuButton<_ArtifactsMenuAction>(
+                tooltip: 'Mais opções',
+                onSelected: _handleMoreAction,
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: _ArtifactsMenuAction.select,
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(Icons.checklist_rounded),
+                      title: Text('Selecionar artifacts'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _ArtifactsMenuAction.deleteOlder,
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(Icons.auto_delete_outlined),
+                      title: Text('Excluir APKs anteriores'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _ArtifactsMenuAction.help,
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(Icons.help_outline_rounded),
+                      title: Text('Artifact ou Release?'),
+                    ),
+                  ),
+                ],
+              )
+            else
+              IconButton(
+                onPressed: _showArtifactReleaseHelp,
+                tooltip: 'Artifact x Release',
+                icon: const Icon(Icons.help_outline_rounded),
+              ),
+            const SizedBox(width: 2),
           ],
-          if (!_selectionMode)
-            IconButton(
-              onPressed: _showArtifactReleaseHelp,
-              tooltip: 'Artifact x Release',
-              icon: const Icon(Icons.help_outline_rounded),
-            ),
-          if (!_selectionMode) const UploadCenterButton(),
-          if (!_selectionMode) const DownloadCenterButton(),
-          const SizedBox(width: 4),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<List<ActionArtifact>>(
           future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+          builder: (context, artifactSnapshot) {
+            if (artifactSnapshot.connectionState == ConnectionState.waiting) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
@@ -604,7 +731,7 @@ class _RepositoryArtifactsScreenState
                 ],
               );
             }
-            if (snapshot.hasError) {
+            if (artifactSnapshot.hasError) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(18),
@@ -612,82 +739,124 @@ class _RepositoryArtifactsScreenState
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(18),
-                      child: Text(_message(snapshot.error!)),
+                      child: Text(_message(artifactSnapshot.error!)),
                     ),
                   ),
                 ],
               );
             }
-            final items = snapshot.data ?? const <ActionArtifact>[];
-            return ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(12),
-              itemCount: items.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return FutureBuilder<List<ReleaseAsset>>(
-                    future: _releaseFuture,
-                    builder: (context, releaseSnapshot) {
-                      final releases = releaseSnapshot.data ?? const <ReleaseAsset>[];
-                      if (releaseSnapshot.connectionState == ConnectionState.waiting) {
-                        return const Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(14),
-                            child: LinearProgressIndicator(),
-                          ),
-                        );
-                      }
-                      if (releases.isEmpty) {
-                        if (items.isEmpty) {
-                          return const Card(
-                            child: Padding(
-                              padding: EdgeInsets.all(18),
-                              child: Text(
-                                'Nenhum APK, artifact ou arquivo de Release disponível neste repositório.',
-                              ),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      }
-                      return Card(
-                        child: ExpansionTile(
-                          initiallyExpanded: widget.readOnly,
-                          leading: const Icon(Icons.new_releases_outlined),
-                          title: const Text('Releases'),
-                          subtitle: Text('${releases.length} arquivo(s) | download direto'),
-                          children: releases.take(20).map(
-                            (asset) => ListTile(
-                              leading: Icon(
-                                asset.isApk ? Icons.android_rounded : Icons.download_outlined,
-                              ),
-                              title: Text(asset.name),
-                              subtitle: Text(
-                                '${asset.tagName} • ${_formatBytes(asset.sizeBytes)} • ${_formatDate(asset.publishedAt)}',
-                              ),
-                              trailing: const Icon(Icons.download_rounded),
-                              onTap: () => _downloadRelease(asset),
-                            ),
-                          ).toList(),
+
+            final artifacts =
+                artifactSnapshot.data ?? const <ActionArtifact>[];
+            return FutureBuilder<List<ReleaseAsset>>(
+              future: _releaseFuture,
+              builder: (context, releaseSnapshot) {
+                final releases =
+                    releaseSnapshot.data ?? const <ReleaseAsset>[];
+                final visibleArtifacts = _visibleArtifacts(artifacts);
+                final visibleReleases = _visibleReleases(releases);
+                final releaseLoading =
+                    releaseSnapshot.connectionState == ConnectionState.waiting;
+                final noResults = !releaseLoading &&
+                    visibleArtifacts.isEmpty &&
+                    visibleReleases.isEmpty;
+
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
+                  children: [
+                    if (_searchMode) ...[
+                      TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar por nome ou versão',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: _searchController.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Limpar busca',
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {});
+                                  },
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
                         ),
-                      );
-                    },
-                  );
-                }
-                final artifact = items[index - 1];
-                return _ArtifactCard(
-                  artifact: artifact,
-                  readOnly: widget.readOnly,
-                  selectionMode: _selectionMode,
-                  selected: _selectedArtifactIds.contains(artifact.id),
-                  onToggleSelection: () => _toggleSelection(artifact),
-                  onDownload: artifact.expired ? null : () => _download(artifact),
-                  onPublish: !widget.readOnly &&
-                          artifact.likelyContainsApk &&
-                          !artifact.expired
-                      ? () => _publishRelease(artifact)
-                      : null,
-                  onDelete: widget.readOnly ? null : () => _deleteArtifact(artifact),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (!_selectionMode)
+                      _ArtifactsOverview(
+                        releases: releases.length,
+                        artifacts: artifacts.length,
+                        filterLabel: _filterLabel,
+                      ),
+                    if (!_selectionMode) const SizedBox(height: 10),
+                    if (releaseLoading && !_selectionMode)
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(14),
+                          child: LinearProgressIndicator(),
+                        ),
+                      )
+                    else if (releaseSnapshot.hasError && !_selectionMode)
+                      const _ArtifactsInlineNotice(
+                        icon: Icons.cloud_off_outlined,
+                        text: 'Não foi possível carregar as Releases agora.',
+                      ),
+                    if (visibleReleases.isNotEmpty) ...[
+                      _ArtifactsSectionHeader(
+                        icon: Icons.new_releases_outlined,
+                        title: 'Releases',
+                        count: visibleReleases.length,
+                        subtitle: 'Download direto, sem abrir outra lista',
+                      ),
+                      const SizedBox(height: 8),
+                      ...visibleReleases.map(
+                        (asset) => _ReleaseAssetCard(
+                          asset: asset,
+                          onDownload: () => _downloadRelease(asset),
+                        ),
+                      ),
+                    ],
+                    if (visibleArtifacts.isNotEmpty) ...[
+                      if (visibleReleases.isNotEmpty)
+                        const SizedBox(height: 6),
+                      _ArtifactsSectionHeader(
+                        icon: Icons.inventory_2_outlined,
+                        title: 'Artifacts',
+                        count: visibleArtifacts.length,
+                        subtitle: 'Arquivos temporários do GitHub Actions',
+                      ),
+                      const SizedBox(height: 8),
+                      ...visibleArtifacts.map(
+                        (artifact) => _ArtifactCard(
+                          artifact: artifact,
+                          readOnly: widget.readOnly,
+                          selectionMode: _selectionMode,
+                          selected: _selectedArtifactIds.contains(artifact.id),
+                          onToggleSelection: () => _toggleSelection(artifact),
+                          onDownload:
+                              artifact.expired ? null : () => _download(artifact),
+                          onPublish: !widget.readOnly &&
+                                  artifact.likelyContainsApk &&
+                                  !artifact.expired
+                              ? () => _publishRelease(artifact)
+                              : null,
+                          onDelete: widget.readOnly
+                              ? null
+                              : () => _deleteArtifact(artifact),
+                        ),
+                      ),
+                    ],
+                    if (noResults)
+                      _ArtifactsEmptyState(
+                        filtered: _searchController.text.trim().isNotEmpty ||
+                            _listFilter != _ArtifactListFilter.all,
+                      ),
+                  ],
                 );
               },
             );
