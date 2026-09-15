@@ -6,7 +6,6 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
-import 'package:github_manager/core/widgets/installed_version_banner.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
@@ -203,7 +202,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const InstalledVersionBanner(compact: true),
+                _ProjectVersionBanner(versionLabel: project.versionLabel),
                 const SizedBox(height: 12),
                 _BuildSafetyRow(
                   label: 'Projeto detectado',
@@ -267,6 +266,18 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
+                      if (check.warning || check.blocked)
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: 'Entender e corrigir este aviso',
+                          onPressed: () => _showBuildSafetyHelp(
+                            dialogContext,
+                            project,
+                            repositoryInfo,
+                            check,
+                          ),
+                          icon: const Icon(Icons.help_outline_rounded),
+                        ),
                     ],
                   ),
                 ),
@@ -349,6 +360,69 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
     );
   }
 
+  Future<void> _showBuildSafetyHelp(
+    BuildContext parentContext,
+    ZipProjectPreview project,
+    RepositoryProjectInfo repositoryInfo,
+    ProjectSafetyCheck check,
+  ) async {
+    final zipVersion = project.versionLabel ?? 'não identificada';
+    final githubVersion = repositoryInfo.versionLabel ?? 'não identificada';
+
+    await showDialog<void>(
+      context: parentContext,
+      builder: (helpContext) => AlertDialog(
+        title: const Text('Como corrigir este aviso?'),
+        content: AdaptiveDialogBody(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  check.versionComparison == ProjectVersionComparison.unknown
+                      ? 'A identidade do projeto tem sinais compatíveis, mas pelo menos uma das versões não foi encontrada em uma fonte confiável.'
+                      : 'O GitHub Manager encontrou uma diferença que merece conferência antes do envio.',
+                ),
+                const SizedBox(height: 12),
+                _BuildSafetyRow(
+                  label: 'Versão no ZIP',
+                  value: zipVersion,
+                  icon: Icons.folder_zip_outlined,
+                ),
+                _BuildSafetyRow(
+                  label: 'Versão no GitHub',
+                  value: githubVersion,
+                  icon: Icons.cloud_outlined,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Para a comparação funcionar com segurança, mantenha a versão em um arquivo do próprio projeto:',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                const Text('• Node/JavaScript: campo "version" do package.json.'),
+                const Text('• Flutter: campo "version" do pubspec.yaml.'),
+                const Text('• Android/Kotlin: versionName e versionCode no app/build.gradle(.kts).'),
+                const Text('• Projetos compatíveis: github-manager.json ou arquivo VERSION.'),
+                const SizedBox(height: 10),
+                const Text(
+                  'Depois de corrigir a versão, gere um novo ZIP e abra novamente “Enviar build”. O nome do ZIP continua sendo apenas uma pista e não substitui os metadados internos.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(helpContext),
+            child: const Text('Entendi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _downloadLatestApk(
     GitHubRepository repository,
     ActionArtifact artifact,
@@ -374,15 +448,38 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
   }
 
   Future<void> _manageRepository(GitHubRepository repository) async {
-    final action = await showRepositoryActionsSheet(context, repository);
-    if (action == null || !mounted) {
-      return;
-    }
-    if (action == RepositoryAction.edit) {
-      final result = await showEditRepositoryDialog(context, repository);
-      if (result == null || !mounted) {
-        return;
+    final favoriteIds = await ref.read(favoriteRepositoryIdsProvider.future);
+    if (!mounted) return;
+    final isFavorite = favoriteIds.contains(repository.id);
+    final action = await showRepositoryActionsSheet(
+      context,
+      repository,
+      isFavorite: isFavorite,
+    );
+    if (action == null || !mounted) return;
+
+    if (action == RepositoryAction.toggleFavorite) {
+      try {
+        await ref.read(repositoryServiceProvider).setRepositoryFavorite(
+              repository,
+              favorite: !isFavorite,
+            );
+        ref.invalidate(favoriteRepositoryIdsProvider);
+        if (mounted) {
+          showCenteredNotice(
+            context,
+            isFavorite
+                ? '${repository.name} não ficará mais fixado no topo.'
+                : '${repository.name} fixado no topo.',
+            kind: CenteredNoticeKind.success,
+          );
+        }
+      } catch (error) {
+        if (mounted) _showError(error);
       }
+    } else if (action == RepositoryAction.edit) {
+      final result = await showEditRepositoryDialog(context, repository);
+      if (result == null || !mounted) return;
       try {
         final updated = await ref.read(repositoryServiceProvider).updateRepository(
               fullName: repository.fullName,
@@ -398,10 +495,13 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
           return;
         }
         ref.invalidate(repositoryProjectInfoProvider(updated));
+        showCenteredNotice(
+          context,
+          'Repositório ${updated.name} atualizado com sucesso.',
+          kind: CenteredNoticeKind.success,
+        );
       } catch (error) {
-        if (mounted) {
-        _showError(error);
-      }
+        if (mounted) _showError(error);
       }
     } else if (action == RepositoryAction.rename) {
       final newName = await showRenameRepositoryDialog(context, repository);
@@ -415,6 +515,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
             .read(permissionPreflightServiceProvider)
             .invalidateRepository(repository.fullName);
         ref.invalidate(repositoryProjectInfoProvider(repository));
+        ref.invalidate(favoriteRepositoryIdsProvider);
         if (!mounted) return;
         showCenteredNotice(
           context,
@@ -434,18 +535,13 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
       );
       if (!allowed || !mounted) return;
       final confirmed = await showDeleteRepositoryDialog(context, repository);
-      if (confirmed != true || !mounted) {
-        return;
-      }
+      if (confirmed != true || !mounted) return;
       try {
         await ref.read(repositoryServiceProvider).deleteRepository(repository.fullName);
-        if (mounted) {
-      context.go('/');
-    }
+        ref.invalidate(favoriteRepositoryIdsProvider);
+        if (mounted) context.go('/');
       } catch (error) {
-        if (mounted) {
-        _showError(error);
-      }
+        if (mounted) _showError(error);
       }
     }
   }

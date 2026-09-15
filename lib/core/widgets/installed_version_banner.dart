@@ -35,6 +35,7 @@ class InstalledVersionBanner extends StatelessWidget {
         future: _version,
         builder: (context, snapshot) {
           final label = snapshot.data ?? 'carregando';
+          final scheme = Theme.of(context).colorScheme;
           return Container(
             width: double.infinity,
             padding: EdgeInsets.symmetric(
@@ -42,14 +43,17 @@ class InstalledVersionBanner extends StatelessWidget {
               vertical: compact ? 7 : 9,
             ),
             decoration: BoxDecoration(
-              color: Colors.red.shade800,
+              color: scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(compact ? 10 : 12),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: .55),
+              ),
             ),
             child: Text(
-              'GITHUB MANAGER INSTALADO • $label',
+              'GITHUB MANAGER • $label',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white,
+                color: scheme.onSurface,
                 fontWeight: FontWeight.w900,
                 fontSize: compact ? 12 : 13,
                 letterSpacing: 0.25,

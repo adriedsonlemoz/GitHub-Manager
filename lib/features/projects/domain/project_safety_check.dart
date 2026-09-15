@@ -161,8 +161,8 @@ class ProjectSafetyCheck {
         identitySource: identitySource,
         versionComparison: versionComparison,
         message: hasIdentityEvidence
-            ? 'A identidade parece compatível, mas não foi possível comparar as versões com segurança.'
-            : 'Não foi possível confirmar totalmente a identidade nem a versão. Confira o destino antes de enviar.',
+            ? 'A identidade parece compatível, mas não foi possível comparar as versões com segurança. Toque em ? para ver como corrigir.'
+            : 'Não foi possível confirmar totalmente a identidade nem a versão. Confira o destino antes de enviar e toque em ? para ver como corrigir.',
       );
     }
 

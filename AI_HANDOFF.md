@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.65+200079`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.66+200080`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 ## Arquitetura
 
@@ -45,6 +45,15 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 
 
 
+
+## Conferência, ajuda e token 2.0.66
+
+- build 57 corrigido: o detalhe do repositório resolve o estado de fixado antes de abrir o menu e passa `isFavorite`;
+- análise local de ZIP Node/JavaScript lê versão/nome do `package.json` da raiz ou da única pasta-raiz;
+- `Conferir build` mostra a versão do projeto a enviar, não a versão instalada do GitHub Manager;
+- avisos de identidade/versão têm ajuda contextual com fontes aceitas e passos para corrigir;
+- Configurações possui central de ajuda geral e acesso direto para exibir/copiar o token GitHub atual;
+- token continua apenas em `flutter_secure_storage` e nunca deve aparecer em logs/diagnósticos.
 
 ## APKs e segurança de envio 2.0.31
 

@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.65+200079`
+`version: 2.0.66+200080`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.66+200080` corrige o build 57, adiciona leitura de versão de `package.json` em ZIPs Node/JavaScript, troca o banner de conferência pela versão real do projeto a enviar, acrescenta ajuda contextual para identidade/versão e expõe a chave/token GitHub atual com exibição/cópia em Configurações.
 
 A versão `2.0.65+200079` ativa projetos fixados usando a persistência SQLite já existente, adiciona filtro/ordenação da lista e separa o carregamento resumido dos cards da análise completa de metadados para reduzir chamadas desnecessárias à API.
 

@@ -219,7 +219,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Backup do token GitHub'),
+          title: const Text('Token GitHub atual'),
           content: AdaptiveDialogBody(
             child: SingleChildScrollView(
               child: Column(
@@ -227,7 +227,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Este token dá acesso aos recursos autorizados no GitHub. Guarde-o em local seguro e não compartilhe publicamente.',
+                    'Esta é a chave/token GitHub salva neste aparelho. Ela dá acesso aos recursos autorizados no GitHub. Exiba ou copie somente quando necessário e não compartilhe publicamente.',
                   ),
                   const SizedBox(height: 12),
                   Container(
@@ -584,11 +584,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               children: [
                 ListTile(
+                  leading: const Icon(Icons.help_center_outlined),
+                  title: const Text('Ajuda do aplicativo'),
+                  subtitle: const Text(
+                    'Guia geral, identidade do projeto, builds, APKs e solução de avisos.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push('/help'),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.school_outlined),
                   title: const Text('Assistente de configuração'),
                   subtitle: const Text('Rever token, permissões e teste de conexão.'),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => context.push('/setup'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.key_outlined),
+                  title: const Text('Chave / token GitHub atual'),
+                  subtitle: const Text('Exibir, ocultar ou copiar o token salvo neste aparelho.'),
+                  trailing: const Icon(Icons.visibility_outlined),
+                  onTap: _showGitHubTokenBackup,
                 ),
               ],
             ),
@@ -619,16 +637,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.62',
-                      text: 'Envios identificam o método que falhou, repetem erros temporários e podem trocar com segurança da árvore incremental para reconstrução completa, com proteção contra mudança da branch.',
+                      version: '2.0.66',
+                      text: 'Conferir build passa a mostrar a versão do projeto a enviar, reconhece version do package.json, explica avisos de identidade e adiciona ajuda geral e acesso ao token atual.',
                     ),
                     _ChangeNote(
-                      version: '2.0.61',
-                      text: 'Falhas de envio mostram onde pararam, progresso, resposta HTTP do GitHub, endpoint, impacto no repositório e orientação específica para corrigir.',
+                      version: '2.0.65',
+                      text: 'Projetos podem ser fixados no topo, filtrados e ordenados, enquanto os cards usam uma leitura resumida de nome e versão.',
                     ),
                     _ChangeNote(
-                      version: '2.0.60',
-                      text: 'Builds atualizam automaticamente mesmo sem execução ativa, falhas podem ser selecionadas em lote e o detalhe mostra diagnóstico com contexto real dos logs.',
+                      version: '2.0.64',
+                      text: 'Cards exibem o tamanho informado pelo GitHub e a lista mostra quantidade de projetos e tamanho total sem chamadas extras por repositório.',
                     ),
                   ],
                 ),
@@ -725,7 +743,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _showGitHubTokenBackup();
                   },
                   icon: const Icon(Icons.backup_outlined),
-                  label: const Text('Exibir / copiar token para backup'),
+                  label: const Text('Exibir / copiar token atual'),
                 ),
                 const SizedBox(height: 8),
                 TextButton.icon(

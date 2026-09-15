@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:github_manager/features/downloads/presentation/downloads_screen.dart';
 import 'package:github_manager/features/home/presentation/profile_screen.dart';
+import 'package:github_manager/features/help/presentation/help_screen.dart';
 import 'package:github_manager/features/issues/presentation/repository_issues_screen.dart';
 import 'package:github_manager/features/permissions/presentation/repository_permission_diagnostics_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repositories_screen.dart';
@@ -45,6 +46,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/setup',
       builder: (_, _) => const SetupWizardScreen(),
+    ),
+    GoRoute(
+      path: '/help',
+      builder: (_, _) => const HelpScreen(),
     ),
     GoRoute(
       path: '/repositories/:owner/:repo',

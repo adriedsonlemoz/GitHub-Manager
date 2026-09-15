@@ -154,6 +154,22 @@ class LocalProjectService {
               } catch (_) {
                 // Metadado opcional inválido não invalida o ZIP inteiro.
               }
+            } else if (_isLikelyRootFile(lowerPath, 'package.json')) {
+              try {
+                final raw = jsonDecode(text);
+                if (raw is Map) {
+                  final map = Map<String, dynamic>.from(raw);
+                  detectedProjectName ??= _firstString([
+                    map['displayName'],
+                    map['productName'],
+                    map['appName'],
+                  ]);
+                  detectedPackageName ??= _firstString([map['name']]);
+                  detectedVersion ??= _firstString([map['version']]);
+                }
+              } catch (_) {
+                // package.json opcional inválido não invalida o ZIP inteiro.
+              }
             } else if (lowerPath.endsWith('pubspec.yaml')) {
               detectedPackageName ??= RegExp(r'^name:\s*([^\s#]+)', multiLine: true)
                   .firstMatch(text)
@@ -270,11 +286,26 @@ class LocalProjectService {
       lowerPath.endsWith('github-manager.json') ||
       lowerPath.endsWith('app.json') ||
       lowerPath.endsWith('project.json') ||
+      _isLikelyRootFile(lowerPath, 'package.json') ||
       lowerPath.endsWith('pubspec.yaml') ||
       lowerPath.endsWith('/version') ||
       lowerPath == 'version' ||
       lowerPath.endsWith('app/build.gradle') ||
       lowerPath.endsWith('app/build.gradle.kts');
+
+  static bool _isLikelyRootFile(String lowerPath, String fileName) {
+    final parts = lowerPath
+        .split('/')
+        .where((part) => part.isNotEmpty && part != '.')
+        .toList(growable: false);
+    if (parts.isEmpty || parts.last != fileName) return false;
+    if (parts.any((part) => part == 'node_modules' || part == 'build')) {
+      return false;
+    }
+    // Aceita arquivo na raiz do ZIP ou dentro de uma única pasta-raiz,
+    // formato comum dos ZIPs baixados/exportados pelo GitHub Manager.
+    return parts.length <= 2;
+  }
 
   static String? _firstString(List<Object?> values) {
     for (final value in values) {
