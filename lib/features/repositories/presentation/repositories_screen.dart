@@ -17,6 +17,7 @@ import 'package:github_manager/features/permissions/domain/repository_permission
 import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
 import 'package:github_manager/features/permissions/presentation/token_permission_providers.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
+import 'package:github_manager/features/repositories/domain/repository_list_sort.dart';
 import 'package:github_manager/features/repositories/presentation/repository_card.dart';
 import 'package:github_manager/features/repositories/presentation/repository_management_dialogs.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
@@ -40,6 +41,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
   final _searchController = TextEditingController();
   String _query = '';
   String _filter = 'Todos';
+  RepositorySort _sort = RepositorySort.updatedDesc;
   late int _section;
 
   bool get _showingFollowed => _section == 1;
@@ -60,6 +62,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
         _section = widget.initialSection;
         _query = '';
         _filter = 'Todos';
+        _sort = RepositorySort.updatedDesc;
         _searchController.clear();
       });
       _scheduleRepositoryReconciliation();
@@ -95,25 +98,37 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
       } else {
         final fresh = await ref.refresh(repositoriesProvider.future);
         for (final repository in fresh) {
-          ref.invalidate(repositoryProjectInfoProvider(repository));
+          ref.invalidate(repositoryProjectSummaryProvider(repository));
         }
+        ref.invalidate(favoriteRepositoryIdsProvider);
       }
     } catch (_) {
       // Sem fallback local: a tela continua refletindo o resultado da API.
     }
   }
 
-  List<GitHubRepository> _applyFilters(List<GitHubRepository> source) {
+  List<GitHubRepository> _applyFilters(
+    List<GitHubRepository> source,
+    Set<int> favoriteIds,
+  ) {
     final query = _query.trim().toLowerCase();
-    return source.where((repository) {
+    final filtered = source.where((repository) {
       if (_filter == 'Públicos' && repository.isPrivate) return false;
       if (_filter == 'Privados' && !repository.isPrivate) return false;
       if (_filter == 'Arquivados' && !repository.isArchived) return false;
+      if (_filter == 'Fixados' && !favoriteIds.contains(repository.id)) {
+        return false;
+      }
       if (query.isEmpty) return true;
       return repository.name.toLowerCase().contains(query) ||
           repository.fullName.toLowerCase().contains(query) ||
           (repository.description?.toLowerCase().contains(query) ?? false);
-    }).toList(growable: false);
+    });
+    return sortRepositories(
+      filtered,
+      sort: _sort,
+      favoriteIds: _showingFollowed ? const <int>{} : favoriteIds,
+    );
   }
 
   Future<void> _refresh() async {
@@ -123,8 +138,9 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
       } else {
         final fresh = await ref.refresh(repositoriesProvider.future);
         for (final repository in fresh) {
-          ref.invalidate(repositoryProjectInfoProvider(repository));
+          ref.invalidate(repositoryProjectSummaryProvider(repository));
         }
+        ref.invalidate(favoriteRepositoryIdsProvider);
         ref.invalidate(githubProfileProvider);
       }
     } catch (error) {
@@ -153,7 +169,12 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
     final repositories = _showingFollowed
         ? ref.watch(followedRepositoriesProvider)
         : ref.watch(repositoriesProvider);
-    final profile = ref.watch(githubProfileProvider);
+    final favoriteIds = _showingFollowed
+        ? const <int>{}
+        : ref.watch(favoriteRepositoryIdsProvider).maybeWhen(
+              data: (value) => value,
+              orElse: () => const <int>{},
+            );
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
@@ -246,24 +267,75 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
                       onChanged: (value) => setState(() => _query = value),
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      height: 43,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: 4,
-                        separatorBuilder: (_, _) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final value = const ['Todos', 'Públicos', 'Privados', 'Arquivados'][index];
-                          return ChoiceChip(
-                            label: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              child: Text(value),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 43,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _showingFollowed ? 4 : 5,
+                              separatorBuilder: (_, _) => const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final values = _showingFollowed
+                                    ? const ['Todos', 'Públicos', 'Privados', 'Arquivados']
+                                    : const [
+                                        'Todos',
+                                        'Fixados',
+                                        'Públicos',
+                                        'Privados',
+                                        'Arquivados',
+                                      ];
+                                final value = values[index];
+                                return ChoiceChip(
+                                  label: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: Text(value),
+                                  ),
+                                  selected: _filter == value,
+                                  onSelected: (_) => setState(() => _filter = value),
+                                );
+                              },
                             ),
-                            selected: _filter == value,
-                            onSelected: (_) => setState(() => _filter = value),
-                          );
-                        },
-                      ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        PopupMenuButton<RepositorySort>(
+                          tooltip: 'Ordenar projetos',
+                          initialValue: _sort,
+                          onSelected: (value) => setState(() => _sort = value),
+                          itemBuilder: (context) => RepositorySort.values
+                              .map(
+                                (value) => PopupMenuItem<RepositorySort>(
+                                  value: value,
+                                  child: Row(
+                                    children: [
+                                      if (_sort == value) ...[
+                                        const Icon(Icons.check_rounded, size: 18),
+                                        const SizedBox(width: 8),
+                                      ] else
+                                        const SizedBox(width: 26),
+                                      Text(value.label),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              .toList(growable: false),
+                          child: Tooltip(
+                            message: 'Ordenar: ${_sort.label}',
+                            child: Container(
+                              height: 43,
+                              width: 43,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: scheme.outlineVariant),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.sort_rounded, size: 21),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -281,7 +353,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
                   child: AppErrorCard(error: error, onRetry: _refresh),
                 ),
               ),
-              data: (items) => _repositoryListSliver(items),
+              data: (items) => _repositoryListSliver(items, favoriteIds),
             ),
           ],
         ),
@@ -289,8 +361,11 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
     );
   }
 
-  Widget _repositoryListSliver(List<GitHubRepository> items) {
-    final filtered = _applyFilters(items);
+  Widget _repositoryListSliver(
+    List<GitHubRepository> items,
+    Set<int> favoriteIds,
+  ) {
+    final filtered = _applyFilters(items, favoriteIds);
     if (filtered.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
@@ -318,6 +393,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
           return RepositoryCard(
             repository: repository,
             readOnly: _showingFollowed,
+            isFavorite: favoriteIds.contains(repository.id),
             onTap: () async {
               await context.push(
                 '/repositories/${repository.fullName}?readOnly=${_showingFollowed ? '1' : '0'}',

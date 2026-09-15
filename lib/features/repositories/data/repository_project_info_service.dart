@@ -10,6 +10,160 @@ class RepositoryProjectInfoService {
 
   final GitHubApiClient _client;
 
+  Future<RepositoryProjectInfo> loadSummary(GitHubRepository repository) async {
+    try {
+      final rootResponse = await _client.get<List<dynamic>>(
+        '/repos/${repository.fullName}/contents',
+        queryParameters: {'ref': repository.defaultBranch},
+      );
+      final root = (rootResponse.data ?? const <dynamic>[])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+      final names = <String, Map<String, dynamic>>{
+        for (final item in root)
+          (item['name'] as String? ?? '').toLowerCase(): item,
+      };
+
+      Future<String?> readPath(String path) async {
+        try {
+          final response = await _client.get<Map<String, dynamic>>(
+            '/repos/${repository.fullName}/contents/${path.split('/').map(Uri.encodeComponent).join('/')}',
+            queryParameters: {'ref': repository.defaultBranch},
+          );
+          final json = response.data ?? const <String, dynamic>{};
+          if (json['encoding'] != 'base64') return null;
+          final encoded = (json['content'] as String? ?? '').replaceAll('\n', '');
+          if (encoded.isEmpty) return null;
+          return utf8.decode(base64.decode(encoded), allowMalformed: true);
+        } catch (_) {
+          return null;
+        }
+      }
+
+      var projectName = repository.name;
+      String? version;
+
+      final metadataFile = const [
+        'github-manager.json',
+        'app.json',
+        'project.json',
+      ].where(names.containsKey).firstOrNull;
+      if (metadataFile != null) {
+        final raw = await readPath(metadataFile);
+        if (raw != null) {
+          try {
+            final decoded = jsonDecode(raw);
+            if (decoded is Map) {
+              final map = Map<String, dynamic>.from(decoded);
+              final candidateName = map['displayName'] ??
+                  map['product'] ??
+                  map['projectName'] ??
+                  map['appName'] ??
+                  map['name'];
+              final candidateVersion = map['version'] ?? map['versionName'];
+              final android = map['android'];
+              if (candidateName is String && candidateName.trim().isNotEmpty) {
+                projectName = candidateName.trim();
+              }
+              if (candidateVersion is String && candidateVersion.trim().isNotEmpty) {
+                version = candidateVersion.trim().split('+').first;
+              }
+              if (version == null && android is Map) {
+                final androidVersion = android['versionName'];
+                if (androidVersion is String && androidVersion.trim().isNotEmpty) {
+                  version = androidVersion.trim().split('+').first;
+                }
+              }
+            }
+          } catch (_) {
+            _ignoreInvalidMetadata();
+          }
+        }
+      }
+
+      if (version == null && names.containsKey('pubspec.yaml')) {
+        final raw = await readPath('pubspec.yaml');
+        if (raw != null) {
+          final yamlName = RegExp(r'^name:\s*([^\s#]+)', multiLine: true)
+              .firstMatch(raw)
+              ?.group(1)
+              ?.trim();
+          final yamlVersion = RegExp(r'^version:\s*([^\s#]+)', multiLine: true)
+              .firstMatch(raw)
+              ?.group(1)
+              ?.trim();
+          if (projectName == repository.name && yamlName?.isNotEmpty == true) {
+            projectName = _humanize(yamlName!);
+          }
+          if (yamlVersion?.isNotEmpty == true) {
+            version = yamlVersion!.split('+').first;
+          }
+        }
+      }
+
+      if (version == null && names.containsKey('package.json')) {
+        final raw = await readPath('package.json');
+        if (raw != null) {
+          try {
+            final decoded = jsonDecode(raw);
+            if (decoded is Map) {
+              final map = Map<String, dynamic>.from(decoded);
+              final candidateName = map['name'];
+              final candidateVersion = map['version'];
+              if (projectName == repository.name && candidateName is String) {
+                projectName = _humanize(candidateName);
+              }
+              if (candidateVersion is String && candidateVersion.trim().isNotEmpty) {
+                version = candidateVersion.trim();
+              }
+            }
+          } catch (_) {
+            _ignoreInvalidMetadata();
+          }
+        }
+      }
+
+      if (version == null && names.containsKey('version')) {
+        final raw = await readPath('VERSION');
+        if (raw?.trim().isNotEmpty == true) version = raw!.trim();
+      }
+
+      if (version == null) {
+        final gradleCandidates = <String>[
+          if (names.containsKey('app')) ...const [
+            'app/build.gradle.kts',
+            'app/build.gradle',
+          ],
+          if (names.containsKey('android')) ...const [
+            'android/app/build.gradle.kts',
+            'android/app/build.gradle',
+          ],
+        ];
+        for (final gradlePath in gradleCandidates) {
+          final raw = await readPath(gradlePath);
+          if (raw == null) continue;
+          version = RegExp(
+            r'''versionName\s*(?:=\s*)?["']([^"']+)["']''',
+          ).firstMatch(raw)?.group(1)?.trim();
+          if (version?.isNotEmpty == true) break;
+        }
+      }
+
+      return RepositoryProjectInfo(
+        projectName: projectName,
+        version: version,
+        technologies: [if (repository.language?.isNotEmpty == true) repository.language!],
+      );
+    } on AppException {
+      return RepositoryProjectInfo(
+        projectName: repository.name,
+        version: null,
+        technologies: [if (repository.language?.isNotEmpty == true) repository.language!],
+      );
+    }
+  }
+
   Future<RepositoryProjectInfo> load(GitHubRepository repository) async {
     try {
       final rootResponse = await _client.get<List<dynamic>>(

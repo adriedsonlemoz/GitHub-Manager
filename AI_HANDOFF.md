@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.63+200077`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.65+200079`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 ## Arquitetura
 
@@ -20,6 +20,8 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 - notificações de conclusão/falha de builds em segundo plano;
 - repositórios acompanhados em modo somente leitura, com Releases/APKs públicos e seleção de repositório ao colar URL de perfil;
 - lista e CRUD de repositórios;
+- projetos fixados localmente, filtro de fixados e ordenação por data/nome/tamanho;
+- cards usam resumo leve de nome/versão; análise completa permanece nas telas internas;
 - metadados de projeto, versão e tecnologias;
 - navegação/edição/upload de arquivos;
 - ZIP com sincronização completa e remoção de arquivos obsoletos;

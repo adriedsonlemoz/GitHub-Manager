@@ -19,7 +19,7 @@ class RepositoryDraft {
   final bool isArchived;
 }
 
-enum RepositoryAction { edit, rename, delete }
+enum RepositoryAction { toggleFavorite, edit, rename, delete }
 
 Future<RepositoryDraft?> showCreateRepositoryDialog(BuildContext context) =>
     showDialog<RepositoryDraft>(
@@ -56,11 +56,15 @@ Future<bool?> showDeleteRepositoryDialog(
 
 Future<RepositoryAction?> showRepositoryActionsSheet(
   BuildContext context,
-  GitHubRepository repository,
-) =>
+  GitHubRepository repository, {
+  required bool isFavorite,
+}) =>
     showDialog<RepositoryAction>(
       context: context,
-      builder: (context) => _RepositoryActionsDialog(repository: repository),
+      builder: (context) => _RepositoryActionsDialog(
+        repository: repository,
+        isFavorite: isFavorite,
+      ),
     );
 
 class _CreateRepositoryDialog extends StatefulWidget {
@@ -389,8 +393,12 @@ class _EditRepositoryDialogState extends State<_EditRepositoryDialog> {
 }
 
 class _RepositoryActionsDialog extends StatelessWidget {
-  const _RepositoryActionsDialog({required this.repository});
+  const _RepositoryActionsDialog({
+    required this.repository,
+    required this.isFavorite,
+  });
   final GitHubRepository repository;
+  final bool isFavorite;
 
   @override
   Widget build(BuildContext context) => Dialog(
@@ -447,6 +455,26 @@ class _RepositoryActionsDialog extends StatelessWidget {
                   margin: EdgeInsets.zero,
                   child: Column(
                     children: [
+                      ListTile(
+                        leading: Icon(
+                          isFavorite
+                              ? Icons.push_pin_rounded
+                              : Icons.push_pin_outlined,
+                        ),
+                        title: Text(
+                          isFavorite ? 'Desafixar do topo' : 'Fixar no topo',
+                        ),
+                        subtitle: Text(
+                          isFavorite
+                              ? 'Voltar à ordem normal da lista'
+                              : 'Manter este projeto antes dos demais',
+                        ),
+                        onTap: () => Navigator.pop(
+                          context,
+                          RepositoryAction.toggleFavorite,
+                        ),
+                      ),
+                      const Divider(height: 1),
                       ListTile(
                         leading: const Icon(Icons.edit_outlined),
                         title: const Text('Editar repositório'),

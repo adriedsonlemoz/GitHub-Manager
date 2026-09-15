@@ -12,6 +12,7 @@ class RepositoryCard extends ConsumerWidget {
     this.onCopyLink,
     this.onFork,
     this.readOnly = false,
+    this.isFavorite = false,
     super.key,
   });
 
@@ -22,11 +23,12 @@ class RepositoryCard extends ConsumerWidget {
   final VoidCallback? onCopyLink;
   final VoidCallback? onFork;
   final bool readOnly;
+  final bool isFavorite;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final info = readOnly ? null : ref.watch(repositoryProjectInfoProvider(repository));
+    final info = readOnly ? null : ref.watch(repositoryProjectSummaryProvider(repository));
     final projectName = info?.maybeWhen(
           data: (value) => value.projectName,
           orElse: () => repository.name,
@@ -82,6 +84,15 @@ class RepositoryCard extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  if (isFavorite && !readOnly)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 7),
+                      child: Icon(
+                        Icons.push_pin_rounded,
+                        size: 16,
+                        color: scheme.primary,
+                      ),
+                    ),
                   if (repository.isArchived)
                     const Padding(
                       padding: EdgeInsets.only(left: 7),

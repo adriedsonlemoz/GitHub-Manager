@@ -87,6 +87,86 @@ class LocalDatabase {
     await db.delete('cache_entries', where: 'cache_key LIKE ?', whereArgs: ['github.%']);
   }
 
+  Future<Set<int>> readFavoriteRepositoryIds() async {
+    final db = await database;
+    final rows = await db.query(
+      'favorite_repositories',
+      columns: ['repository_id'],
+      orderBy: 'created_at ASC',
+    );
+    return rows
+        .map((row) => row['repository_id'])
+        .whereType<int>()
+        .toSet();
+  }
+
+  Future<void> setFavoriteRepository({
+    required int repositoryId,
+    required String fullName,
+    required bool favorite,
+  }) async {
+    final db = await database;
+    if (!favorite) {
+      await db.delete(
+        'favorite_repositories',
+        where: 'repository_id = ?',
+        whereArgs: [repositoryId],
+      );
+      return;
+    }
+    await db.insert(
+      'favorite_repositories',
+      {
+        'repository_id': repositoryId,
+        'full_name': fullName,
+        'created_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> updateFavoriteRepositoryName(
+    int repositoryId,
+    String fullName,
+  ) async {
+    final db = await database;
+    await db.update(
+      'favorite_repositories',
+      {'full_name': fullName},
+      where: 'repository_id = ?',
+      whereArgs: [repositoryId],
+    );
+  }
+
+  Future<void> removeFavoriteRepositoryByFullName(String fullName) async {
+    final db = await database;
+    await db.delete(
+      'favorite_repositories',
+      where: 'LOWER(full_name) = ?',
+      whereArgs: [fullName.toLowerCase()],
+    );
+  }
+
+  Future<void> reconcileFavoriteRepositories(Set<int> existingIds) async {
+    final db = await database;
+    final rows = await db.query(
+      'favorite_repositories',
+      columns: ['repository_id'],
+    );
+    final staleIds = rows
+        .map((row) => row['repository_id'])
+        .whereType<int>()
+        .where((id) => !existingIds.contains(id))
+        .toList(growable: false);
+    for (final id in staleIds) {
+      await db.delete(
+        'favorite_repositories',
+        where: 'repository_id = ?',
+        whereArgs: [id],
+      );
+    }
+  }
+
   Future<void> close() async {
     final db = _database;
     _database = null;

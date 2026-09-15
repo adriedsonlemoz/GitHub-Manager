@@ -49,8 +49,24 @@ class RepositoryService {
       repositories.addAll(pageItems);
       if (pageItems.length < 100) break;
     }
+    await _database.reconcileFavoriteRepositories(
+      repositories.map((repository) => repository.id).toSet(),
+    );
     return repositories;
   }
+
+  Future<Set<int>> listFavoriteRepositoryIds() =>
+      _database.readFavoriteRepositoryIds();
+
+  Future<void> setRepositoryFavorite(
+    GitHubRepository repository, {
+    required bool favorite,
+  }) =>
+      _database.setFavoriteRepository(
+        repositoryId: repository.id,
+        fullName: repository.fullName,
+        favorite: favorite,
+      );
 
   Future<List<String>> _readFollowedNames() async {
     final stored = await _database.readJson(_followedKey);
@@ -352,6 +368,10 @@ class RepositoryService {
       if (repository.fullName.toLowerCase() != fullName.toLowerCase()) {
         await _replaceFollowedReference(fullName, repository);
       }
+      await _database.updateFavoriteRepositoryName(
+        repository.id,
+        repository.fullName,
+      );
       return repository;
     } catch (error) {
       if (_isAmbiguousMutationError(error)) {
@@ -360,6 +380,10 @@ class RepositoryService {
           if (confirmed.fullName.toLowerCase() != fullName.toLowerCase()) {
             await _replaceFollowedReference(fullName, confirmed);
           }
+          await _database.updateFavoriteRepositoryName(
+            confirmed.id,
+            confirmed.fullName,
+          );
           return confirmed;
         }
       }
@@ -405,12 +429,20 @@ class RepositoryService {
       );
       final repository = GitHubRepository.fromJson(response.data ?? const {});
       await _replaceFollowedReference(fullName, repository);
+      await _database.updateFavoriteRepositoryName(
+        repository.id,
+        repository.fullName,
+      );
       return repository;
     } catch (error) {
       if (_isAmbiguousMutationError(error)) {
         final confirmed = await _confirmRepositoryExists(targetFullName);
         if (confirmed != null) {
           await _replaceFollowedReference(fullName, confirmed);
+          await _database.updateFavoriteRepositoryName(
+            confirmed.id,
+            confirmed.fullName,
+          );
           return confirmed;
         }
       }
@@ -430,6 +462,7 @@ class RepositoryService {
       }
     }
     await unfollowRepository(fullName);
+    await _database.removeFavoriteRepositoryByFullName(fullName);
   }
 
 

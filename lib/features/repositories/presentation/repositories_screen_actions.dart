@@ -267,9 +267,35 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
       );
 
   Future<void> _manageRepository(GitHubRepository repository) async {
-    final action = await showRepositoryActionsSheet(context, repository);
+    final favoriteIds = await ref.read(favoriteRepositoryIdsProvider.future);
+    if (!mounted) return;
+    final isFavorite = favoriteIds.contains(repository.id);
+    final action = await showRepositoryActionsSheet(
+      context,
+      repository,
+      isFavorite: isFavorite,
+    );
     if (action == null || !mounted) return;
-    if (action == RepositoryAction.edit) {
+    if (action == RepositoryAction.toggleFavorite) {
+      try {
+        await ref.read(repositoryServiceProvider).setRepositoryFavorite(
+              repository,
+              favorite: !isFavorite,
+            );
+        ref.invalidate(favoriteRepositoryIdsProvider);
+        if (mounted) {
+          showCenteredNotice(
+            context,
+            isFavorite
+                ? '${repository.name} não ficará mais fixado no topo.'
+                : '${repository.name} fixado no topo.',
+            kind: CenteredNoticeKind.success,
+          );
+        }
+      } catch (error) {
+        if (mounted) _showError(error);
+      }
+    } else if (action == RepositoryAction.edit) {
       final result = await showEditRepositoryDialog(context, repository);
       if (result == null || !mounted) return;
       try {
@@ -303,6 +329,7 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
         ref
             .read(permissionPreflightServiceProvider)
             .invalidateRepository(repository.fullName);
+        ref.invalidate(repositoryProjectSummaryProvider(repository));
         ref.invalidate(repositoryProjectInfoProvider(repository));
         if (mounted) {
           showCenteredNotice(
@@ -327,6 +354,7 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
       if (confirmed != true || !mounted) return;
       try {
         await ref.read(repositoryServiceProvider).deleteRepository(repository.fullName);
+        ref.invalidate(favoriteRepositoryIdsProvider);
         if (mounted) {
           showCenteredNotice(
             context,
