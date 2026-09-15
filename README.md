@@ -1,6 +1,16 @@
-# GitHub Manager 2.0.66
+# GitHub Manager 2.0.67
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
+
+
+## Recuperação de dados locais 2.0.67
+
+- corrige a migração do SQLite para instalações atualizadas, elevando o esquema para a versão 2;
+- cria/repara tabelas e índices ausentes de forma idempotente ao criar, atualizar e abrir o banco;
+- evita o compartilhamento acidental da mesma conexão SQLite entre serviços independentes que abrem/fecham o banco;
+- falhas no estado local de projetos fixados deixam de derrubar a listagem principal obtida do GitHub;
+- entradas JSON locais corrompidas são descartadas individualmente, sem exigir limpeza de todos os dados do aplicativo;
+- Configurações ganha **Diagnóstico de dados locais**, com reparo de estrutura e opção de reconstruir somente o banco local, preservando o token GitHub.
 
 ## Conferência de build e ajuda 2.0.66
 
@@ -104,7 +114,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.66+200080`;
+- versão: `2.0.67+200081`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

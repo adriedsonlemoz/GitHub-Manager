@@ -49,9 +49,14 @@ class RepositoryService {
       repositories.addAll(pageItems);
       if (pageItems.length < 100) break;
     }
-    await _database.reconcileFavoriteRepositories(
-      repositories.map((repository) => repository.id).toSet(),
-    );
+    try {
+      await _database.reconcileFavoriteRepositories(
+        repositories.map((repository) => repository.id).toSet(),
+      );
+    } catch (_) {
+      // Fixados são estado local auxiliar. Uma falha no SQLite nunca pode
+      // impedir a lista principal, que já foi carregada corretamente do GitHub.
+    }
     return repositories;
   }
 

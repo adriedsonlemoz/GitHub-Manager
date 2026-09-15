@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.66+200080`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.67+200081`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 ## Arquitetura
 
@@ -45,6 +45,16 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 
 
 
+
+
+## Persistência e recuperação 2.0.67
+
+- SQLite usa `schemaVersion = 2`, com `CREATE TABLE/INDEX IF NOT EXISTS` em criação, upgrade e abertura;
+- instalações antigas com banco incompleto são migradas sem exigir limpar dados do Android;
+- cada `LocalDatabase` abre conexão própria (`singleInstance: false`), evitando que serviços auxiliares fechem a conexão usada pela UI;
+- reconciliação de projetos fixados é auxiliar e não pode derrubar a lista remota de repositórios;
+- JSON local inválido é removido somente na chave afetada;
+- Configurações > Diagnóstico de dados locais pode reparar o esquema ou reconstruir apenas o SQLite, preservando o PAT no `flutter_secure_storage`.
 
 ## Conferência, ajuda e token 2.0.66
 

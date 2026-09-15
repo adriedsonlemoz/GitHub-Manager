@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
+import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/widgets/app_error_card.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
@@ -24,6 +25,7 @@ import 'package:github_manager/features/repositories/presentation/repository_pro
 import 'package:github_manager/features/setup/presentation/setup_wizard_screen.dart';
 import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sqflite/sqflite.dart';
 
 part 'repositories_screen_actions.dart';
 
@@ -145,6 +147,41 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
       }
     } catch (error) {
       if (mounted) _showError(error);
+    }
+  }
+
+  Future<void> _repairLocalRepositoriesData() async {
+    try {
+      final healthy = await ref.read(localDatabaseProvider).repairSchema();
+      if (!healthy) {
+        if (mounted) {
+          showCenteredNotice(
+            context,
+            'O banco local precisa ser reconstruído. Abra Configurações > Diagnóstico de dados locais.',
+            kind: CenteredNoticeKind.error,
+          );
+        }
+        return;
+      }
+      ref.invalidate(favoriteRepositoryIdsProvider);
+      ref.invalidate(repositoriesProvider);
+      ref.invalidate(followedRepositoriesProvider);
+      await _refresh();
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          'Dados locais reparados.',
+          kind: CenteredNoticeKind.success,
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          'Abra Configurações > Diagnóstico de dados locais para reconstruir o banco interno.',
+          kind: CenteredNoticeKind.error,
+        );
+      }
     }
   }
 
@@ -350,7 +387,13 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
               error: (error, _) => SliverPadding(
                 padding: const EdgeInsets.all(14),
                 sliver: SliverToBoxAdapter(
-                  child: AppErrorCard(error: error, onRetry: _refresh),
+                  child: AppErrorCard(
+                    error: error,
+                    onRetry: _refresh,
+                    onRepair: error is DatabaseException
+                        ? _repairLocalRepositoriesData
+                        : null,
+                  ),
                 ),
               ),
               data: (items) => _repositoryListSliver(items, favoriteIds),

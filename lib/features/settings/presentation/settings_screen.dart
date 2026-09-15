@@ -443,6 +443,74 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     model.dispose();
   }
 
+  Future<void> _repairLocalData() async {
+    final database = ref.read(localDatabaseProvider);
+    try {
+      final healthy = await database.repairSchema();
+      if (!mounted) return;
+      ref.invalidate(favoriteRepositoryIdsProvider);
+      ref.invalidate(repositoriesProvider);
+      ref.invalidate(githubProfileProvider);
+      if (healthy) {
+        showCenteredNotice(
+          context,
+          'Dados locais verificados e estrutura reparada.',
+          kind: CenteredNoticeKind.success,
+        );
+        return;
+      }
+    } catch (_) {
+      // Abaixo oferecemos uma reconstrução apenas do SQLite local.
+    }
+
+    if (!mounted) return;
+    final rebuild = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reconstruir dados locais?'),
+        content: const Text(
+          'O banco interno não passou na verificação. O GitHub Manager pode '
+          'recriá-lo sem apagar seu token GitHub. Projetos fixados e outras '
+          'preferências armazenadas somente nesse banco local podem ser perdidos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Reconstruir'),
+          ),
+        ],
+      ),
+    );
+    if (rebuild != true || !mounted) return;
+
+    try {
+      await database.rebuildLocalDatabase();
+      ref.invalidate(favoriteRepositoryIdsProvider);
+      ref.invalidate(repositoriesProvider);
+      ref.invalidate(followedRepositoriesProvider);
+      ref.invalidate(githubProfileProvider);
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          'Banco local reconstruído. O token GitHub foi preservado.',
+          kind: CenteredNoticeKind.success,
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          'Não foi possível reparar os dados locais automaticamente.',
+          kind: CenteredNoticeKind.error,
+        );
+      }
+    }
+  }
+
   Future<void> _copySupportText(String value, String message) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (mounted) {
@@ -608,6 +676,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   trailing: const Icon(Icons.visibility_outlined),
                   onTap: _showGitHubTokenBackup,
                 ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.build_circle_outlined),
+                  title: const Text('Diagnóstico de dados locais'),
+                  subtitle: const Text(
+                    'Verificar e reparar o banco interno sem apagar o token GitHub.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: _repairLocalData,
+                ),
               ],
             ),
           ),
@@ -637,16 +715,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.67',
+                      text: 'Corrige migração do banco local, repara estruturas ausentes automaticamente e impede que falhas em dados de projetos fixados derrubem a lista de repositórios.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.66',
                       text: 'Conferir build passa a mostrar a versão do projeto a enviar, reconhece version do package.json, explica avisos de identidade e adiciona ajuda geral e acesso ao token atual.',
                     ),
                     _ChangeNote(
                       version: '2.0.65',
                       text: 'Projetos podem ser fixados no topo, filtrados e ordenados, enquanto os cards usam uma leitura resumida de nome e versão.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.64',
-                      text: 'Cards exibem o tamanho informado pelo GitHub e a lista mostra quantidade de projetos e tamanho total sem chamadas extras por repositório.',
                     ),
                   ],
                 ),

@@ -97,6 +97,7 @@ class HelpScreen extends StatelessWidget {
               children: [
                 _HelpBullet('Atualize a tela e confirme se o aparelho está conectado à internet.'),
                 _HelpBullet('Confira o token e as permissões do repositório.'),
+                _HelpBullet('Se a lista de projetos falhar após uma atualização, abra Configurações > Diagnóstico de dados locais. O reparo não apaga o token GitHub.'),
                 _HelpBullet('Em falhas de build, abra o diagnóstico antes de repetir a execução.'),
                 _HelpBullet('Em falhas de envio, consulte a Central de Envios para ver etapa, HTTP, endpoint e opção de recuperação.'),
               ],
