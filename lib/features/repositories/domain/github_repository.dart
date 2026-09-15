@@ -8,6 +8,7 @@ class GitHubRepository {
     required this.defaultBranch,
     required this.updatedAt,
     required this.htmlUrl,
+    this.sizeKb = 0,
     this.description,
     this.language,
     this.homepage,
@@ -24,6 +25,8 @@ class GitHubRepository {
   final String? homepage;
   final DateTime? updatedAt;
   final String htmlUrl;
+  /// Repository size reported by the GitHub REST API, in kilobytes.
+  final int sizeKb;
 
   factory GitHubRepository.fromJson(Map<String, dynamic> json) => GitHubRepository(
         id: (json['id'] as num?)?.toInt() ?? 0,
@@ -37,6 +40,7 @@ class GitHubRepository {
         homepage: json['homepage'] as String?,
         updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? ''),
         htmlUrl: json['html_url'] as String? ?? '',
+        sizeKb: (json['size'] as num?)?.toInt() ?? 0,
       );
 
 
@@ -54,7 +58,8 @@ class GitHubRepository {
         other.language == language &&
         other.homepage == homepage &&
         other.updatedAt == updatedAt &&
-        other.htmlUrl == htmlUrl;
+        other.htmlUrl == htmlUrl &&
+        other.sizeKb == sizeKb;
   }
 
   @override
@@ -70,6 +75,7 @@ class GitHubRepository {
         homepage,
         updatedAt,
         htmlUrl,
+        sizeKb,
       );
 
   Map<String, dynamic> toJson() => {
@@ -84,5 +90,6 @@ class GitHubRepository {
         'homepage': homepage,
         'updated_at': updatedAt?.toIso8601String(),
         'html_url': htmlUrl,
+        'size': sizeKb,
       };
 }

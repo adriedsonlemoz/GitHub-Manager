@@ -70,6 +70,14 @@ class RepositoryCard extends ConsumerWidget {
                                     fontWeight: FontWeight.w800,
                                   ),
                             ),
+                          if (repository.sizeKb > 0)
+                            TextSpan(
+                              text: '  •  ${formatRepositorySize(repository.sizeKb)}',
+                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
                         ],
                       ),
                     ),
@@ -114,4 +122,21 @@ class RepositoryCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+String formatRepositorySize(int sizeKb) {
+  if (sizeKb <= 0) return '0 KB';
+  if (sizeKb < 1024) return '$sizeKb KB';
+  final sizeMb = sizeKb / 1024;
+  if (sizeMb < 1024) {
+    return '${_compactSizeNumber(sizeMb)} MB';
+  }
+  return '${_compactSizeNumber(sizeMb / 1024)} GB';
+}
+
+String _compactSizeNumber(double value) {
+  if (value >= 100 || value == value.roundToDouble()) {
+    return value.toStringAsFixed(0);
+  }
+  return value.toStringAsFixed(1).replaceFirst('.', ',');
 }

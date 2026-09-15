@@ -13,12 +13,15 @@ void main() {
       'language': 'Dart',
       'updated_at': '2026-08-26T08:00:00Z',
       'html_url': 'https://github.com/owner/github-manager',
+      'size': 18842,
     });
 
     expect(repository.id, 42);
     expect(repository.isPrivate, isTrue);
     expect(repository.defaultBranch, 'main');
     expect(repository.language, 'Dart');
+    expect(repository.sizeKb, 18842);
+    expect(repository.toJson()['size'], 18842);
   });
 
 

@@ -176,24 +176,42 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
               titleSpacing: 18,
               title: _showingFollowed
                   ? const Text('Acompanhados')
-                  : Text.rich(
-                      TextSpan(
-                        children: [
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text.rich(
                           TextSpan(
-                            text: 'Meus ',
-                            style: TextStyle(color: scheme.onSurface),
+                            children: [
+                              TextSpan(
+                                text: 'Meus ',
+                                style: TextStyle(color: scheme.onSurface),
+                              ),
+                              TextSpan(
+                                text: 'repositórios',
+                                style: TextStyle(
+                                  color: dark ? const Color(0xFF8B80FF) : scheme.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
-                          TextSpan(
-                            text: 'repositórios',
-                            style: TextStyle(
-                              color: dark ? const Color(0xFF8B80FF) : scheme.primary,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        repositories.maybeWhen(
+                          data: (items) => Text(
+                            '${items.length} ${items.length == 1 ? 'projeto' : 'projetos'}  •  ${formatRepositorySize(items.fold<int>(0, (total, repository) => total + repository.sizeKb))} no total',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
-                        ],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                          orElse: () => const SizedBox.shrink(),
+                        ),
+                      ],
                     ),
               actions: [
                 IconButton(
