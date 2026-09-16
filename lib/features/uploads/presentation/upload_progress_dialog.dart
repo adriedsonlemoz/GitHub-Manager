@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/features/uploads/data/upload_manager_service.dart';
-import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 import 'package:github_manager/features/uploads/presentation/upload_providers.dart';
 import 'package:go_router/go_router.dart';
@@ -524,10 +523,9 @@ class _FailureDiagnostic extends StatelessWidget {
       ),
     );
   }
-
-  static String _shortSha(String sha) =>
-      sha.length > 7 ? sha.substring(0, 7) : sha;
 }
+
+String _shortSha(String sha) => sha.length > 7 ? sha.substring(0, 7) : sha;
 
 class _DiagnosticBlock extends StatelessWidget {
   const _DiagnosticBlock({

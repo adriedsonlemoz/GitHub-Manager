@@ -715,7 +715,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.68',
+                      version: '2.0.69',
                       text: 'Protege workflows do GitHub Actions durante a sincronização, separa projeto enviado de build pendente e torna o diagnóstico de build compacto e acionável.',
                     ),
                     _ChangeNote(

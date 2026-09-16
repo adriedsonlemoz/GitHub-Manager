@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.68+200082`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.69+200083`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 ## Arquitetura
 
@@ -46,6 +46,13 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 
 
 
+
+## Correção do build 2.0.69
+
+- `UploadProgressDialog` e `_FailureDiagnostic` passam a usar um helper privado de arquivo para abreviar SHA;
+- corrige o erro de compilação `The method '_shortSha' isn't defined for the type 'UploadProgressDialog'`;
+- nenhum comportamento do fluxo de upload/build pendente foi removido;
+- Android APK agora roda `flutter analyze` e `flutter test` antes do Gradle para falhar cedo em erros Dart.
 
 ## Proteção de workflows e build pendente 2.0.68
 
