@@ -37,6 +37,8 @@ void buildMonitorCallbackDispatcher() {
 class BuildMonitorService {
   BuildMonitorService._();
 
+  static LocalDatabase get _database => LocalDatabase.shared;
+
   static Timer? _fastPollTimer;
   static bool _fastCheckRunning = false;
 
@@ -46,73 +48,59 @@ class BuildMonitorService {
   }
 
   static Future<void> ensureDefaultEnabled() async {
-    final database = LocalDatabase();
-    try {
-      final stored = await database.readJson(_enabledKey);
-      if (stored == false) {
-        await Workmanager().cancelByUniqueName(_buildMonitorUniqueName);
-        _stopFastPolling();
-        return;
-      }
+    final stored = await _database.readJson(_enabledKey);
+    if (stored == false) {
+      await Workmanager().cancelByUniqueName(_buildMonitorUniqueName);
+      _stopFastPolling();
+      return;
+    }
 
-      if (stored == null) {
-        await database.putJson(_enabledKey, true);
-        await database.putJson(
-          _startedAtKey,
-          DateTime.now().millisecondsSinceEpoch,
-        );
-      }
+    if (stored == null) {
+      await _database.putJson(_enabledKey, true);
+      await _database.putJson(
+        _startedAtKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+    }
 
-      final allowed = await requestPermission();
-      if (allowed) {
-        await _register();
-        _startFastPolling();
-      } else {
-        await database.putJson(_enabledKey, false);
-        await Workmanager().cancelByUniqueName(_buildMonitorUniqueName);
-        _stopFastPolling();
-      }
-    } finally {
-      await database.close();
+    final allowed = await requestPermission();
+    if (allowed) {
+      await _register();
+      _startFastPolling();
+    } else {
+      await _database.putJson(_enabledKey, false);
+      await Workmanager().cancelByUniqueName(_buildMonitorUniqueName);
+      _stopFastPolling();
     }
   }
 
   static Future<bool> isEnabled() async {
-    final database = LocalDatabase();
-    try {
-      return await database.readJson(_enabledKey) != false;
-    } finally {
-      await database.close();
-    }
+    final stored = await _database.readJson(_enabledKey);
+    return stored != false;
   }
 
   static Future<bool> setEnabled(bool enabled) async {
-    final database = LocalDatabase();
-    try {
-      if (!enabled) {
-        await database.putJson(_enabledKey, false);
-        await Workmanager().cancelByUniqueName(_buildMonitorUniqueName);
-        _stopFastPolling();
-        return false;
-      }
-
-      final allowed = await requestPermission();
-      if (!allowed) {
-        await database.putJson(_enabledKey, false);
-        return false;
-      }
-
-      await database.putJson(_enabledKey, true);
-      await database.putJson(
-        _startedAtKey,
-        DateTime.now().millisecondsSinceEpoch,
-      );
-      await _register();
-      _startFastPolling();
-      return true;
-    } finally {
-      await database.close();
+    if (!enabled) {
+      await _database.putJson(_enabledKey, false);
+      await Workmanager().cancelByUniqueName(_buildMonitorUniqueName);
+      _stopFastPolling();
+      return false;
     }
+
+    final allowed = await requestPermission();
+    if (!allowed) {
+      await _database.putJson(_enabledKey, false);
+      return false;
+    }
+
+    await _database.putJson(_enabledKey, true);
+    await _database.putJson(
+      _startedAtKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+    await _register();
+    _startFastPolling();
+    return true;
   }
 
   static Future<bool> requestPermission() =>
@@ -133,20 +121,15 @@ class BuildMonitorService {
   static Future<void> watchRepository(String fullName) async {
     final value = fullName.trim();
     if (value.isEmpty) return;
-    final database = LocalDatabase();
-    try {
-      final raw = await database.readJson(_watchedRepositoriesKey);
-      final items = <String>[
-        value,
-        if (raw is List)
-          ...raw.whereType<String>().where(
-                (item) => item.toLowerCase() != value.toLowerCase(),
-              ),
-      ].take(12).toList(growable: false);
-      await database.putJson(_watchedRepositoriesKey, items);
-    } finally {
-      await database.close();
-    }
+    final raw = await _database.readJson(_watchedRepositoriesKey);
+    final items = <String>[
+      value,
+      if (raw is List)
+        ...raw.whereType<String>().where(
+              (item) => item.toLowerCase() != value.toLowerCase(),
+            ),
+    ].take(12).toList(growable: false);
+    await _database.putJson(_watchedRepositoriesKey, items);
     if (await isEnabled()) {
       _startFastPolling();
       unawaited(_runFastCheck());
@@ -154,123 +137,120 @@ class BuildMonitorService {
   }
 
   static Future<bool> runBackgroundCheck({int maxRepositories = 30}) async {
-    final database = LocalDatabase();
-    try {
-      if (await database.readJson(_enabledKey) == false) {
-        return true;
-      }
+    final database = _database;
+    if (await database.readJson(_enabledKey) == false) {
+      return true;
+    }
 
-      final startedRaw = await database.readJson(_startedAtKey);
-      final startedAt = startedRaw is int
-          ? startedRaw
-          : DateTime.now().millisecondsSinceEpoch;
-      if (startedRaw is! int) {
-        await database.putJson(_startedAtKey, startedAt);
-      }
+    final startedRaw = await database.readJson(_startedAtKey);
+    final startedAt = startedRaw is int
+        ? startedRaw
+        : DateTime.now().millisecondsSinceEpoch;
+    if (startedRaw is! int) {
+      await database.putJson(_startedAtKey, startedAt);
+    }
 
-      final notifiedRaw = await database.readJson(_notifiedRunsKey);
-      final notified = <int>{
-        if (notifiedRaw is List)
-          ...notifiedRaw
-              .whereType<num>()
-              .map((value) => value.toInt()),
-      };
+    final notifiedRaw = await database.readJson(_notifiedRunsKey);
+    final notified = <int>{
+      if (notifiedRaw is List)
+        ...notifiedRaw.whereType<num>().map((value) => value.toInt()),
+    };
 
-      final secureStorage = SecureStorageService();
-      if (!await secureStorage.hasGitHubToken()) {
-        return true;
-      }
+    final secureStorage = SecureStorageService();
+    if (!await secureStorage.hasGitHubToken()) {
+      return true;
+    }
 
-      final client = GitHubApiClient(secureStorage);
-      final repositoryService = RepositoryService(client, database);
-      final repositories = await repositoryService.listRepositories();
-      final watchedRaw = await database.readJson(_watchedRepositoriesKey);
-      final watched = watchedRaw is List
-          ? watchedRaw.whereType<String>().map((item) => item.toLowerCase()).toList()
-          : const <String>[];
-      final byName = {
-        for (final repository in repositories)
-          repository.fullName.toLowerCase(): repository,
-      };
-      final ordered = [
-        for (final name in watched)
-          if (byName[name] != null) byName[name]!,
-        ...repositories.where(
-          (repository) => !watched.contains(repository.fullName.toLowerCase()),
-        ),
-      ];
+    final client = GitHubApiClient(secureStorage);
+    final repositoryService = RepositoryService(client, database);
+    final repositories = await repositoryService.listRepositories();
+    final watchedRaw = await database.readJson(_watchedRepositoriesKey);
+    final watched = watchedRaw is List
+        ? watchedRaw
+            .whereType<String>()
+            .map((item) => item.toLowerCase())
+            .toList()
+        : const <String>[];
+    final byName = {
+      for (final repository in repositories)
+        repository.fullName.toLowerCase(): repository,
+    };
+    final ordered = [
+      for (final name in watched)
+        if (byName[name] != null) byName[name]!,
+      ...repositories.where(
+        (repository) => !watched.contains(repository.fullName.toLowerCase()),
+      ),
+    ];
 
-      for (final repository in ordered.take(maxRepositories)) {
-        try {
-          final response = await client.get<Map<String, dynamic>>(
-            '/repos/${repository.fullName}/actions/runs',
-            queryParameters: const {
-              'per_page': 10,
-              'page': 1,
-            },
-          );
-          final rawRuns = response.data?['workflow_runs'];
-          if (rawRuns is! List) {
+    for (final repository in ordered.take(maxRepositories)) {
+      try {
+        final response = await client.get<Map<String, dynamic>>(
+          '/repos/${repository.fullName}/actions/runs',
+          queryParameters: const {
+            'per_page': 10,
+            'page': 1,
+          },
+        );
+        final rawRuns = response.data?['workflow_runs'];
+        if (rawRuns is! List) {
+          continue;
+        }
+
+        for (final raw in rawRuns.whereType<Map>()) {
+          final run = Map<String, dynamic>.from(raw);
+          final id = (run['id'] as num?)?.toInt();
+          if (id == null || notified.contains(id)) {
             continue;
           }
 
-          for (final raw in rawRuns.whereType<Map>()) {
-            final run = Map<String, dynamic>.from(raw);
-            final id = (run['id'] as num?)?.toInt();
-            if (id == null || notified.contains(id)) {
-              continue;
-            }
-
-            final createdAt = DateTime.tryParse(
-              run['created_at'] as String? ?? '',
-            );
-            if (createdAt == null ||
-                createdAt.millisecondsSinceEpoch < startedAt) {
-              continue;
-            }
-
-            if (run['status'] != 'completed') {
-              continue;
-            }
-
-            final conclusion = run['conclusion'] as String? ?? '';
-            if (!const {
-              'success',
-              'failure',
-              'cancelled',
-              'timed_out',
-              'action_required',
-            }.contains(conclusion)) {
-              continue;
-            }
-
-            final workflowName =
-                (run['name'] as String?)?.trim().isNotEmpty == true
-                    ? run['name'] as String
-                    : 'Build';
-            final runNumber = (run['run_number'] as num?)?.toInt();
-            await _showBuildNotification(
-              id: id,
-              repository: repository.fullName,
-              workflowName: workflowName,
-              runNumber: runNumber,
-              conclusion: conclusion,
-            );
-            notified.add(id);
+          final createdAt = DateTime.tryParse(
+            run['created_at'] as String? ?? '',
+          );
+          if (createdAt == null ||
+              createdAt.millisecondsSinceEpoch < startedAt) {
+            continue;
           }
-        } catch (_) {
-          // Um repositório sem Actions/permissão não bloqueia os demais.
-        }
-      }
 
-      final recent = notified.toList(growable: false);
-      final trimmed =
-          recent.length <= 250 ? recent : recent.sublist(recent.length - 250);
-      await database.putJson(_notifiedRunsKey, trimmed);
-      return true;
-    } finally {
-      await database.close();
+          if (run['status'] != 'completed') {
+            continue;
+          }
+
+          final conclusion = run['conclusion'] as String? ?? '';
+          if (!const {
+            'success',
+            'failure',
+            'cancelled',
+            'timed_out',
+            'action_required',
+          }.contains(conclusion)) {
+            continue;
+          }
+
+          final workflowName =
+              (run['name'] as String?)?.trim().isNotEmpty == true
+                  ? run['name'] as String
+                  : 'Build';
+          final runNumber = (run['run_number'] as num?)?.toInt();
+          await _showBuildNotification(
+            id: id,
+            repository: repository.fullName,
+            workflowName: workflowName,
+            runNumber: runNumber,
+            conclusion: conclusion,
+          );
+          notified.add(id);
+        }
+      } catch (_) {
+        // Um repositório sem Actions/permissão não bloqueia os demais.
+      }
     }
+
+    final recent = notified.toList(growable: false);
+    final trimmed =
+        recent.length <= 250 ? recent : recent.sublist(recent.length - 250);
+    await database.putJson(_notifiedRunsKey, trimmed);
+    return true;
   }
 
   static Future<void> _showBuildNotification({

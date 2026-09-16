@@ -27,9 +27,7 @@ Future<void> main() async {
 
 Future<void> _initializeAfterFirstFrame() async {
   try {
-    final database = LocalDatabase();
-    await database.clearLegacyRemoteGitHubData();
-    await database.close();
+    await LocalDatabase.shared.clearLegacyRemoteGitHubData();
   } catch (_) {
     // Limpeza de snapshots legados nunca bloqueia o app.
   }

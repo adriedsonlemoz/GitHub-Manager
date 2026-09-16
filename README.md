@@ -301,3 +301,14 @@ A chave oficial desta geração usa o alias `github_manager_release`. O certific
 ## Sobre e suporte
 
 A área Sobre mantém as três mudanças mais recentes recolhidas em um painel expansível, identifica o desenvolvedor como `@AdriedsonLemos`, oferece chave Pix e canal de feedback copiáveis e informa que o GitHub Manager é um projeto independente, sem parceria, afiliação, endosso ou patrocínio do GitHub. A integração Groq permanece opcional e reservada para futuros recursos de IA, como resumo de logs e explicação de erros; ela não é necessária para as funções GitHub atuais.
+
+
+## Persistência SQLite 2.0.71
+
+O banco local agora possui um único proprietário por isolate (`LocalDatabase.shared`). A UI inteira reutiliza a mesma conexão, e operações auxiliares como monitoramento de builds, preferências de recuperação e limpeza inicial deixaram de abrir e fechar conexões temporárias. A abertura concorrente é deduplicada e o WorkManager mantém sua própria conexão somente porque executa em outro isolate. Isso substitui o workaround de múltiplas conexões independentes da 2.0.67 sem alterar o esquema ou apagar dados.
+
+## Arquitetura de ManagedUpload 2.0.72
+
+`ManagedUpload` continua sendo o contrato consumido pela Central de Envios e pelo `UploadManagerService`, mas suas responsabilidades internas foram separadas. O arquivo principal mantém os dados persistidos e a API pública; estado derivado, diagnóstico de falhas, mutações de ciclo de vida, relatório técnico e codec JSON ficam em partes internas específicas. A estrutura JSON permanece compatível com checkpoints das versões anteriores.
+
+Ao alterar o fluxo de upload, evitar recolocar regras extensas diretamente em `managed_upload.dart`: mudanças de diagnóstico pertencem a `managed_upload_failure.dart`, mudanças de retry/progresso a `managed_upload_lifecycle.dart`, textos/estado derivado a `managed_upload_state.dart`, relatório a `managed_upload_report.dart` e persistência a `managed_upload_codec.dart`.

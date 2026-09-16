@@ -41,6 +41,8 @@ Planejado: `RepositoryService`, `GitContentService`, `GitTreeService`, `BranchSe
 ### Persistência
 SQLite guarda cache, favoritos, histórico, metadados e logs sanitizados. Credenciais ficam fora do banco.
 
+`LocalDatabase.shared` é o único proprietário da conexão SQLite dentro de cada isolate. A UI/provider reutiliza a mesma conexão durante toda a sessão; serviços auxiliares não devem abrir/fechar handles próprios. O callback do WorkManager roda em outro isolate e recebe naturalmente seu próprio `LocalDatabase.shared`. O esquema continua idempotente e pode ser reparado/reconstruído sem apagar o token seguro.
+
 ### Futuro VPS
 A VPS deve entrar atrás de uma interface, por exemplo `BuildProvider`, com implementações GitHub Actions e VPS. A UI não depende da implementação concreta.
 

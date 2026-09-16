@@ -4,12 +4,16 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.70+200084`
+`version: 2.0.72+200086`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.72+200086` refatora o modelo `ManagedUpload` sem alterar seu contrato público, separando estado derivado, diagnóstico de falhas, mutações de ciclo de vida, relatório técnico e codec JSON em componentes internos menores.
+
+A versão `2.0.71+200085` refatora o ciclo de vida do SQLite para uma única conexão compartilhada por isolate, deduplica aberturas concorrentes e remove fechamentos de banco por serviços auxiliares de curta duração.
 
 A versão `2.0.70+200084` refatora as telas grandes de Configurações, Detalhe do repositório, Builds/Detalhe da build e APKs/Releases e torna a exclusão de builds responsável também pela limpeza de artifacts e APKs de Release vinculados com segurança ao mesmo commit.
 

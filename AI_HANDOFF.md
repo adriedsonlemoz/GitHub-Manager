@@ -165,3 +165,25 @@ Se um ZIP gerar a mesma árvore Git já publicada, não criar commit nem build a
 - gerenciamento do repositório usa engrenagem e diálogo centralizado;
 - Sobre mostra as três mudanças mais recentes em ExpansionTile, Pix, feedback, desenvolvedor e aviso de independência do GitHub;
 - Groq é opcional e atualmente não é consumido automaticamente por nenhuma função principal.
+
+
+## Ciclo de vida SQLite 2.0.71
+
+- `LocalDatabase` possui construtor privado e expõe somente `LocalDatabase.shared`; não reintroduzir `LocalDatabase()` em serviços.
+- `shared` é por isolate: UI e providers usam uma conexão durante toda a sessão; WorkManager possui outra instância estática no isolate de background.
+- `singleInstance: true` voltou a ser seguro porque não existem mais serviços curtos fechando handles compartilhados.
+- `_opening` deduplica aberturas concorrentes do mesmo isolate.
+- `localDatabaseProvider` não fecha a conexão em `ref.onDispose`; startup, `BuildMonitorService` e `UploadRecoverySettings` também não fecham o banco após cada operação.
+- `rebuildLocalDatabase()` é o único fluxo autorizado a fechar internamente a conexão antes de excluir e reabrir o banco.
+- manter `schemaVersion = 2` enquanto não houver alteração real de schema; `_ensureSchema` continua idempotente para instalações antigas.
+
+## Refatoração ManagedUpload 2.0.72
+
+- `lib/features/uploads/domain/managed_upload.dart` agora é o contrato principal e caiu de 983 para cerca de 235 linhas.
+- Não alterar a API pública sem revisar `UploadManagerService`, UI da Central de Envios e testes de persistência.
+- `managed_upload_state.dart`: getters derivados, labels, progresso e conversão para `ZipProjectPreview`.
+- `managed_upload_failure.dart`: classificação de falhas, impacto no repositório, recuperação recomendada e instruções ao usuário.
+- `managed_upload_lifecycle.dart`: contadores, logs, interrupção, retomada e retry.
+- `managed_upload_report.dart`: linha do tempo amigável e relatório técnico copiável.
+- `managed_upload_codec.dart`: persistência JSON; manter compatibilidade retroativa das 51 chaves existentes.
+- `managed_upload_refactor_contract_test.dart` é o teste de proteção da divisão e deve evoluir quando um novo campo persistido for adicionado.

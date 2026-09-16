@@ -7,11 +7,9 @@ final secureStorageProvider = Provider<SecureStorageService>(
   (ref) => SecureStorageService(),
 );
 
-final localDatabaseProvider = Provider<LocalDatabase>((ref) {
-  final database = LocalDatabase();
-  ref.onDispose(database.close);
-  return database;
-});
+final localDatabaseProvider = Provider<LocalDatabase>(
+  (ref) => LocalDatabase.shared,
+);
 
 final githubApiClientProvider = Provider<GitHubApiClient>(
   (ref) => GitHubApiClient(ref.watch(secureStorageProvider)),

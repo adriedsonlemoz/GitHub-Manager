@@ -239,16 +239,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.72',
+                      text: 'Refatora ManagedUpload em componentes internos separados para estado, diagnóstico, ciclo de vida, relatório e serialização, preservando a API usada pelas telas e pela fila.',
+                    ),
+                    _ChangeNote(
+                      version: '2.0.71',
+                      text: 'Refatora o ciclo de vida do SQLite para manter uma única conexão por isolate, evitando conexões curtas que podiam fechar ou disputar o banco durante atualizações e monitoramento.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.70',
                       text: 'Refatora telas grandes e vincula a exclusão de builds à limpeza de artifacts e APKs de Release do mesmo commit; APKs antigos de Release também podem ser excluídos.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.69',
-                      text: 'Corrige a referência de SHA curto que interrompia a compilação e faz o workflow Android detectar erros Dart antes da etapa Gradle.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.68',
-                      text: 'Protege workflows durante a sincronização e separa projeto enviado de build pendente, com diagnóstico mais compacto e acionável.',
                     ),
                   ],
                 ),

@@ -6,4 +6,8 @@ void main() {
     expect(LocalDatabase.schemaVersion, greaterThanOrEqualTo(2));
     expect(LocalDatabase.databaseFileName, 'github_manager.db');
   });
+
+  test('há um único proprietário de banco por isolate', () {
+    expect(identical(LocalDatabase.shared, LocalDatabase.shared), isTrue);
+  });
 }

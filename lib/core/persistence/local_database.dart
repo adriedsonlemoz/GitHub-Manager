@@ -3,13 +3,49 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+/// Proprietário do SQLite local do GitHub Manager.
+///
+/// A instância [shared] é única por isolate. Isso significa que a UI inteira
+/// compartilha uma conexão, enquanto o isolate do WorkManager recebe sua
+/// própria instância estática e, consequentemente, sua própria conexão.
+///
+/// Evite criar/fechar conexões curtas para operações auxiliares. O banco deve
+/// permanecer aberto durante a vida do isolate e só é fechado explicitamente
+/// para reconstrução ou encerramento controlado.
 class LocalDatabase {
+  LocalDatabase._();
+
   static const int schemaVersion = 2;
   static const String databaseFileName = 'github_manager.db';
 
-  Database? _database;
+  static final LocalDatabase shared = LocalDatabase._();
 
-  Future<Database> get database async => _database ??= await _open();
+  Database? _database;
+  Future<Database>? _opening;
+
+  Future<Database> get database async {
+    final current = _database;
+    if (current != null && current.isOpen) {
+      return current;
+    }
+
+    final pending = _opening;
+    if (pending != null) {
+      return pending;
+    }
+
+    final opening = _open();
+    _opening = opening;
+    try {
+      final opened = await opening;
+      _database = opened;
+      return opened;
+    } finally {
+      if (identical(_opening, opening)) {
+        _opening = null;
+      }
+    }
+  }
 
   Future<String> _databasePath() async {
     final root = await getDatabasesPath();
@@ -21,10 +57,9 @@ class LocalDatabase {
     return openDatabase(
       path,
       version: schemaVersion,
-      // Há vários serviços curtos que criam e fecham sua própria instância.
-      // Com o padrão singleInstance=true, fechar uma dessas instâncias pode
-      // encerrar a conexão reutilizada pela tela principal.
-      singleInstance: false,
+      // Uma conexão por isolate. A UI usa LocalDatabase.shared; o callback do
+      // WorkManager executa em outro isolate e possui seu próprio singleton.
+      singleInstance: true,
       onCreate: (db, version) => _ensureSchema(db),
       onUpgrade: (db, oldVersion, newVersion) => _ensureSchema(db),
       onOpen: _ensureSchema,
@@ -222,15 +257,29 @@ class LocalDatabase {
   /// banco local do aplicativo. O token GitHub fica no armazenamento seguro e
   /// não é apagado.
   Future<void> rebuildLocalDatabase() async {
-    await close();
+    await _close();
     final path = await _databasePath();
     await deleteDatabase(path);
-    _database = await _open();
+    await database;
   }
 
-  Future<void> close() async {
+  /// Fecha a conexão deste isolate somente durante manutenção interna.
+  /// [shared] deve permanecer vivo durante toda a sessão do app.
+  Future<void> _close() async {
+    final pending = _opening;
+    if (pending != null) {
+      try {
+        await pending;
+      } catch (_) {
+        // Se a abertura falhou, ainda limpamos as referências abaixo.
+      }
+    }
+
     final db = _database;
     _database = null;
-    await db?.close();
+    _opening = null;
+    if (db != null && db.isOpen) {
+      await db.close();
+    }
   }
 }
