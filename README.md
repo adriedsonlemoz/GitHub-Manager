@@ -312,3 +312,8 @@ O banco local agora possui um único proprietário por isolate (`LocalDatabase.s
 `ManagedUpload` continua sendo o contrato consumido pela Central de Envios e pelo `UploadManagerService`, mas suas responsabilidades internas foram separadas. O arquivo principal mantém os dados persistidos e a API pública; estado derivado, diagnóstico de falhas, mutações de ciclo de vida, relatório técnico e codec JSON ficam em partes internas específicas. A estrutura JSON permanece compatível com checkpoints das versões anteriores.
 
 Ao alterar o fluxo de upload, evitar recolocar regras extensas diretamente em `managed_upload.dart`: mudanças de diagnóstico pertencem a `managed_upload_failure.dart`, mudanças de retry/progresso a `managed_upload_lifecycle.dart`, textos/estado derivado a `managed_upload_state.dart`, relatório a `managed_upload_report.dart` e persistência a `managed_upload_codec.dart`.
+
+
+## Correção 2.0.73
+
+Os workflows 63 revelaram dois erros de análise no teste de limpeza de build: uma variável local `final` era usada dentro de listas `const`. A variável agora é `const`, permitindo que CI/testes avancem sem alterar a lógica de limpeza de builds/APKs/artifacts.

@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.70+200084`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.73+200087`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 ## Arquitetura
 
@@ -187,3 +187,11 @@ Se um ZIP gerar a mesma árvore Git já publicada, não criar commit nem build a
 - `managed_upload_report.dart`: linha do tempo amigável e relatório técnico copiável.
 - `managed_upload_codec.dart`: persistência JSON; manter compatibilidade retroativa das 51 chaves existentes.
 - `managed_upload_refactor_contract_test.dart` é o teste de proteção da divisão e deve evoluir quando um novo campo persistido for adicionado.
+
+## Correção dos logs 63 — 2.0.73
+
+- Android APK 63 e Verificação CI 63 falhavam no `flutter analyze` antes dos testes/Gradle.
+- causa: `leftover` era declarado como `final` apontando para um objeto `const`, mas era reutilizado dentro de listas literais `const`; a variável em si não era uma constante de tempo de compilação;
+- correção: `const leftover = ActionArtifact(...)`;
+- nenhuma lógica de `BuildCleanupService` foi alterada;
+- manter o teste de exclusão de artifact remanescente para prevenir regressões no vínculo Build → Artifact/APK.

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/features/secrets/data/repository_secrets_service.dart';
-import 'package:github_manager/features/secrets/domain/repository_secret.dart';
 
 void main() {
   group('RepositorySecretsService parser', () {

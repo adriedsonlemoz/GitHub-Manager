@@ -71,7 +71,7 @@ void main() {
   test('remaining artifact after run deletion is deleted explicitly', () async {
     final events = <String>[];
     final client = _FakeGitHubApiClient(events);
-    final leftover = const ActionArtifact(
+    const leftover = ActionArtifact(
       id: 999,
       name: 'android-apk-old',
       sizeBytes: 100,

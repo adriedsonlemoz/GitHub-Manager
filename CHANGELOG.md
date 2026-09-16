@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.73+200087 — 2026-09-16
+
+- Corrigidos os dois erros `non_constant_list_element` detectados nos logs Android APK 63 e CI 63.
+- `leftover` em `build_cleanup_service_test.dart` passou a ser constante em tempo de compilação, preservando os testes de limpeza de artifacts.
+- Removido import de teste não utilizado.
+- Nenhuma regra de exclusão de build, artifact ou APK de Release foi alterada.
+
 ## 2.0.72+200086 — 2026-09-16
 
 - Refatorado `ManagedUpload` em componentes internos de estado, diagnóstico, ciclo de vida, relatório e codec JSON.
