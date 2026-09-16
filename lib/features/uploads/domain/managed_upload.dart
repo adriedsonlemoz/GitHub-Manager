@@ -6,6 +6,7 @@ enum ManagedUploadStatus {
   startingBuild,
   completed,
   noChanges,
+  buildPending,
   failed,
   interrupted,
 }
@@ -133,8 +134,11 @@ class ManagedUpload {
       status == ManagedUploadStatus.startingBuild;
 
   bool get canRetry =>
+      status == ManagedUploadStatus.buildPending ||
       status == ManagedUploadStatus.failed ||
       status == ManagedUploadStatus.interrupted;
+
+  bool get isBuildPending => status == ManagedUploadStatus.buildPending;
 
   bool get canRunBuildAnyway =>
       status == ManagedUploadStatus.noChanges &&
@@ -146,7 +150,9 @@ class ManagedUpload {
 
   bool get hasBuildCheckpoint {
     if (commitSha?.isNotEmpty != true) return false;
-    if (status == ManagedUploadStatus.startingBuild || changed == true) {
+    if (status == ManagedUploadStatus.startingBuild ||
+        status == ManagedUploadStatus.buildPending ||
+        changed == true) {
       return true;
     }
     return phase.toLowerCase().contains('build');
@@ -270,6 +276,9 @@ class ManagedUpload {
   bool get shouldRetrySameMethod => recommendedRecoveryMethod == uploadMethod;
 
   String get recoveryRecommendationLabel {
+    if (failureStage == 'build' && commitSha?.isNotEmpty == true) {
+      return 'Verifique a build novamente usando o commit já enviado. O ZIP não precisa ser reenviado.';
+    }
     final method = recommendedRecoveryMethod;
     if (method == null) return 'Nenhum método alternativo foi identificado com segurança.';
     if (method == uploadMethod) {
@@ -290,6 +299,9 @@ class ManagedUpload {
   }
 
   String? get failureRepositoryImpact {
+    if (failureStage == 'build' && commitSha?.isNotEmpty == true) {
+      return 'O projeto já foi publicado no repositório no commit ${commitSha!.length > 7 ? commitSha!.substring(0, 7) : commitSha}. Apenas a build ficou pendente; repetir a verificação não reenvia os arquivos.';
+    }
     if (errorCode == 'UPLOAD_BRANCH_CHANGED') {
       final operation = (failureOperation ?? '').toLowerCase();
       if (operation.contains('publicar o commit')) {
@@ -323,6 +335,18 @@ class ManagedUpload {
     final code = errorCode ?? '';
     final endpoint = (errorEndpoint ?? '').toLowerCase();
 
+    if (code == 'APK_WORKFLOW_NOT_FOUND') {
+      return 'Os arquivos do projeto já chegaram ao repositório, mas não existe um workflow de GitHub Actions que gere APK. O problema está apenas na etapa de build.';
+    }
+    if (code == 'APK_WORKFLOW_TRIGGER_MISSING') {
+      return 'Existe um workflow que parece gerar APK, porém ele não aceita execução por push nem execução manual por workflow_dispatch. O projeto já foi enviado; falta apenas um gatilho válido para a build.';
+    }
+    if (code == 'APK_WORKFLOW_PUSH_NOT_STARTED') {
+      return 'O workflow de APK existe e aceita push, mas nenhuma execução apareceu para este commit dentro da janela de espera. Isso pode acontecer por atraso do GitHub Actions ou por filtros de branch/paths no workflow.';
+    }
+    if (code == 'APK_WORKFLOW_DISPATCH_UNAVAILABLE') {
+      return 'O projeto já foi enviado, mas não foi possível iniciar manualmente um workflow de APK. O repositório não foi perdido e o envio dos arquivos não precisa ser repetido.';
+    }
     if (code == 'UPLOAD_BRANCH_CHANGED') {
       return 'A branch mudou enquanto o GitHub Manager preparava ou recuperava o envio. O aplicativo interrompeu a operação para não publicar sobre um estado diferente do que foi comparado.';
     }
@@ -380,6 +404,18 @@ class ManagedUpload {
     final code = errorCode ?? '';
     final endpoint = (errorEndpoint ?? '').toLowerCase();
 
+    if (code == 'APK_WORKFLOW_NOT_FOUND') {
+      return 'Crie ou restaure um arquivo em .github/workflows que realmente gere APK. Depois use “Verificar build” — não é necessário reenviar o ZIP.';
+    }
+    if (code == 'APK_WORKFLOW_TRIGGER_MISSING') {
+      return 'No workflow de APK, adicione push e/ou workflow_dispatch dentro de on:. Depois toque em “Verificar build” para tentar novamente sem reenviar o projeto.';
+    }
+    if (code == 'APK_WORKFLOW_PUSH_NOT_STARTED') {
+      return 'Toque em “Verificar build” novamente. Se continuar sem execução, abra Builds e confira se o workflow aceita a branch $branch e se existem filtros paths/paths-ignore impedindo este commit.';
+    }
+    if (code == 'APK_WORKFLOW_DISPATCH_UNAVAILABLE') {
+      return 'Adicione workflow_dispatch ao workflow de APK ou habilite um gatilho push compatível com a branch $branch. Depois verifique a build novamente.';
+    }
     if (code == 'UPLOAD_BRANCH_CHANGED') {
       return 'Tente novamente pelo método incremental. O projeto será comparado de novo com o SHA atual da branch antes de qualquer publicação.';
     }
@@ -432,6 +468,16 @@ class ManagedUpload {
     }
     return 'Tente novamente. Se a falha persistir, use “Copiar diagnóstico” para registrar a etapa, o código e a resposta recebida.';
   }
+
+  bool get canShowBuildTriggerFix =>
+      errorCode == 'APK_WORKFLOW_NOT_FOUND' ||
+      errorCode == 'APK_WORKFLOW_TRIGGER_MISSING' ||
+      errorCode == 'APK_WORKFLOW_DISPATCH_UNAVAILABLE';
+
+  String get buildTriggerFixSnippet => '''on:
+  push:
+    branches: [$branch]
+  workflow_dispatch:''';
 
   String get failureDiagnosticText {
     final lines = <String>[
@@ -595,6 +641,7 @@ class ManagedUpload {
         ManagedUploadStatus.startingBuild => 'Iniciando build',
         ManagedUploadStatus.completed => 'Concluído',
         ManagedUploadStatus.noChanges => 'Sem alterações',
+        ManagedUploadStatus.buildPending => 'Build pendente',
         ManagedUploadStatus.failed => 'Falhou',
         ManagedUploadStatus.interrupted => 'Interrompido',
       };
@@ -781,6 +828,7 @@ class ManagedUpload {
   String _statusSymbol() => switch (status) {
         ManagedUploadStatus.completed => '✓',
         ManagedUploadStatus.noChanges => '•',
+        ManagedUploadStatus.buildPending => '!',
         ManagedUploadStatus.failed => '✕',
         ManagedUploadStatus.interrupted => '!',
         ManagedUploadStatus.queued => '…',

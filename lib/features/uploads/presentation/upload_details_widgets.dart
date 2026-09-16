@@ -64,6 +64,7 @@ class _ResultBanner extends StatelessWidget {
   static IconData _statusIcon(ManagedUploadStatus status) => switch (status) {
         ManagedUploadStatus.completed => Icons.check_circle_rounded,
         ManagedUploadStatus.noChanges => Icons.info_rounded,
+        ManagedUploadStatus.buildPending => Icons.warning_amber_rounded,
         ManagedUploadStatus.failed => Icons.cancel_rounded,
         ManagedUploadStatus.interrupted => Icons.pause_circle_filled_rounded,
         ManagedUploadStatus.queued => Icons.schedule_rounded,
@@ -252,13 +253,19 @@ class _FailureReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final pending = item.isBuildPending;
+    final accent = pending ? scheme.tertiary : scheme.error;
+    final containerColor =
+        pending ? scheme.tertiaryContainer : scheme.errorContainer;
+    final foreground =
+        pending ? scheme.onTertiaryContainer : scheme.onErrorContainer;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: scheme.errorContainer,
+        color: containerColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.error.withValues(alpha: 0.20)),
+        border: Border.all(color: accent.withValues(alpha: 0.20)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,13 +273,18 @@ class _FailureReportCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.error_outline_rounded, color: scheme.error),
+              Icon(
+                pending ? Icons.warning_amber_rounded : Icons.error_outline_rounded,
+                color: accent,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Falha em “${item.failureOperationLabel}”',
+                  pending
+                      ? 'Build pendente • projeto enviado'
+                      : 'Falha em “${item.failureOperationLabel}”',
                   style: TextStyle(
-                    color: scheme.onErrorContainer,
+                    color: foreground,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -283,7 +295,7 @@ class _FailureReportCard extends StatelessWidget {
           Text(
             item.errorMessage!,
             style: TextStyle(
-              color: scheme.onErrorContainer,
+              color: foreground,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -291,45 +303,53 @@ class _FailureReportCard extends StatelessWidget {
           _FailureParagraph(
             title: 'Método usado',
             text: '${item.uploadMethod.label} — ${item.uploadMethod.description}',
+            color: foreground,
           ),
           const SizedBox(height: 8),
           _FailureParagraph(
             title: 'Próxima tentativa recomendada',
             text: item.recoveryRecommendationLabel,
+            color: foreground,
           ),
           if (item.recoveryEvents.isNotEmpty) ...[
             const SizedBox(height: 8),
             _FailureParagraph(
               title: 'Histórico de recuperação',
               text: item.recoveryEvents.map((event) => '• $event').join('\n'),
+              color: foreground,
             ),
           ],
           const SizedBox(height: 8),
           _FailureParagraph(
             title: 'Até onde chegou',
             text: item.failureProgressExplanation,
+            color: foreground,
           ),
           if (item.failureRepositoryImpact != null) ...[
             const SizedBox(height: 8),
             _FailureParagraph(
               title: 'Impacto no repositório',
               text: item.failureRepositoryImpact!,
+              color: foreground,
             ),
           ],
           const SizedBox(height: 8),
           _FailureParagraph(
             title: 'Resposta do GitHub',
             text: item.githubFailureResponse,
+            color: foreground,
           ),
           const SizedBox(height: 8),
           _FailureParagraph(
             title: 'O que isso significa',
             text: item.failureMeaning,
+            color: foreground,
           ),
           const SizedBox(height: 8),
           _FailureParagraph(
             title: 'O que fazer agora',
             text: item.failureSuggestedAction,
+            color: foreground,
           ),
           const SizedBox(height: 10),
           Container(
@@ -345,7 +365,7 @@ class _FailureReportCard extends StatelessWidget {
                 Text(
                   'Detalhes técnicos',
                   style: TextStyle(
-                    color: scheme.onErrorContainer,
+                    color: foreground,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -353,28 +373,37 @@ class _FailureReportCard extends StatelessWidget {
                 _FailureDetail(
                   label: 'Método',
                   value: item.uploadMethod.label,
+                  color: foreground,
                 ),
                 if (item.errorCode?.isNotEmpty == true)
-                  _FailureDetail(label: 'Código', value: item.errorCode!),
+                  _FailureDetail(
+                    label: 'Código',
+                    value: item.errorCode!,
+                    color: foreground,
+                  ),
                 if (item.errorHttpStatus != null)
                   _FailureDetail(
                     label: 'HTTP',
                     value: '${item.errorHttpStatus}',
+                    color: foreground,
                   ),
                 if (item.errorEndpoint?.isNotEmpty == true)
                   _FailureDetail(
                     label: 'Endpoint',
                     value: item.errorEndpoint!,
+                    color: foreground,
                   ),
                 if (item.failedFilePath?.isNotEmpty == true)
                   _FailureDetail(
                     label: 'Arquivo',
                     value: item.failedFilePath!,
+                    color: foreground,
                   ),
                 if (item.failureStage?.isNotEmpty == true)
                   _FailureDetail(
                     label: 'Etapa interna',
                     value: item.failureStage!,
+                    color: foreground,
                   ),
               ],
             ),
@@ -386,14 +415,18 @@ class _FailureReportCard extends StatelessWidget {
 }
 
 class _FailureParagraph extends StatelessWidget {
-  const _FailureParagraph({required this.title, required this.text});
+  const _FailureParagraph({
+    required this.title,
+    required this.text,
+    required this.color,
+  });
 
   final String title;
   final String text;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onErrorContainer;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -406,14 +439,18 @@ class _FailureParagraph extends StatelessWidget {
 }
 
 class _FailureDetail extends StatelessWidget {
-  const _FailureDetail({required this.label, required this.value});
+  const _FailureDetail({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final String label;
   final String value;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onErrorContainer;
     return Padding(
       padding: const EdgeInsets.only(bottom: 3),
       child: Row(

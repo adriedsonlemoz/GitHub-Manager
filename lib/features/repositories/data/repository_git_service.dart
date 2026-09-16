@@ -43,6 +43,36 @@ class _WorkflowFileCandidate {
   final String path;
 }
 
+class _WorkflowFileScan {
+  const _WorkflowFileScan({
+    required this.apkCandidates,
+  });
+
+  final List<_WorkflowFileInspection> apkCandidates;
+
+  bool get hasApkWorkflow => apkCandidates.isNotEmpty;
+  bool get hasPush => apkCandidates.any((item) => item.info.supportsPush);
+
+  _WorkflowFileInspection? get firstDispatch {
+    for (final item in apkCandidates) {
+      if (item.info.supportsDispatch) return item;
+    }
+    return null;
+  }
+}
+
+class _WorkflowFileInspection {
+  const _WorkflowFileInspection({
+    required this.fileName,
+    required this.path,
+    required this.info,
+  });
+
+  final String fileName;
+  final String path;
+  final WorkflowDefinitionInfo info;
+}
+
 class _WorkflowRunsPage {
   const _WorkflowRunsPage({
     required this.runs,

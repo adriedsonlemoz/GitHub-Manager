@@ -245,6 +245,7 @@ class UploadDetailsDialog extends StatelessWidget {
       switch (status) {
         ManagedUploadStatus.completed => scheme.primary,
         ManagedUploadStatus.noChanges => scheme.tertiary,
+        ManagedUploadStatus.buildPending => scheme.tertiary,
         ManagedUploadStatus.failed || ManagedUploadStatus.interrupted =>
           scheme.error,
         _ => scheme.primary,

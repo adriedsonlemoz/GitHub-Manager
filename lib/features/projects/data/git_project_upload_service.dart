@@ -22,6 +22,26 @@ class GitProjectUploadService {
 
   final GitHubApiClient _client;
 
+  /// GitHub Actions workflows are repository infrastructure. A project ZIP can
+  /// replace a workflow by including the same path, but a normal project sync
+  /// must not delete an existing workflow simply because the ZIP omitted
+  /// `.github/workflows`. This prevents a successful upload from disabling the
+  /// very build that should run immediately afterwards.
+  static bool isProtectedRepositoryInfrastructurePath(String path) {
+    final normalized = path
+        .replaceAll('\\', '/')
+        .replaceFirst(RegExp(r'^/+'), '')
+        .toLowerCase();
+    return normalized.startsWith('.github/workflows/');
+  }
+
+  static bool shouldRemoveRepositoryPath({
+    required String path,
+    required Set<String> zipPaths,
+  }) =>
+      !zipPaths.contains(path) &&
+      !isProtectedRepositoryInfrastructurePath(path);
+
   Future<ProjectUploadResult> uploadZip({
     required ZipProjectPreview project,
     required String repositoryFullName,
@@ -586,8 +606,43 @@ class GitProjectUploadService {
       input.closeSync();
     }
 
+    final preservedInfrastructure = existingEntries.entries
+        .where(
+          (entry) =>
+              !newPaths.contains(entry.key) &&
+              isProtectedRepositoryInfrastructurePath(entry.key),
+        )
+        .toList(growable: false);
+
+    for (final entry in preservedInfrastructure) {
+      treeEntries.add({
+        'path': entry.key,
+        'mode': entry.value.mode,
+        'type': entry.value.type,
+        'sha': entry.value.sha,
+      });
+    }
+
+    if (preservedInfrastructure.isNotEmpty) {
+      onProgress?.call(
+        ProjectUploadProgress(
+          phase:
+              'Protegendo ${preservedInfrastructure.length} workflow(s) do GitHub Actions',
+          current: project.fileCount,
+          total: project.fileCount,
+          kind: ProjectUploadProgressKind.stage,
+          method: method,
+        ),
+      );
+    }
+
     final stalePaths = existingEntries.keys
-        .where((path) => !newPaths.contains(path))
+        .where(
+          (path) => shouldRemoveRepositoryPath(
+            path: path,
+            zipPaths: newPaths,
+          ),
+        )
         .toList()
       ..sort();
 
@@ -704,7 +759,12 @@ class GitProjectUploadService {
     }
 
     final stalePaths = snapshot.existingEntries.keys
-        .where((path) => !newPaths.contains(path))
+        .where(
+          (path) => shouldRemoveRepositoryPath(
+            path: path,
+            zipPaths: newPaths,
+          ),
+        )
         .toList()
       ..sort();
 

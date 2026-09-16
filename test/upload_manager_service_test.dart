@@ -431,6 +431,83 @@ void main() {
     expect(item.timelineLines.join(' '), contains('Falha durante'));
   });
 
+  test('build launch problem keeps successful upload and retries build only', () async {
+    var uploadCount = 0;
+    var buildCount = 0;
+
+    Future<ProjectUploadResult> upload({
+      required ZipProjectPreview project,
+      required String repositoryFullName,
+      required String branch,
+      required String commitMessage,
+      void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
+    }) async {
+      uploadCount++;
+      return ProjectUploadResult(
+        commitSha: 'abcdef0123456789',
+        fileCount: project.fileCount,
+        changed: true,
+      );
+    }
+
+    Future<RepositoryBuildLaunchResult> ensure({
+      required String repositoryFullName,
+      required String branch,
+      required String commitSha,
+      void Function(String status)? onStatus,
+      required int verificationAttempts,
+      required Duration verificationDelay,
+      required Duration postDispatchDelay,
+    }) async {
+      buildCount++;
+      if (buildCount == 1) {
+        throw const RepositoryFileException(
+          'Nenhum workflow de APK encontrado.',
+          code: 'APK_WORKFLOW_NOT_FOUND',
+        );
+      }
+      return RepositoryBuildLaunchResult(
+        commitSha: commitSha,
+        runs: const [],
+        workflow: null,
+        dispatchTriggered: false,
+      );
+    }
+
+    final zip = File('${temp.path}/build-pending.zip')..writeAsBytesSync([1]);
+    final manager = UploadManagerService.forTest(
+      uploadZip: upload,
+      ensureBuild: ensure,
+      historyFileFactory: () async => File('${temp.path}/build-pending-history.json'),
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
+    );
+    addTearDown(manager.dispose);
+
+    final item = manager.startBuild(
+      project: _preview(zip.path, 'BuildPending'),
+      repositoryFullName: 'owner/repo',
+      branch: 'main',
+    );
+    await manager.waitUntilIdle();
+
+    expect(item.status, ManagedUploadStatus.buildPending);
+    expect(item.commitSha, 'abcdef0123456789');
+    expect(item.errorCode, 'APK_WORKFLOW_NOT_FOUND');
+    expect(item.canRetry, isTrue);
+    expect(uploadCount, 1);
+
+    await manager.retry(item.id);
+    await manager.waitUntilIdle();
+
+    expect(uploadCount, 1);
+    expect(buildCount, 2);
+    expect(item.status, ManagedUploadStatus.completed);
+  });
+
   test('retry alternative switches tree validation from incremental to full tree', () async {
     final methods = <ProjectUploadMethod>[];
     final automaticFlags = <bool>[];

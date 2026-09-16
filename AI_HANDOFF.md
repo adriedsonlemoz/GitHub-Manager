@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.67+200081`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.68+200082`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 ## Arquitetura
 
@@ -24,11 +24,11 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 - cards usam resumo leve de nome/versão; análise completa permanece nas telas internas;
 - metadados de projeto, versão e tecnologias;
 - navegação/edição/upload de arquivos;
-- ZIP com sincronização completa e remoção de arquivos obsoletos;
+- ZIP com sincronização completa e remoção de arquivos obsoletos, preservando `.github/workflows/**` quando o pacote apenas omite esses arquivos;
 - recuperação inteligente de envio: retry transitório, fallback incremental → árvore completa, proteção por SHA da branch e fallback manual seguro por Contents API;
 - Actions: executar, acompanhar, cancelar, reexecutar, jobs/etapas/logs, atualização automática adaptativa e diagnóstico de falhas com contexto extraído do log;
 - Builds agrupadas por commit/envio, com horário até segundos e número da tentativa;
-- Enviar build sincroniza o ZIP e garante o disparo do Android APK sem duplicar runs;
+- Enviar build sincroniza o ZIP e garante o disparo do Android APK sem duplicar runs; commit publicado com build não iniciada vira estado **Build pendente** e pode ser rechecado sem reenviar o ZIP;
 - Central de Envios permite minimizar a sincronização, navegar no app, acompanhar fila/histórico e repetir interrupções;
 - relatório de envio separa resumo, arquivos alterados, GitHub/build e linha do tempo, evitando logs repetitivos por arquivo;
 - falhas de envio preservam operação exata, progresso, HTTP, endpoint e resposta detalhada da API, com interpretação/ação sugerida e impacto seguro no repositório;
@@ -46,6 +46,16 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 
 
 
+
+## Proteção de workflows e build pendente 2.0.68
+
+- `.github/workflows/**` é infraestrutura protegida durante a sincronização: ausência no ZIP não gera remoção; inclusão do mesmo caminho continua permitindo atualização intencional;
+- a confirmação do ZIP avisa explicitamente que workflows existentes serão preservados;
+- `ensureBuildForCommit` inspeciona estruturalmente YAMLs e diferencia `APK_WORKFLOW_NOT_FOUND`, `APK_WORKFLOW_TRIGGER_MISSING` e `APK_WORKFLOW_PUSH_NOT_STARTED`;
+- workflow de APK com `push` recebe uma janela adicional de polling para absorver atraso de indexação do Actions;
+- após commit válido, falha de descoberta/disparo da build usa `ManagedUploadStatus.buildPending`, preserva o SHA e retry executa somente `_runBuild`;
+- o diálogo de progresso é rolável, resume o problema e recolhe diagnóstico técnico; build pendente oferece **Abrir Builds**, **Verificar build**, exemplo de gatilho copiável e deixa claro que o ZIP já foi enviado;
+- nunca voltar a classificar falha de Actions como falha de upload quando `commitSha` válido já foi publicado.
 
 ## Persistência e recuperação 2.0.67
 

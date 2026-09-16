@@ -62,6 +62,9 @@ class UploadsScreen extends ConsumerWidget {
                     item.status == ManagedUploadStatus.noChanges,
               )
               .toList();
+          final buildPending = items
+              .where((item) => item.status == ManagedUploadStatus.buildPending)
+              .toList();
           final failed = items
               .where(
                 (item) =>
@@ -95,6 +98,22 @@ class UploadsScreen extends ConsumerWidget {
                     onRunAnyway: item.canRunBuildAnyway
                         ? () => manager.runBuildAnyway(item.id)
                         : null,
+                    onRemove: () => manager.removeFromHistory(item.id),
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+              if (buildPending.isNotEmpty) ...[
+                _SectionTitle(
+                  icon: Icons.warning_amber_rounded,
+                  title: 'Enviados • build pendente',
+                  count: buildPending.length,
+                ),
+                ...buildPending.map(
+                  (item) => _UploadCard(
+                    item: item,
+                    onRetry: () => manager.retry(item.id),
+                    onOpenBuilds: () => _openBuilds(context, item),
                     onRemove: () => manager.removeFromHistory(item.id),
                   ),
                 ),
@@ -141,7 +160,7 @@ class UploadsScreen extends ConsumerWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Limpar histórico de envios?'),
         content: const Text(
-          'Envios concluídos, interrompidos e com falha serão removidos da Central. Nenhum arquivo ou commit será apagado do GitHub.',
+          'Envios concluídos, com build pendente, interrompidos e com falha serão removidos da Central. Nenhum arquivo ou commit será apagado do GitHub.',
         ),
         actions: [
           TextButton(

@@ -715,16 +715,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.68',
+                      text: 'Protege workflows do GitHub Actions durante a sincronização, separa projeto enviado de build pendente e torna o diagnóstico de build compacto e acionável.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.67',
                       text: 'Corrige migração do banco local, repara estruturas ausentes automaticamente e impede que falhas em dados de projetos fixados derrubem a lista de repositórios.',
                     ),
                     _ChangeNote(
                       version: '2.0.66',
                       text: 'Conferir build passa a mostrar a versão do projeto a enviar, reconhece version do package.json, explica avisos de identidade e adiciona ajuda geral e acesso ao token atual.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.65',
-                      text: 'Projetos podem ser fixados no topo, filtrados e ordenados, enquanto os cards usam uma leitura resumida de nome e versão.',
                     ),
                   ],
                 ),

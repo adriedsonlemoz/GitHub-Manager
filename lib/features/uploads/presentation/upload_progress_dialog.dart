@@ -47,10 +47,11 @@ class UploadProgressDialog extends ConsumerWidget {
           actionsPadding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
           title: Text(_title(item)),
           content: AdaptiveDialogBody(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Text(
                   item.phase,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -58,7 +59,12 @@ class UploadProgressDialog extends ConsumerWidget {
                       ),
                 ),
                 const SizedBox(height: 8),
-                if (item.total > 0 && item.status != ManagedUploadStatus.startingBuild)
+                if (item.isBuildPending && item.total > 0)
+                  Text(
+                    'Envio concluído • ${item.total} arquivos${item.commitSha?.isNotEmpty == true ? ' • commit ${_shortSha(item.commitSha!)}' : ''}',
+                  )
+                else if (item.total > 0 &&
+                    item.status != ManagedUploadStatus.startingBuild)
                   Text(
                     '${item.current.clamp(0, item.total)} de ${item.total} arquivos${percent == null ? '' : ' • $percent%'}',
                   ),
@@ -84,37 +90,43 @@ class UploadProgressDialog extends ConsumerWidget {
                     ),
                   ],
                 ],
-                const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Etapas recentes',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                      const SizedBox(height: 5),
-                      ...item.timelineLines.reversed.take(6).toList().reversed.map(
-                            (line) => Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Text(
-                                '• $line',
-                                style: Theme.of(context).textTheme.bodySmall,
+                if (item.isActive) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Etapas recentes',
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: 5),
+                        ...item.timelineLines.reversed
+                            .take(6)
+                            .toList()
+                            .reversed
+                            .map(
+                              (line) => Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: Text(
+                                  '• $line',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
                               ),
                             ),
-                          ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
+                  const SizedBox(height: 10),
+                ],
                 if (item.isActive)
                   Text(
                     'Você pode minimizar ou sair para outro aplicativo. Uma notificação mantém o envio em primeiro plano. Se o Android encerrar o processo, o GitHub Manager retoma automaticamente do checkpoint ao abrir novamente.',
@@ -137,7 +149,8 @@ class UploadProgressDialog extends ConsumerWidget {
                   const Text(
                     'O ZIP é idêntico ao repositório. Você pode iniciar a build do commit atual mesmo assim.',
                   ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: _actions(context, manager, item),
@@ -180,6 +193,30 @@ class UploadProgressDialog extends ConsumerWidget {
           onPressed: () => manager.runBuildAnyway(item.id),
           icon: const Icon(Icons.play_arrow_rounded),
           label: const Text('Executar build'),
+        ),
+      ];
+    }
+
+    if (item.status == ManagedUploadStatus.buildPending) {
+      return [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Fechar'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () {
+            Navigator.pop(context);
+            router.push(
+              '/repositories/${item.repositoryFullName}/builds?branch=${Uri.encodeQueryComponent(item.branch)}',
+            );
+          },
+          icon: const Icon(Icons.play_circle_outline_rounded),
+          label: const Text('Abrir Builds'),
+        ),
+        FilledButton.icon(
+          onPressed: () => manager.retry(item.id),
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Verificar build'),
         ),
       ];
     }
@@ -237,6 +274,7 @@ class UploadProgressDialog extends ConsumerWidget {
   static String _title(ManagedUpload item) => switch (item.status) {
         ManagedUploadStatus.completed => 'Envio concluído',
         ManagedUploadStatus.noChanges => 'Projeto já está atualizado',
+        ManagedUploadStatus.buildPending => 'Projeto enviado',
         ManagedUploadStatus.failed => 'Envio com falha',
         ManagedUploadStatus.interrupted => 'Envio interrompido',
         _ => 'Enviando build',
@@ -252,14 +290,20 @@ class _FailureDiagnostic extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final githubResponse = item.githubFailureResponse;
+    final pending = item.isBuildPending;
+    final accent = pending ? scheme.tertiary : scheme.error;
+    final container =
+        pending ? scheme.tertiaryContainer : scheme.errorContainer;
+    final foreground =
+        pending ? scheme.onTertiaryContainer : scheme.onErrorContainer;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: scheme.errorContainer,
+        color: container,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.error.withValues(alpha: 0.20)),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,137 +311,222 @@ class _FailureDiagnostic extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.error_outline_rounded, color: scheme.error, size: 22),
+              Icon(
+                pending
+                    ? Icons.warning_amber_rounded
+                    : Icons.error_outline_rounded,
+                color: accent,
+                size: 23,
+              ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  'O envio parou em “${item.failureOperationLabel}”',
-                  style: TextStyle(
-                    color: scheme.onErrorContainer,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      pending
+                          ? 'Build não iniciada'
+                          : 'Falha em “${item.failureOperationLabel}”',
+                      style: TextStyle(
+                        color: foreground,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (pending && item.commitSha?.isNotEmpty == true) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'O projeto já foi publicado no commit ${_shortSha(item.commitSha!)}. Não é necessário reenviar o ZIP.',
+                        style: TextStyle(color: foreground),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 9),
           Text(
             item.errorMessage!,
             style: TextStyle(
-              color: scheme.onErrorContainer,
+              color: foreground,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 10),
           _DiagnosticBlock(
-            title: 'Método usado',
-            text: '${item.uploadMethod.label} — ${item.uploadMethod.description}',
-            color: scheme.onErrorContainer,
-          ),
-          const SizedBox(height: 8),
-          _DiagnosticBlock(
-            title: 'Próxima tentativa recomendada',
-            text: item.recoveryRecommendationLabel,
-            color: scheme.onErrorContainer,
-          ),
-          if (item.recoveryEvents.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _DiagnosticBlock(
-              title: 'Histórico de recuperação',
-              text: item.recoveryEvents.map((event) => '• $event').join('\n'),
-              color: scheme.onErrorContainer,
-            ),
-          ],
-          const SizedBox(height: 8),
-          _DiagnosticBlock(
-            title: 'Até onde chegou',
-            text: item.failureProgressExplanation,
-            color: scheme.onErrorContainer,
-          ),
-          if (item.failureRepositoryImpact != null) ...[
-            const SizedBox(height: 8),
-            _DiagnosticBlock(
-              title: 'Impacto no repositório',
-              text: item.failureRepositoryImpact!,
-              color: scheme.onErrorContainer,
-            ),
-          ],
-          const SizedBox(height: 8),
-          _DiagnosticBlock(
-            title: 'Resposta do GitHub',
-            text: githubResponse,
-            color: scheme.onErrorContainer,
-          ),
-          const SizedBox(height: 8),
-          _DiagnosticBlock(
-            title: 'O que isso significa',
-            text: item.failureMeaning,
-            color: scheme.onErrorContainer,
-          ),
-          const SizedBox(height: 8),
-          _DiagnosticBlock(
-            title: 'O que fazer agora',
+            title: 'Como corrigir',
             text: item.failureSuggestedAction,
-            color: scheme.onErrorContainer,
+            color: foreground,
           ),
-          if (item.errorCode?.isNotEmpty == true ||
-              item.errorEndpoint?.isNotEmpty == true ||
-              item.failedFilePath?.isNotEmpty == true) ...[
-            const SizedBox(height: 8),
+          if (item.canShowBuildTriggerFix) ...[
+            const SizedBox(height: 6),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              childrenPadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 4),
               dense: true,
               visualDensity: VisualDensity.compact,
-              iconColor: scheme.onErrorContainer,
-              collapsedIconColor: scheme.onErrorContainer,
+              iconColor: foreground,
+              collapsedIconColor: foreground,
               title: Text(
-                'Detalhes técnicos',
+                'Exemplo de gatilho para o workflow',
                 style: TextStyle(
-                  color: scheme.onErrorContainer,
+                  color: foreground,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: scheme.surface.withValues(alpha: .45),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SelectableText(
+                    item.buildTriggerFixSnippet,
+                    style: TextStyle(
+                      color: foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      await Clipboard.setData(
+                        ClipboardData(text: item.buildTriggerFixSnippet),
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Exemplo copiado')),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.copy_rounded, size: 17),
+                    label: const Text('Copiar exemplo'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            iconColor: foreground,
+            collapsedIconColor: foreground,
+            title: Text(
+              'Ver diagnóstico completo',
+              style: TextStyle(color: foreground, fontWeight: FontWeight.w800),
+            ),
+            children: [
+              _DiagnosticBlock(
+                title: 'O que aconteceu',
+                text: item.failureMeaning,
+                color: foreground,
+              ),
+              const SizedBox(height: 8),
+              _DiagnosticBlock(
+                title: 'Até onde chegou',
+                text: item.failureProgressExplanation,
+                color: foreground,
+              ),
+              if (item.failureRepositoryImpact != null) ...[
+                const SizedBox(height: 8),
+                _DiagnosticBlock(
+                  title: 'Impacto no repositório',
+                  text: item.failureRepositoryImpact!,
+                  color: foreground,
+                ),
+              ],
+              const SizedBox(height: 8),
+              _DiagnosticBlock(
+                title: 'Resposta do GitHub',
+                text: item.githubFailureResponse,
+                color: foreground,
+              ),
+              if (item.recoveryEvents.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _DiagnosticBlock(
+                  title: 'Histórico de recuperação',
+                  text: item.recoveryEvents
+                    .map((event) => '• $event')
+                    .join('\n'),
+                  color: foreground,
+                ),
+              ],
+              if (item.timelineLines.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _DiagnosticBlock(
+                  title: 'Etapas recentes',
+                  text: item.timelineLines.reversed
+                    .take(6)
+                    .toList()
+                    .reversed
+                    .map((line) => '• $line')
+                    .join('\n'),
+                  color: foreground,
+                ),
+              ],
+              if (item.errorCode?.isNotEmpty == true ||
+                  item.errorEndpoint?.isNotEmpty == true ||
+                  item.failedFilePath?.isNotEmpty == true) ...[
+                const SizedBox(height: 8),
                 if (item.errorCode?.isNotEmpty == true)
-                  _TechnicalLine(label: 'Código', value: item.errorCode!),
+                  _TechnicalLine(
+                    label: 'Código',
+                    value: item.errorCode!,
+                    color: foreground,
+                  ),
                 if (item.errorHttpStatus != null)
                   _TechnicalLine(
                     label: 'HTTP',
                     value: '${item.errorHttpStatus}',
+                    color: foreground,
                   ),
                 if (item.errorEndpoint?.isNotEmpty == true)
-                  _TechnicalLine(label: 'Endpoint', value: item.errorEndpoint!),
+                  _TechnicalLine(
+                    label: 'Endpoint',
+                    value: item.errorEndpoint!,
+                    color: foreground,
+                  ),
                 if (item.failedFilePath?.isNotEmpty == true)
                   _TechnicalLine(
                     label: 'Arquivo',
                     value: item.failedFilePath!,
+                    color: foreground,
                   ),
               ],
-            ),
-          ],
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                await Clipboard.setData(
-                  ClipboardData(text: item.failureDiagnosticText),
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Diagnóstico copiado')),
-                  );
-                }
-              },
-              icon: const Icon(Icons.copy_all_rounded, size: 18),
-              label: const Text('Copiar diagnóstico'),
-            ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: item.failureDiagnosticText),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Diagnóstico copiado')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.copy_all_rounded, size: 18),
+                  label: const Text('Copiar diagnóstico'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+
+  static String _shortSha(String sha) =>
+      sha.length > 7 ? sha.substring(0, 7) : sha;
 }
 
 class _DiagnosticBlock extends StatelessWidget {
@@ -426,31 +555,33 @@ class _DiagnosticBlock extends StatelessWidget {
 }
 
 class _TechnicalLine extends StatelessWidget {
-  const _TechnicalLine({required this.label, required this.value});
+  const _TechnicalLine({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final String label;
   final String value;
+  final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onErrorContainer;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 72,
-            child: Text(
-              label,
-              style: TextStyle(color: color, fontWeight: FontWeight.w800),
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 72,
+              child: Text(
+                label,
+                style: TextStyle(color: color, fontWeight: FontWeight.w800),
+              ),
             ),
-          ),
-          Expanded(
-            child: SelectableText(value, style: TextStyle(color: color)),
-          ),
-        ],
-      ),
-    );
-  }
+            Expanded(
+              child: SelectableText(value, style: TextStyle(color: color)),
+            ),
+          ],
+        ),
+      );
 }

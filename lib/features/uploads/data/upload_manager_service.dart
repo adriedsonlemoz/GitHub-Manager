@@ -552,6 +552,35 @@ class UploadManagerService {
     final appError = error is AppException ? error : null;
     final failedFile = item.currentFile;
     final failedOperation = item.phase.trim();
+
+    // Depois que um commit válido já foi publicado, uma falha ao localizar ou
+    // iniciar o GitHub Actions não significa que o envio falhou. Mantemos o
+    // commit como checkpoint e mostramos um estado de atenção que pode ser
+    // rechecado sem reenviar o ZIP.
+    if (stage == 'build' && item.commitSha?.isNotEmpty == true) {
+      item
+        ..status = ManagedUploadStatus.buildPending
+        ..failedAt = DateTime.now()
+        ..phase = 'Projeto enviado • Build não iniciada'
+        ..errorMessage = appError?.message ?? 'Não foi possível iniciar a build.'
+        ..errorCode = appError?.technicalCode ?? error.runtimeType.toString()
+        ..errorHttpStatus = appError?.httpStatus
+        ..errorEndpoint = appError?.endpoint
+        ..errorApiMessage = appError?.apiMessage
+        ..failureStage = stage
+        ..failureOperation = failedOperation.isEmpty ? null : failedOperation
+        ..failedFilePath = failedFile
+        ..currentFile = null;
+      if (failedOperation.isNotEmpty) {
+        item.addLog('Build pendente após: $failedOperation');
+      }
+      item.addLog('Projeto enviado; build pendente: ${item.errorMessage}');
+      _emit();
+      unawaited(_persistHistory());
+      unawaited(_deleteManagedZipIfSafe(item));
+      return;
+    }
+
     item
       ..status = ManagedUploadStatus.failed
       ..failedAt = DateTime.now()

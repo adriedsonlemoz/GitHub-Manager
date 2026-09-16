@@ -253,11 +253,12 @@ mixin _RepositoryGitWorkflowOperations
     }
 
     // Workflows recém-criados podem demorar a aparecer em /actions/workflows.
-    // Fazemos fallback nos arquivos reais de .github/workflows.
-    final fileWorkflow = await _findApkDispatchWorkflowFile(
+    // Por isso a fonte de verdade final são os YAMLs reais da branch.
+    final workflowScan = await _scanWorkflowFiles(
       repositoryFullName: repositoryFullName,
       branch: branch,
     );
+    final fileWorkflow = workflowScan.firstDispatch;
 
     if (fileWorkflow != null) {
       final lastSecondRuns = await listWorkflowRunsForCommit(
@@ -305,9 +306,45 @@ mixin _RepositoryGitWorkflowOperations
       );
     }
 
+    // Se existe um workflow de APK acionado por push, ainda pode haver atraso de
+    // indexação do Actions. Damos uma janela extra antes de transformar isso em
+    // atenção para o usuário. Isso evita falsos negativos logo após o commit.
+    if (workflowScan.hasApkWorkflow && workflowScan.hasPush) {
+      for (var attempt = 0; attempt < 4; attempt++) {
+        onStatus?.call('Workflow de APK encontrado • aguardando o GitHub Actions');
+        await Future<void>.delayed(const Duration(seconds: 3));
+        final delayedRuns = await listWorkflowRunsForCommit(
+          repositoryFullName: repositoryFullName,
+          commitSha: normalizedSha,
+        );
+        final apkRuns = await filterApkRuns(delayedRuns);
+        if (apkRuns.isNotEmpty) {
+          onStatus?.call('Projeto atualizado • Build iniciada');
+          return RepositoryBuildLaunchResult(
+            commitSha: normalizedSha,
+            runs: apkRuns,
+            workflow: _workflowForRun(workflows, apkRuns.first),
+            dispatchTriggered: false,
+          );
+        }
+      }
+
+      throw RepositoryFileException(
+        'O projeto foi enviado e existe um workflow de APK com gatilho por push, mas o GitHub Actions ainda não criou uma execução para este commit. Verifique filtros de branch/paths ou tente localizar a build novamente.',
+        code: 'APK_WORKFLOW_PUSH_NOT_STARTED',
+      );
+    }
+
+    if (workflowScan.hasApkWorkflow) {
+      throw RepositoryFileException(
+        'O projeto foi enviado, mas o workflow de APK não possui um gatilho utilizável pelo GitHub Manager. Adicione push e/ou workflow_dispatch ao bloco on: do workflow.',
+        code: 'APK_WORKFLOW_TRIGGER_MISSING',
+      );
+    }
+
     throw const RepositoryFileException(
-      'O projeto foi atualizado, mas nenhuma build automática apareceu para o novo commit e não foi encontrado um workflow de APK com workflow_dispatch.',
-      code: 'APK_WORKFLOW_DISPATCH_UNAVAILABLE',
+      'O projeto foi enviado, mas não foi encontrado nenhum workflow em .github/workflows que gere APK.',
+      code: 'APK_WORKFLOW_NOT_FOUND',
     );
   }
 
@@ -331,7 +368,7 @@ mixin _RepositoryGitWorkflowOperations
         (searchable.contains('build') || searchable.contains('signed'));
   }
 
-  Future<_WorkflowFileCandidate?> _findApkDispatchWorkflowFile({
+  Future<_WorkflowFileScan> _scanWorkflowFiles({
     required String repositoryFullName,
     required String branch,
   }) async {
@@ -343,7 +380,7 @@ mixin _RepositoryGitWorkflowOperations
         path: '.github/workflows',
       );
     } catch (_) {
-      return null;
+      return const _WorkflowFileScan(apkCandidates: []);
     }
 
     final yamlFiles = files
@@ -359,6 +396,7 @@ mixin _RepositoryGitWorkflowOperations
       ...yamlFiles.where(_contentItemLooksLikeApkWorkflow),
       ...yamlFiles.where((item) => !_contentItemLooksLikeApkWorkflow(item)),
     ];
+    final apkCandidates = <_WorkflowFileInspection>[];
 
     for (final item in preferred) {
       try {
@@ -368,17 +406,35 @@ mixin _RepositoryGitWorkflowOperations
           path: item.path,
         );
         final definition = WorkflowDefinitionInspector.inspect(file.content);
-        if (definition.supportsDispatch && definition.likelyBuildsApk) {
-          return _WorkflowFileCandidate(
+        if (!definition.likelyBuildsApk) continue;
+        apkCandidates.add(
+          _WorkflowFileInspection(
             fileName: item.name,
             path: item.path,
-          );
-        }
+            info: definition,
+          ),
+        );
       } catch (_) {
         // Um YAML indisponível não impede verificar os demais.
       }
     }
-    return null;
+    return _WorkflowFileScan(apkCandidates: apkCandidates);
+  }
+
+  Future<_WorkflowFileCandidate?> _findApkDispatchWorkflowFile({
+    required String repositoryFullName,
+    required String branch,
+  }) async {
+    final scan = await _scanWorkflowFiles(
+      repositoryFullName: repositoryFullName,
+      branch: branch,
+    );
+    final candidate = scan.firstDispatch;
+    if (candidate == null) return null;
+    return _WorkflowFileCandidate(
+      fileName: candidate.fileName,
+      path: candidate.path,
+    );
   }
 
   static bool _contentItemLooksLikeApkWorkflow(RepositoryContentItem item) {

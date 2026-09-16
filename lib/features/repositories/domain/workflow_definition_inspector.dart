@@ -1,11 +1,13 @@
 class WorkflowDefinitionInfo {
   const WorkflowDefinitionInfo({
     required this.supportsDispatch,
+    required this.supportsPush,
     required this.likelyBuildsApk,
     required this.declaredName,
   });
 
   final bool supportsDispatch;
+  final bool supportsPush;
   final bool likelyBuildsApk;
   final String declaredName;
 }
@@ -16,7 +18,8 @@ class WorkflowDefinitionInspector {
   static WorkflowDefinitionInfo inspect(String content) {
     final lines = _meaningfulLines(content);
     final declaredName = _topLevelScalar(lines, 'name') ?? '';
-    final supportsDispatch = _hasWorkflowDispatch(lines);
+    final supportsDispatch = _hasEvent(lines, 'workflow_dispatch');
+    final supportsPush = _hasEvent(lines, 'push');
     final jobsText = _sectionText(lines, 'jobs').toLowerCase();
 
     final likelyBuildsApk = jobsText.contains('.apk') ||
@@ -29,25 +32,26 @@ class WorkflowDefinitionInspector {
 
     return WorkflowDefinitionInfo(
       supportsDispatch: supportsDispatch,
+      supportsPush: supportsPush,
       likelyBuildsApk: likelyBuildsApk,
       declaredName: declaredName,
     );
   }
 
-  static bool _hasWorkflowDispatch(List<_YamlLine> lines) {
+  static bool _hasEvent(List<_YamlLine> lines, String event) {
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i];
       if (line.indent != 0 || _key(line.text) != 'on') continue;
 
       final inline = _value(line.text).toLowerCase();
-      if (RegExp(r'\bworkflow_dispatch\b').hasMatch(inline)) {
+      if (RegExp('\\b${RegExp.escape(event)}\\b').hasMatch(inline)) {
         return true;
       }
 
       for (var j = i + 1; j < lines.length; j++) {
         final child = lines[j];
         if (child.indent <= line.indent) break;
-        if (_key(child.text) == 'workflow_dispatch') return true;
+        if (_key(child.text) == event) return true;
       }
     }
     return false;

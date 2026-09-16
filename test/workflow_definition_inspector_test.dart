@@ -25,6 +25,7 @@ jobs:
       final info = WorkflowDefinitionInspector.inspect(yaml);
       expect(info.declaredName, 'Release');
       expect(info.supportsDispatch, isTrue);
+      expect(info.supportsPush, isTrue);
       expect(info.likelyBuildsApk, isTrue);
     });
 
@@ -39,6 +40,7 @@ jobs:
 ''';
       final info = WorkflowDefinitionInspector.inspect(yaml);
       expect(info.supportsDispatch, isTrue);
+      expect(info.supportsPush, isTrue);
       expect(info.likelyBuildsApk, isTrue);
     });
 
@@ -70,6 +72,7 @@ jobs:
 ''';
       final info = WorkflowDefinitionInspector.inspect(yaml);
       expect(info.supportsDispatch, isFalse);
+      expect(info.supportsPush, isTrue);
       expect(info.likelyBuildsApk, isTrue);
     });
   });

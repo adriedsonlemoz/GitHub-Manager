@@ -1,6 +1,17 @@
-# GitHub Manager 2.0.67
+# GitHub Manager 2.0.68
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
+
+
+## Builds protegidas e diagnóstico acionável 2.0.68
+
+- workflows existentes em `.github/workflows/**` passam a ser tratados como infraestrutura protegida: um ZIP pode substituir um workflow pelo mesmo caminho, mas não pode apagá-lo apenas por omissão durante a sincronização;
+- o diálogo **Conferir build** informa essa proteção antes do envio, reduzindo o risco de desativar GitHub Actions sem perceber;
+- depois que o commit já foi publicado, a ausência de uma execução do Actions não aparece mais como **Envio com falha**: o estado correto é **Projeto enviado • Build pendente**;
+- **Verificar build** repete somente a descoberta/inicialização da build usando o commit já enviado, sem reenviar o ZIP;
+- a inspeção dos YAMLs diferencia workflow de APK ausente, workflow sem gatilho e workflow com `push` que ainda não gerou run;
+- workflows com `push` recebem uma janela adicional de espera para reduzir falsos negativos causados pela indexação do GitHub Actions;
+- o diagnóstico principal ficou compacto e rolável, com **Como corrigir** visível e detalhes técnicos recolhidos; há atalhos para **Abrir Builds**, copiar diagnóstico e copiar um exemplo de `push` + `workflow_dispatch` quando aplicável.
 
 
 ## Recuperação de dados locais 2.0.67
@@ -114,7 +125,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.67+200081`;
+- versão: `2.0.68+200082`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
@@ -216,7 +227,7 @@ A tela Builds usa `GET /repos/{owner}/{repo}/actions/runs` como fonte principal 
 
 A tela agrupa execuções pelo mesmo commit/envio. Cada grupo mostra data e hora com segundos, SHA curto e origem (`push`, manual ou ambos); dentro dele ficam os workflows relacionados, com número, tentativa, branch, status e duração. Runs em andamento são atualizados automaticamente. Jobs e steps exibem explicações simples e, em falhas, o app tenta recuperar a annotation principal do check run para destacar job, etapa e mensagem.
 
-O botão `Enviar build` da tela do projeto sincroniza o ZIP e verifica as execuções pelo SHA do novo commit. Se o `push` já iniciou o workflow Android APK, nenhuma execução duplicada é criada. Se não iniciou, o app aguarda a indexação e usa `workflow_dispatch`; em repositório recém-criado, também inspeciona estruturalmente os YAMLs em `.github/workflows` quando a listagem de workflows ainda estiver vazia.
+O botão `Enviar build` da tela do projeto sincroniza o ZIP e verifica as execuções pelo SHA do novo commit. Se o `push` já iniciou o workflow Android APK, nenhuma execução duplicada é criada. Se não iniciou, o app aguarda a indexação e usa `workflow_dispatch`; em repositório recém-criado, também inspeciona estruturalmente os YAMLs em `.github/workflows` quando a listagem de workflows ainda estiver vazia. Se um workflow de APK por `push` existe mas o Actions demora a indexar a execução, o app espera uma janela adicional antes de marcar a build como pendente. Falha nessa etapa não desfaz o commit nem transforma o envio já concluído em falha.
 
 
 ## Central de Envios
@@ -251,7 +262,7 @@ Artifacts expirados continuam visíveis no histórico e são marcados como expir
 
 ## Sincronização por ZIP
 
-O envio de ZIP é uma sincronização completa. A implementação compara a árvore atual do repositório com os caminhos presentes no ZIP e cria remoções Git (`sha: null`) para arquivos antigos que não existem mais no pacote antes de criar o novo commit.
+O envio de ZIP sincroniza completamente os arquivos do projeto. A implementação compara a árvore atual do repositório com os caminhos presentes no ZIP e cria remoções Git (`sha: null`) para arquivos antigos que não existem mais no pacote antes de criar o novo commit. A exceção de segurança é `.github/workflows/**`: workflows já existentes são preservados quando o ZIP apenas os omite, evitando que uma atualização do código desative a própria build. Se o ZIP trouxer o mesmo caminho de workflow, ele pode ser atualizado normalmente.
 
 Se a árvore resultante for idêntica à árvore atual, o app não cria commit nem dispara build automaticamente. A tela informa que o projeto já está atualizado e oferece `Executar build mesmo assim` para uma recompilação manual do mesmo commit.
 

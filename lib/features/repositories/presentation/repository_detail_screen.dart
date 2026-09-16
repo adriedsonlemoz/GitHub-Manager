@@ -290,8 +290,15 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                   'Destino: ${repository.fullName}/${repository.defaultBranch}',
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'O envio sincroniza completamente o repositório com o ZIP: arquivos antigos que não existem mais no projeto também são removidos.',
+                Text(
+                  project.importantFiles.any(
+                    (path) => path
+                        .replaceAll('\\', '/')
+                        .toLowerCase()
+                        .contains('.github/workflows/'),
+                  )
+                      ? 'O ZIP contém workflow do GitHub Actions. Arquivos antigos do projeto são removidos, mas workflows existentes que não vierem no ZIP são preservados para não desativar a build por acidente.'
+                      : 'O envio sincroniza os arquivos do projeto com o ZIP. Arquivos antigos são removidos, mas workflows existentes em .github/workflows são preservados para não desativar a build por acidente.',
                 ),
               ],
             ),

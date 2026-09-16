@@ -69,6 +69,7 @@ class _UploadCard extends StatelessWidget {
     final statusColor = switch (item.status) {
       ManagedUploadStatus.completed => Colors.green.shade600,
       ManagedUploadStatus.noChanges => scheme.tertiary,
+      ManagedUploadStatus.buildPending => scheme.tertiary,
       ManagedUploadStatus.failed ||
       ManagedUploadStatus.interrupted =>
         scheme.error,
@@ -81,7 +82,11 @@ class _UploadCard extends StatelessWidget {
           icon: item.hasAlternativeRecoveryMethod
               ? Icons.alt_route_rounded
               : Icons.refresh_rounded,
-          label: item.hasAlternativeRecoveryMethod ? 'Recuperar' : 'Repetir',
+          label: item.isBuildPending
+              ? 'Verificar'
+              : item.hasAlternativeRecoveryMethod
+                  ? 'Recuperar'
+                  : 'Repetir',
           onPressed: onRetry!,
         ),
       if (onRunAnyway != null)
@@ -131,7 +136,9 @@ class _UploadCard extends StatelessWidget {
                             ? Icons.check_circle_outline_rounded
                             : item.status == ManagedUploadStatus.noChanges
                                 ? Icons.info_outline_rounded
-                                : Icons.error_outline_rounded,
+                                : item.status == ManagedUploadStatus.buildPending
+                                    ? Icons.warning_amber_rounded
+                                    : Icons.error_outline_rounded,
                     color: statusColor,
                     size: 20,
                   ),
@@ -249,7 +256,10 @@ class _UploadCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                   decoration: BoxDecoration(
-                    color: scheme.errorContainer.withValues(alpha: .38),
+                    color: (item.isBuildPending
+                            ? scheme.tertiaryContainer
+                            : scheme.errorContainer)
+                        .withValues(alpha: .38),
                     borderRadius: BorderRadius.circular(9),
                   ),
                   child: Text(
@@ -257,7 +267,9 @@ class _UploadCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.error,
+                          color: item.isBuildPending
+                              ? scheme.onTertiaryContainer
+                              : scheme.onErrorContainer,
                           fontWeight: FontWeight.w700,
                         ),
                   ),
