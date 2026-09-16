@@ -1,7 +1,19 @@
-# GitHub Manager 2.0.69
+# GitHub Manager 2.0.70
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
+
+
+## Refatoração de telas e limpeza vinculada de builds 2.0.70
+
+- refatora **Configurações**, **Detalhe do repositório**, **Builds/Detalhe da build** e **APKs/Releases**, separando UI, estado/ações e widgets auxiliares sem reescrever os fluxos existentes;
+- exclusão de uma build passa a ser coordenada: primeiro remove o workflow run, depois confirma a limpeza dos artifacts e remove explicitamente qualquer artifact remanescente ligado ao mesmo `run_id`;
+- APKs publicados como **Release assets** passam a ser ligados ao commit da build; quando o vínculo com o mesmo SHA é seguro, excluir a build também exclui o APK correspondente sem apagar a Release nem a tag;
+- Releases publicadas pelo próprio GitHub Manager passam a usar o `head_sha` do artifact como `target_commitish`, tornando o vínculo futuro entre build e APK determinístico;
+- tela **APKs** ganha exclusão direta para arquivos de Release e a ação **Excluir APKs anteriores** agora limpa tanto artifacts APK antigos quanto APKs antigos de Releases, mantendo o mais recente de cada origem;
+- listagem de Releases deixa de consultar somente as 30 primeiras e passa a paginar até 500 Releases, permitindo localizar e administrar APKs mais antigos;
+- caches/providers de artifacts e Releases são invalidados depois das exclusões para evitar itens já removidos continuarem aparecendo na interface;
+- adiciona testes de regressão para vínculo `workflow_run/head_sha`, limpeza coordenada da build e limpeza de APKs anteriores nas duas origens.
 
 ## Correção do build e prevenção 2.0.69
 
@@ -133,7 +145,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.69+200083`;
+- versão: `2.0.70+200084`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

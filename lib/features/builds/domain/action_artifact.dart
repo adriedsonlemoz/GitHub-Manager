@@ -6,6 +6,7 @@ class ActionArtifact {
     required this.expired,
     required this.createdAt,
     this.workflowRunId,
+    this.workflowRunHeadSha,
   });
 
   final int id;
@@ -14,6 +15,7 @@ class ActionArtifact {
   final bool expired;
   final DateTime? createdAt;
   final int? workflowRunId;
+  final String? workflowRunHeadSha;
 
   bool get likelyContainsApk {
     final lower = name.toLowerCase();
@@ -38,6 +40,9 @@ class ActionArtifact {
       createdAt: DateTime.tryParse(json['created_at'] as String? ?? ''),
       workflowRunId: workflow is Map
           ? (workflow['id'] as num?)?.toInt()
+          : null,
+      workflowRunHeadSha: workflow is Map
+          ? workflow['head_sha'] as String?
           : null,
     );
   }

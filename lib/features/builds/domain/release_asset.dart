@@ -6,6 +6,9 @@ class ReleaseAsset {
     required this.downloadUrl,
     required this.tagName,
     required this.publishedAt,
+    required this.releaseId,
+    required this.releaseName,
+    required this.targetCommitish,
   });
 
   final int id;
@@ -14,6 +17,9 @@ class ReleaseAsset {
   final String downloadUrl;
   final String tagName;
   final DateTime? publishedAt;
+  final int releaseId;
+  final String releaseName;
+  final String targetCommitish;
 
   bool get isApk => name.toLowerCase().endsWith('.apk');
 
@@ -21,6 +27,9 @@ class ReleaseAsset {
     Map<String, dynamic> json, {
     required String tagName,
     required DateTime? publishedAt,
+    required int releaseId,
+    required String releaseName,
+    required String targetCommitish,
   }) =>
       ReleaseAsset(
         id: (json['id'] as num?)?.toInt() ?? 0,
@@ -29,5 +38,8 @@ class ReleaseAsset {
         downloadUrl: json['browser_download_url'] as String? ?? '',
         tagName: tagName,
         publishedAt: publishedAt,
+        releaseId: releaseId,
+        releaseName: releaseName,
+        targetCommitish: targetCommitish,
       );
 }

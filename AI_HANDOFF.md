@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.69+200083`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.70+200084`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 ## Arquitetura
 
@@ -46,6 +46,19 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 
 
 
+
+
+## Refatoração e ciclo de vida de APKs/builds 2.0.70
+
+- telas grandes foram divididas conservadoramente em arquivos de apresentação e actions/controllers: Configurações, Detalhe do repositório, Builds/Detalhe da build e APKs/Releases;
+- exclusão de build usa `BuildCleanupService`: apaga o workflow run, verifica artifacts remanescentes pelo `workflowRunId` e limpa APKs de Release somente quando o mesmo commit pode ser comprovado;
+- `ActionArtifact` preserva `workflow_run.id` e `workflow_run.head_sha`; `ReleaseAsset` preserva release/tag/`target_commitish` para correlação segura;
+- `ArtifactService.listArtifactsForRun` consulta os artifacts do run antes da exclusão; `listReleaseAssets` pagina até 5 páginas de 100 Releases;
+- Release asset é recurso independente: a tela APKs/Releases agora permite excluí-lo diretamente sem remover Release/tag;
+- `Excluir APKs anteriores` trata separadamente Actions artifacts e Release assets, preservando o APK mais recente de cada origem;
+- ao publicar Release a partir de artifact, usar `artifact.workflowRunHeadSha` como `target_commitish` quando disponível; a branch é apenas fallback para artifacts antigos;
+- providers de artifacts/Releases são `autoDispose` e são invalidados após operações destrutivas;
+- testes relevantes: `build_cleanup_service_test.dart`, `build_artifact_linkage_test.dart`, `build_release_linkage_test.dart` e `older_apk_cleanup_test.dart`.
 
 ## Correção do build 2.0.69
 

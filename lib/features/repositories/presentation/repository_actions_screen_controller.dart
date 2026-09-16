@@ -1,0 +1,429 @@
+part of 'repository_actions_screen.dart';
+
+mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen>, WidgetsBindingObserver {
+  late Future<RepositoryActionsData> _future;
+  RepositoryWorkflow? _selectedWorkflow;
+  Timer? _timer;
+  bool _hasRunning = false;
+  bool _refreshing = false;
+  DateTime? _lastUpdatedAt;
+  bool _starting = false;
+  bool _showDiagnostics = false;
+  RepositoryActionsData? _currentData;
+  final Set<int> _selectedRunIds = <int>{};
+  bool _selectionMode = false;
+  bool _deletingSelected = false;
+
+  void initializeRepositoryActionsState() {
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(BuildMonitorService.watchRepository(widget.repositoryFullName));
+    _future = _load();
+    _future.then<void>(
+      (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+      onError: (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+    );
+  }
+
+  Future<RepositoryActionsData> _load() async {
+    final data = await ref.read(repositoryGitServiceProvider).loadActions(
+          widget.repositoryFullName,
+          workflow: _selectedWorkflow,
+        );
+    _hasRunning = data.allRuns.any((run) => run.isRunning);
+    _currentData = data;
+    _lastUpdatedAt = DateTime.now();
+    return data;
+  }
+
+  Future<void> _refresh({
+    bool silent = false,
+    bool lightweight = false,
+  }) async {
+    if (_refreshing) return;
+    _refreshing = true;
+    try {
+      final data = lightweight ? await _pollRecentRuns() : await _load();
+      if (mounted) {
+        setState(() => _future = Future<RepositoryActionsData>.value(data));
+      }
+    } catch (_) {
+      if (!silent) {
+        rethrow;
+      }
+    } finally {
+      _refreshing = false;
+      if (mounted) _scheduleAutoRefresh();
+    }
+  }
+
+  Future<RepositoryActionsData> _pollRecentRuns() async {
+    final current = _currentData;
+    if (current == null) return _load();
+    if (_selectedWorkflow != null &&
+        current.diagnostic.reason == 'fallback_workflow_especifico') {
+      return _load();
+    }
+    final recent = await ref
+        .read(repositoryGitServiceProvider)
+        .listRecentWorkflowRuns(widget.repositoryFullName);
+    final previousById = <int, RepositoryWorkflowRun>{
+      for (final run in current.allRuns) run.id: run,
+    };
+    final allRuns = recent.map((run) {
+      final previousVersion = previousById[run.id]?.buildVersion;
+      if (run.buildVersion == null && previousVersion != null) {
+        return run.withBuildVersion(previousVersion);
+      }
+      return run;
+    }).toList(growable: false)
+      ..sort((a, b) {
+        final aDate = a.createdAt ?? a.startedAt;
+        final bDate = b.createdAt ?? b.startedAt;
+        if (aDate == null && bDate == null) return b.id.compareTo(a.id);
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
+      });
+    final selected = _selectedWorkflow;
+    final visibleRuns = selected == null
+        ? allRuns
+        : allRuns.where((run) => run.belongsTo(selected)).toList(growable: false);
+    final oldDiagnostic = current.diagnostic;
+    final data = RepositoryActionsData(
+      workflows: current.workflows,
+      allRuns: List<RepositoryWorkflowRun>.unmodifiable(allRuns),
+      runs: List<RepositoryWorkflowRun>.unmodifiable(visibleRuns),
+      selectedWorkflow: selected,
+      diagnostic: RepositoryActionsDiagnostic(
+        endpoint: oldDiagnostic.endpoint,
+        httpStatus: oldDiagnostic.httpStatus,
+        repositoryRunsReceived: allRuns.length,
+        runsAfterFilter: visibleRuns.length,
+        totalCountReported: oldDiagnostic.totalCountReported,
+        reason: oldDiagnostic.reason,
+        workflowId: selected?.id,
+        workflowName: selected?.name,
+        workflowPath: selected?.path,
+        workflowState: selected?.state,
+        fallbackEndpoint: oldDiagnostic.fallbackEndpoint,
+        fallbackHttpStatus: oldDiagnostic.fallbackHttpStatus,
+        fallbackRunsReceived: oldDiagnostic.fallbackRunsReceived,
+      ),
+    );
+    _hasRunning = allRuns.any((run) => run.isRunning);
+    final availableIds = allRuns.map((run) => run.id).toSet();
+    _selectedRunIds.removeWhere((id) => !availableIds.contains(id));
+    _selectionMode = _selectedRunIds.isNotEmpty;
+    _currentData = data;
+    _lastUpdatedAt = DateTime.now();
+    return data;
+  }
+
+  void _scheduleAutoRefresh() {
+    _timer?.cancel();
+    if (!mounted) return;
+    final interval = _hasRunning
+        ? const Duration(seconds: 6)
+        : const Duration(seconds: 15);
+    _timer = Timer(interval, () {
+      if (mounted) unawaited(_refresh(silent: true, lightweight: true));
+    });
+  }
+
+  void _selectWorkflow(RepositoryWorkflow? workflow) {
+    _timer?.cancel();
+    _selectedWorkflow = workflow;
+    final next = _load();
+    setState(() {
+      _selectedRunIds.clear();
+      _selectionMode = false;
+      _future = next;
+    });
+    next.then<void>(
+      (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+      onError: (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+    );
+  }
+
+  void _clearRunSelection() {
+    setState(() {
+      _selectedRunIds.clear();
+      _selectionMode = false;
+    });
+  }
+
+  void _toggleRunSelection(RepositoryWorkflowRun run) {
+    if (widget.readOnly || run.isRunning) return;
+    setState(() {
+      _selectionMode = true;
+      if (!_selectedRunIds.add(run.id)) {
+        _selectedRunIds.remove(run.id);
+      }
+      if (_selectedRunIds.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+  }
+
+  void _handleRunLongPress(RepositoryWorkflowRun run) {
+    if (widget.readOnly) return;
+    if (!_selectionMode) {
+      final hasFailures = (_currentData?.runs ?? const <RepositoryWorkflowRun>[])
+          .any((item) => !item.isRunning && item.conclusion == 'failure');
+      if (hasFailures) {
+        _selectAllVisibleRuns(failedOnly: true);
+        return;
+      }
+    }
+    if (run.isRunning) return;
+    _toggleRunSelection(run);
+  }
+
+  void _selectAllVisibleRuns({bool failedOnly = false}) {
+    final data = _currentData;
+    if (data == null || widget.readOnly) return;
+    final candidates = data.runs.where(
+      (run) =>
+          !run.isRunning &&
+          (!failedOnly || run.conclusion == 'failure'),
+    );
+    setState(() {
+      _selectionMode = true;
+      _selectedRunIds
+        ..clear()
+        ..addAll(candidates.map((run) => run.id));
+      if (_selectedRunIds.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedRuns() async {
+    if (_selectedRunIds.isEmpty || widget.readOnly || _deletingSelected) return;
+    final count = _selectedRunIds.length;
+    final selectedRuns = (_currentData?.runs ?? const <RepositoryWorkflowRun>[])
+        .where((run) => _selectedRunIds.contains(run.id))
+        .toList(growable: false);
+    final failuresOnly = selectedRuns.length == count &&
+        selectedRuns.every((run) => run.conclusion == 'failure');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          failuresOnly
+              ? 'Excluir $count build(s) com falha?'
+              : 'Excluir $count execução(ões)?',
+        ),
+        content: Text(
+          failuresOnly
+              ? 'Somente as execuções que falharam serão removidas permanentemente do GitHub Actions. '
+                  'As execuções concluídas com sucesso serão mantidas. Artifacts e APKs de Release vinculados às builds excluídas também serão limpos. '
+                  'Esta ação não pode ser desfeita.'
+              : 'As execuções selecionadas serão removidas permanentemente do GitHub Actions. '
+                  'Artifacts e APKs de Release vinculados a essas execuções também serão limpos. '
+                  'Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_forever_outlined),
+            label: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingSelected = true);
+    try {
+      final result = await ref
+          .read(buildCleanupServiceProvider)
+          .deleteBuilds(
+            repositoryFullName: widget.repositoryFullName,
+            runs: selectedRuns,
+          );
+      ref.invalidate(repositoryArtifactsProvider(widget.repositoryFullName));
+      ref.invalidate(repositoryReleaseAssetsProvider(widget.repositoryFullName));
+      if (!mounted) return;
+      setState(() {
+        _selectedRunIds
+          ..clear()
+          ..addAll(result.failedRunIds);
+        _selectionMode = _selectedRunIds.isNotEmpty;
+      });
+      await _refresh(silent: true);
+      if (!mounted) return;
+      if (result.hasFailures) {
+        showCenteredNotice(
+          context,
+          '${result.deletedCount} excluída(s) • ${result.failedCount} não puderam ser excluída(s). ${result.relatedFilesRemoved} arquivo(s) vinculado(s) removido(s). As falhas restantes continuam selecionadas.',
+        );
+      } else if (result.hasWarnings) {
+        showCenteredNotice(
+          context,
+          '${result.deletedCount} execução(ões) excluída(s) • ${result.relatedFilesRemoved} arquivo(s) vinculado(s) removido(s). Alguns APKs de Release podem exigir Contents: write no token.',
+        );
+      } else {
+        showCenteredNotice(
+          context,
+          '${result.deletedCount} execução(ões) excluída(s) • ${result.relatedFilesRemoved} artifact(s)/APK(s) vinculado(s) removido(s).',
+        );
+      }
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _deletingSelected = false);
+      }
+    }
+  }
+
+  Future<void> _runWorkflow() async {
+    try {
+      setState(() => _starting = true);
+      final service = ref.read(repositoryGitServiceProvider);
+      final workflows = await service.listWorkflows(widget.repositoryFullName);
+      if (!mounted) {
+        return;
+      }
+      final active = workflows.where((item) => item.isActive).toList();
+      if (active.isEmpty) {
+        throw const RepositoryFileException(
+          'Nenhum workflow ativo foi encontrado neste repositório.',
+          code: 'NO_ACTIVE_WORKFLOW',
+        );
+      }
+      final selected = await showModalBottomSheet<RepositoryWorkflow>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+                child: Text(
+                  'Executar workflow',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+              ...active.map(
+                (workflow) => Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.play_arrow_rounded),
+                    title: Text(workflow.name),
+                    subtitle: Text(workflow.path),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.pop(context, workflow),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (selected == null || !mounted) {
+        return;
+      }
+
+      final supportsDispatch = await service.workflowSupportsDispatch(
+        repositoryFullName: widget.repositoryFullName,
+        branch: widget.defaultBranch,
+        workflow: selected,
+      );
+      if (!supportsDispatch) {
+        throw RepositoryFileException(
+          '${selected.name} não possui workflow_dispatch e não pode ser iniciado manualmente.',
+          code: 'WORKFLOW_DISPATCH_UNAVAILABLE',
+        );
+      }
+
+      await service.dispatchWorkflow(
+        repositoryFullName: widget.repositoryFullName,
+        workflow: selected,
+        ref: widget.defaultBranch,
+      );
+      if (mounted) {
+        showCenteredNotice(context, '${selected.name} iniciado na branch ${widget.defaultBranch}.');
+        _selectedWorkflow = selected;
+        await Future<void>.delayed(const Duration(seconds: 2));
+        await _refresh();
+      }
+    } catch (error) {
+      if (mounted) {
+        _showError(error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _starting = false);
+      }
+    }
+  }
+
+  Future<void> _showRunDetails(RepositoryWorkflowRun run) async {
+    if (!mounted) {
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (_) => _RunDetailsSheet(
+        repositoryFullName: widget.repositoryFullName,
+        run: run,
+        onChanged: () => _refresh(silent: true),
+        readOnly: widget.readOnly,
+        onOpenArtifacts: () {
+          if (mounted) {
+            context.push('/repositories/${widget.repositoryFullName}/artifacts?readOnly=${widget.readOnly ? '1' : '0'}');
+          }
+        },
+      ),
+    );
+  }
+
+  void handleRepositoryActionsLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refresh(silent: true);
+    }
+  }
+
+  void disposeRepositoryActionsState() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+  }
+
+
+  String _message(Object error) {
+    if (error is GitHubValidationException) {
+      return 'O workflow não aceitou a execução manual. Confirme se ele possui workflow_dispatch.';
+    }
+    if (error is GitHubPermissionException) {
+      return 'O token precisa da permissão Actions: write para executar, cancelar ou reexecutar builds.';
+    }
+    return error is AppException
+        ? error.message
+        : 'Não foi possível carregar as execuções.';
+  }
+
+  void _showError(Object error) {
+    showCenteredNotice(context, _message(error));
+  }
+
+}

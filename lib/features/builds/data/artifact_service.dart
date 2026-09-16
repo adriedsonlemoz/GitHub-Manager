@@ -1,11 +1,28 @@
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
+import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
+import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+class OlderApkCleanupResult {
+  const OlderApkCleanupResult({
+    required this.artifactsDeleted,
+    required this.releaseAssetsDeleted,
+    required this.warnings,
+  });
+
+  final int artifactsDeleted;
+  final int releaseAssetsDeleted;
+  final List<String> warnings;
+
+  int get totalDeleted => artifactsDeleted + releaseAssetsDeleted;
+  bool get hasWarnings => warnings.isNotEmpty;
+}
 
 class ReleasePublishResult {
   const ReleasePublishResult({
@@ -49,6 +66,28 @@ class ArtifactService {
     return artifacts;
   }
 
+  Future<List<ActionArtifact>> listArtifactsForRun({
+    required String repositoryFullName,
+    required int runId,
+  }) async {
+    final artifacts = <ActionArtifact>[];
+    for (var page = 1; page <= 5; page++) {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/actions/runs/$runId/artifacts',
+        queryParameters: {'per_page': 100, 'page': page},
+      );
+      final raw = response.data?['artifacts'];
+      if (raw is! List) break;
+      final pageItems = raw
+          .whereType<Map>()
+          .map((json) => ActionArtifact.fromJson(Map<String, dynamic>.from(json)))
+          .toList(growable: false);
+      artifacts.addAll(pageItems);
+      if (raw.length < 100) break;
+    }
+    return List<ActionArtifact>.unmodifiable(artifacts);
+  }
+
   Future<void> deleteArtifact({
     required String repositoryFullName,
     required int artifactId,
@@ -73,34 +112,124 @@ class ArtifactService {
   }
 
   Future<List<ReleaseAsset>> listReleaseAssets(String repositoryFullName) async {
-    final response = await _client.get<List<dynamic>>(
-      '/repos/$repositoryFullName/releases',
-      queryParameters: {'per_page': 30, 'page': 1},
-    );
     final result = <ReleaseAsset>[];
-    for (final rawRelease in response.data ?? const <dynamic>[]) {
-      if (rawRelease is! Map) continue;
-      final release = Map<String, dynamic>.from(rawRelease);
-      final tag = release['tag_name'] as String? ?? '';
-      final published = DateTime.tryParse(release['published_at'] as String? ?? '');
-      final assets = release['assets'];
-      if (assets is! List) continue;
-      for (final rawAsset in assets) {
-        if (rawAsset is Map) {
+    for (var page = 1; page <= 5; page++) {
+      final response = await _client.get<List<dynamic>>(
+        '/repos/$repositoryFullName/releases',
+        queryParameters: {'per_page': 100, 'page': page},
+      );
+      final releases = response.data ?? const <dynamic>[];
+      for (final rawRelease in releases) {
+        if (rawRelease is! Map) continue;
+        final release = Map<String, dynamic>.from(rawRelease);
+        final tag = release['tag_name'] as String? ?? '';
+        final published =
+            DateTime.tryParse(release['published_at'] as String? ?? '');
+        final releaseId = (release['id'] as num?)?.toInt() ?? 0;
+        final releaseName = release['name'] as String? ?? tag;
+        final targetCommitish = release['target_commitish'] as String? ?? '';
+        final assets = release['assets'];
+        if (assets is! List) continue;
+        for (final rawAsset in assets) {
+          if (rawAsset is! Map) continue;
           final asset = ReleaseAsset.fromJson(
             Map<String, dynamic>.from(rawAsset),
             tagName: tag,
             publishedAt: published,
+            releaseId: releaseId,
+            releaseName: releaseName,
+            targetCommitish: targetCommitish,
           );
           if (asset.id > 0) result.add(asset);
         }
       }
+      if (releases.length < 100) break;
     }
     result.sort(
       (a, b) => (b.publishedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
           .compareTo(a.publishedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
     );
-    return result;
+    return List<ReleaseAsset>.unmodifiable(result);
+  }
+
+  Future<void> deleteReleaseAsset({
+    required String repositoryFullName,
+    required int assetId,
+  }) =>
+      _client.delete<void>(
+        '/repos/$repositoryFullName/releases/assets/$assetId',
+      );
+
+  Future<List<ReleaseAsset>> findReleaseApksForBuild({
+    required String repositoryFullName,
+    required RepositoryWorkflowRun run,
+  }) async {
+    final assets = await listReleaseAssets(repositoryFullName);
+    final apkAssets = assets.where((asset) => asset.isApk).toList(growable: false);
+    if (apkAssets.isEmpty || run.headSha.trim().isEmpty) {
+      return const <ReleaseAsset>[];
+    }
+
+    final normalizedSha = run.headSha.trim().toLowerCase();
+    final matches = <ReleaseAsset>[];
+    final resolvedTags = <String, String?>{};
+    final version = run.detectedVersion?.trim().toLowerCase();
+
+    for (final asset in apkAssets) {
+      final target = asset.targetCommitish.trim().toLowerCase();
+      if (target == normalizedSha) {
+        matches.add(asset);
+        continue;
+      }
+
+      // Releases antigas podem ter sido criadas usando a branch como
+      // target_commitish. Nesses casos só resolvemos a tag quando há um forte
+      // indício de mesma versão, evitando apagar APKs de outra build.
+      if (version == null || !_releaseMentionsVersion(asset, version)) {
+        continue;
+      }
+
+      final tag = asset.tagName.trim();
+      if (tag.isEmpty) continue;
+      String? tagSha = resolvedTags[tag];
+      if (!resolvedTags.containsKey(tag)) {
+        try {
+          final response = await _client.get<Map<String, dynamic>>(
+            '/repos/$repositoryFullName/commits/${Uri.encodeComponent(tag)}',
+          );
+          tagSha = response.data?['sha'] as String?;
+        } catch (_) {
+          tagSha = null;
+        }
+        resolvedTags[tag] = tagSha;
+      }
+      if (tagSha?.trim().toLowerCase() == normalizedSha) {
+        matches.add(asset);
+      }
+    }
+
+    return List<ReleaseAsset>.unmodifiable(matches);
+  }
+
+  static bool _releaseMentionsVersion(ReleaseAsset asset, String version) {
+    final normalizedVersion = _normalizedVersionToken(version);
+    if (normalizedVersion == null) return false;
+    return <String>[asset.tagName, asset.name, asset.releaseName]
+        .map(_normalizedVersionToken)
+        .whereType<String>()
+        .any((value) => value == normalizedVersion);
+  }
+
+  static String? _normalizedVersionToken(String value) {
+    final match = RegExp(
+      r'v?(\d+\.\d+\.\d+(?:[-.][A-Za-z0-9.-]+)?(?:\+[A-Za-z0-9.-]+)?)',
+      caseSensitive: false,
+    ).firstMatch(value.trim());
+    final token = match?.group(1)?.trim().toLowerCase();
+    if (token == null || token.isEmpty) return null;
+    // Build metadata não muda a versão funcional da Release, mas evitar
+    // `contains` impede confundir, por exemplo, 2.0.7 com 2.0.70.
+    return token.split('+').first;
   }
 
   Future<ReleasePublishResult> publishArtifactAsRelease({
@@ -256,21 +385,108 @@ class ArtifactService {
     }
   }
 
-  Future<int> deleteOlderApkArtifacts(String repositoryFullName) async {
-    final artifacts = await listArtifacts(repositoryFullName);
-    final apks = artifacts
-        .where((item) => item.likelyContainsApk && !item.expired)
-        .toList();
-    if (apks.length <= 1) return 0;
-    var deleted = 0;
-    for (final artifact in apks.skip(1)) {
-      await deleteArtifact(
-        repositoryFullName: repositoryFullName,
-        artifactId: artifact.id,
+  /// Exclui saídas APK antigas sem apagar a mais recente de cada origem.
+  ///
+  /// Artifacts do Actions e APKs anexados a Releases são recursos diferentes
+  /// no GitHub. A limpeza precisa tratar os dois grupos separadamente; caso
+  /// contrário, a opção "Excluir APKs anteriores" pode parecer não funcionar
+  /// quando os APKs antigos foram publicados como assets de Release.
+  Future<OlderApkCleanupResult> deleteOlderApkOutputs(
+    String repositoryFullName,
+  ) async {
+    final warnings = <String>[];
+    var artifactsDeleted = 0;
+    var releaseAssetsDeleted = 0;
+
+    try {
+      final artifacts = await listArtifacts(repositoryFullName);
+      final apks = artifacts
+          .where((item) => item.likelyContainsApk)
+          .toList(growable: false);
+      if (apks.length > 1) {
+        // A lista já vem ordenada do mais recente para o mais antigo. Quando
+        // houver um artifact ativo, preservamos toda a saída APK do mesmo run;
+        // se todos expiraram, usamos o run do registro mais recente.
+        final keep = apks.firstWhere(
+          (item) => !item.expired,
+          orElse: () => apks.first,
+        );
+        final keepRunId = keep.workflowRunId;
+        for (final artifact in apks.where(
+          (item) => keepRunId != null
+              ? item.workflowRunId != keepRunId
+              : item.id != keep.id,
+        )) {
+          try {
+            await deleteArtifact(
+              repositoryFullName: repositoryFullName,
+              artifactId: artifact.id,
+            );
+            artifactsDeleted++;
+          } catch (error) {
+            warnings.add(
+              'Não foi possível excluir o artifact ${artifact.name}: ${_cleanupMessage(error)}',
+            );
+          }
+        }
+      }
+    } catch (error) {
+      warnings.add(
+        'Não foi possível listar os artifacts para limpeza: ${_cleanupMessage(error)}',
       );
-      deleted++;
     }
-    return deleted;
+
+    try {
+      final releaseAssets = (await listReleaseAssets(repositoryFullName))
+          .where((item) => item.isApk)
+          .toList(growable: false);
+      if (releaseAssets.length > 1) {
+        // Releases são independentes de Actions. Mantemos todos os APKs da
+        // Release mais recente e removemos assets das anteriores, sem apagar
+        // a Release nem a tag.
+        final keep = releaseAssets.first;
+        final keepReleaseId = keep.releaseId;
+        for (final asset in releaseAssets.where(
+          (item) => keepReleaseId > 0
+              ? item.releaseId != keepReleaseId
+              : item.id != keep.id,
+        )) {
+          try {
+            await deleteReleaseAsset(
+              repositoryFullName: repositoryFullName,
+              assetId: asset.id,
+            );
+            releaseAssetsDeleted++;
+          } catch (error) {
+            warnings.add(
+              'Não foi possível excluir o APK ${asset.name} da Release ${asset.tagName}: ${_cleanupMessage(error)}',
+            );
+          }
+        }
+      }
+    } catch (error) {
+      warnings.add(
+        'Não foi possível listar os APKs de Release para limpeza: ${_cleanupMessage(error)}',
+      );
+    }
+
+    return OlderApkCleanupResult(
+      artifactsDeleted: artifactsDeleted,
+      releaseAssetsDeleted: releaseAssetsDeleted,
+      warnings: List<String>.unmodifiable(warnings),
+    );
+  }
+
+  /// Mantido por compatibilidade com chamadas antigas.
+  Future<int> deleteOlderApkArtifacts(String repositoryFullName) async {
+    final result = await deleteOlderApkOutputs(repositoryFullName);
+    return result.artifactsDeleted;
+  }
+
+  static String _cleanupMessage(Object error) {
+    if (error is AppException) return error.message;
+    final value = error.toString().trim();
+    return value.isEmpty ? 'falha não identificada' : value;
   }
 
   static String _safeAssetName(String value) {

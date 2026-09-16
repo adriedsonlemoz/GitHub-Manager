@@ -472,10 +472,12 @@ class _ReleaseAssetCard extends StatelessWidget {
   const _ReleaseAssetCard({
     required this.asset,
     required this.onDownload,
+    this.onDelete,
   });
 
   final ReleaseAsset asset;
   final VoidCallback onDownload;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -583,6 +585,15 @@ class _ReleaseAssetCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
+                  if (onDelete != null) ...[
+                    IconButton(
+                      onPressed: onDelete,
+                      tooltip: 'Excluir arquivo da Release',
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                   FilledButton.icon(
                     onPressed: onDownload,
                     icon: const Icon(Icons.download_rounded, size: 17),

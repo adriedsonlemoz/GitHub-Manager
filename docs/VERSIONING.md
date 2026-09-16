@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.69+200083`
+`version: 2.0.70+200084`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.70+200084` refatora as telas grandes de Configurações, Detalhe do repositório, Builds/Detalhe da build e APKs/Releases e torna a exclusão de builds responsável também pela limpeza de artifacts e APKs de Release vinculados com segurança ao mesmo commit.
 
 A versão `2.0.69+200083` corrige a referência de `_shortSha` fora do escopo em `UploadProgressDialog`, compartilhando o helper no nível do arquivo e restaurando a compilação/CI da tela de progresso de envio.
 
