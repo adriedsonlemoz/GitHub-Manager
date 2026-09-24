@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/app/theme/app_theme_controller.dart';
@@ -7,6 +6,7 @@ import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/core/widgets/installed_version_banner.dart';
 import 'package:github_manager/features/auth/presentation/auth_providers.dart';
@@ -240,15 +240,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   children: const [
                     _ChangeNote(
                       version: '2.0.78',
+                      text: 'Fecha o fluxo de envio por branch: permissões contextuais, retorno correto da política de build, Builds globais com atualização automática e abertura da execução exata.',
+                    ),
+                    _ChangeNote(
+                      version: '2.0.77',
                       text: 'Adiciona escolha da branch ao enviar versões, uma tela global de Builds e trata projetos sem workflow como envios válidos sem build.',
                     ),
                     _ChangeNote(
                       version: '2.0.73',
                       text: 'Corrige os erros de análise nos testes de limpeza de builds detectados pelos logs Android/CI 63.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.72',
-                      text: 'Refatora ManagedUpload em componentes internos separados para estado, diagnóstico, ciclo de vida, relatório e serialização, preservando a API usada pelas telas e pela fila.',
                     ),
                   ],
                 ),

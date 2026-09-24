@@ -1,6 +1,17 @@
 # Changelog
 
-## 2.0.78+200092 — 2026-09-23
+## 2.0.78+200092 — 2026-09-24
+
+- Corrige o retorno do diálogo final de **Enviar versão** para `ManagedUploadBuildPolicy`, eliminando o retorno indevido de `bool` que podia falhar em execução.
+- O pré-check passa a usar a **branch selecionada** e separa permissões por operação: sincronização normal, alteração real de `.github/workflows` e disparo de GitHub Actions.
+- PAT clássico usa `repo` para sincronização/`workflow_dispatch` e exige `workflow` apenas quando o envio realmente altera workflows; fine-grained sinaliza `Contents: write`, `Workflows: write` e `Actions: write` nos contextos correspondentes.
+- A preferência da última branch virou best-effort; falha ao listar branches agora mostra erro e opção de tentar novamente, sem fingir que apenas a branch padrão existe ou que ela não é protegida.
+- A aba global **Builds** abre a execução exata por `runId`, filtra a lista pela branch de origem e atualiza automaticamente a cada 10 s com builds ativas ou 60 s quando estável.
+- Estados `requested` e `pending` passam a ser tratados como execução ativa, evitando exibir build ainda não concluída como concluída.
+- O fallback tardio `APK_WORKFLOW_NOT_FOUND` converte a política para `skipNoWorkflow`, mantendo o rótulo **Não utilizada neste projeto** também quando a ausência só é descoberta após o upload.
+- Adicionados testes de widget/regressão para o tipo retornado pela confirmação, navegação Builds global → execução específica, estados ativos, branch do pré-check e permissões contextuais; removidos resíduos/warnings ligados à reorganização de Projetos.
+
+## 2.0.77+200091 — 2026-09-23
 
 - Corrige a suíte `TokenPermissionDiagnosticsService`: o diagnóstico de **Contents** para PAT clássico volta a exigir apenas `repo`, alinhado ao fluxo atual de sincronização do projeto sem build.
 - Mantém `repo + workflow` exclusivamente para operações de **Actions/Build**, preservando a separação introduzida nas versões 2.0.74–2.0.76.

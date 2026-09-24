@@ -2,6 +2,14 @@
 
 Estado atual: `2.0.78+200092`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
+## Estabilização 2.0.78
+
+- envio por ZIP seleciona a branch antes do pré-check e diagnostica essa branch específica;
+- permissões são contextuais: Contents para sincronização, Workflows apenas quando `.github/workflows` muda e Actions somente quando a build será disparada;
+- Builds globais possuem polling adaptativo, filtro de branch e deep-link por `runId` para abrir a execução específica;
+- projetos cuja ausência de workflow só é descoberta após o upload são normalizados para `skipNoWorkflow`;
+- seleção/persistência de branch é resiliente a falhas locais e falha de listagem remota exige retry explícito.
+
 ## Arquitetura
 
 Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado diretamente pelo aparelho.

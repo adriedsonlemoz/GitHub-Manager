@@ -53,11 +53,13 @@ class RepositoryBranch {
     required this.name,
     required this.sha,
     required this.isProtected,
+    this.protectionKnown = true,
   });
 
   final String name;
   final String sha;
   final bool isProtected;
+  final bool protectionKnown;
 
   factory RepositoryBranch.fromJson(Map<String, dynamic> json) {
     final commit = json['commit'];
@@ -176,11 +178,11 @@ class RepositoryWorkflowRun {
   final String? buildVersion;
 
   bool get isRunning => const <String>{
+        'requested',
+        'pending',
         'queued',
         'in_progress',
         'waiting',
-        'pending',
-        'requested',
       }.contains(status);
 
   String get shortSha =>

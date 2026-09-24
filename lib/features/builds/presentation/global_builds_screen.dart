@@ -9,6 +9,12 @@ import 'package:go_router/go_router.dart';
 
 enum _GlobalBuildFilter { all, running, success, failure }
 
+String globalBuildRunLocation(GlobalBuildEntry entry) {
+  final branch = Uri.encodeQueryComponent(entry.branch);
+  return '/repositories/${entry.repository.fullName}/builds'
+      '?branch=$branch&filterBranch=$branch&runId=${entry.run.id}';
+}
+
 class GlobalBuildsScreen extends ConsumerStatefulWidget {
   const GlobalBuildsScreen({super.key});
 
@@ -18,42 +24,46 @@ class GlobalBuildsScreen extends ConsumerStatefulWidget {
 
 class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
   _GlobalBuildFilter _filter = _GlobalBuildFilter.all;
-  Timer? _pollTimer;
+  Timer? _autoRefreshTimer;
+  bool _refreshing = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _schedulePoll(const Duration(seconds: 15));
+  Future<void> _refresh({bool silent = false}) async {
+    if (_refreshing) return;
+    _refreshing = true;
+    try {
+      ref.invalidate(globalBuildsProvider);
+      await ref.read(globalBuildsProvider.future);
+    } catch (_) {
+      _scheduleRefreshRetry();
+      if (!silent) rethrow;
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  void _scheduleRefreshRetry() {
+    _autoRefreshTimer?.cancel();
+    if (!mounted) return;
+    _autoRefreshTimer = Timer(const Duration(seconds: 30), () {
+      if (mounted) unawaited(_refresh(silent: true));
+    });
+  }
+
+  void _scheduleAutoRefresh(GlobalBuildsSnapshot snapshot) {
+    _autoRefreshTimer?.cancel();
+    if (!mounted) return;
+    final interval = snapshot.runningCount > 0
+        ? const Duration(seconds: 10)
+        : const Duration(seconds: 60);
+    _autoRefreshTimer = Timer(interval, () {
+      if (mounted) unawaited(_refresh(silent: true));
+    });
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _autoRefreshTimer?.cancel();
     super.dispose();
-  }
-
-  void _schedulePoll(Duration delay) {
-    _pollTimer?.cancel();
-    _pollTimer = Timer(delay, () async {
-      if (!mounted) return;
-      try {
-        await _refresh();
-      } catch (_) {
-        // Mantém a fotografia anterior; próxima tentativa continua agendada.
-      }
-      if (!mounted) return;
-      final snapshot = ref.read(globalBuildsProvider).valueOrNull;
-      _schedulePoll(
-        (snapshot?.runningCount ?? 0) > 0
-            ? const Duration(seconds: 6)
-            : const Duration(seconds: 30),
-      );
-    });
-  }
-
-  Future<void> _refresh() async {
-    ref.invalidate(globalBuildsProvider);
-    await ref.read(globalBuildsProvider.future);
   }
 
   List<GlobalBuildEntry> _filtered(GlobalBuildsSnapshot snapshot) {
@@ -121,6 +131,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
             ],
           ),
           data: (snapshot) {
+            _scheduleAutoRefresh(snapshot);
             final entries = _filtered(snapshot);
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -173,9 +184,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: _GlobalBuildCard(
                         entry: entry,
-                        onTap: () => context.push(
-                          '/repositories/${entry.repository.fullName}/builds?branch=${Uri.encodeQueryComponent(entry.branch)}&runId=${entry.run.id}',
-                        ),
+                        onTap: () => context.push(globalBuildRunLocation(entry)),
                       ),
                     ),
                   ),
@@ -328,14 +337,17 @@ class _GlobalBuildCard extends StatelessWidget {
   }
 
   static (IconData, String) _status(String status, String? conclusion) {
-    if (status == 'queued' ||
-        status == 'waiting' ||
-        status == 'pending' ||
-        status == 'requested') {
+    if (status == 'requested' || status == 'pending') {
+      return (Icons.hourglass_top_rounded, 'Preparando');
+    }
+    if (status == 'queued' || status == 'waiting') {
       return (Icons.schedule_rounded, 'Fila');
     }
     if (status == 'in_progress') {
       return (Icons.sync_rounded, 'Executando');
+    }
+    if (status != 'completed' && conclusion == null) {
+      return (Icons.sync_rounded, 'Em andamento');
     }
     return switch (conclusion) {
       'success' => (Icons.check_circle_outline_rounded, 'Sucesso'),
@@ -347,9 +359,7 @@ class _GlobalBuildCard extends StatelessWidget {
       'stale' => (Icons.hourglass_disabled_rounded, 'Obsoleta'),
       'neutral' => (Icons.remove_circle_outline_rounded, 'Neutra'),
       'failure' => (Icons.error_outline_rounded, 'Falhou'),
-      _ => conclusion == null
-          ? (Icons.hourglass_top_rounded, 'Pendente')
-          : (Icons.info_outline_rounded, 'Concluída'),
+      _ => (Icons.info_outline_rounded, 'Concluída'),
     };
   }
 

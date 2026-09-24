@@ -488,6 +488,8 @@ void main() {
     expect(item.status, ManagedUploadStatus.completed);
     expect(item.branch, 'dev');
     expect(item.phase, 'Projeto atualizado • Sem workflow de build');
+    expect(item.buildPolicy, ManagedUploadBuildPolicy.skipNoWorkflow);
+    expect(item.buildTriggerLabel, 'Não utilizada neste projeto');
     expect(item.errorCode, isNull);
     expect(item.canRetry, isFalse);
     expect(item.logLines.join(' '), contains('envio concluído sem build'));

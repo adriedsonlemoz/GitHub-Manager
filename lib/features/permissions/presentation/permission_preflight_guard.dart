@@ -10,10 +10,11 @@ Future<bool> ensureRepositoryPermission(
   WidgetRef ref, {
   required String repositoryFullName,
   required RepositoryCriticalAction action,
+  String? branch,
 }) async {
   final decision = await ref
       .read(permissionPreflightServiceProvider)
-      .check(repositoryFullName, action);
+      .check(repositoryFullName, action, branch: branch);
   if (!context.mounted || !decision.blocked) return !decision.blocked;
 
   final openDiagnostics = await showDialog<bool>(

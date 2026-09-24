@@ -25,15 +25,17 @@ class RepositoryActionsScreen extends ConsumerStatefulWidget {
   const RepositoryActionsScreen({
     required this.repositoryFullName,
     required this.defaultBranch,
-    this.readOnly = false,
+    this.branchFilter,
     this.initialRunId,
+    this.readOnly = false,
     super.key,
   });
 
   final String repositoryFullName;
   final String defaultBranch;
-  final bool readOnly;
+  final String? branchFilter;
   final int? initialRunId;
+  final bool readOnly;
 
   @override
   ConsumerState<RepositoryActionsScreen> createState() =>
@@ -150,7 +152,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
             }
 
             final data = retained!;
-            final runs = data.runs;
+            final runs = _filterRunsForBranch(data.runs);
             final runGroups = _groupRuns(runs);
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -179,6 +181,19 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                 if (_showDiagnostics || runs.isEmpty) ...[
                   const SizedBox(height: 7),
                   _ActionsDiagnosticCard(diagnostic: data.diagnostic),
+                ],
+                if (widget.branchFilter?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 7),
+                  Card(
+                    child: ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.account_tree_outlined),
+                      title: Text('Branch: ${widget.branchFilter!.trim()}'),
+                      subtitle: const Text(
+                        'Exibindo somente as execuções desta branch.',
+                      ),
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 8),
                 Row(
@@ -306,6 +321,7 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
         'in_progress' => 'Em andamento',
         'waiting' => 'Aguardando',
         'pending' => 'Pendente',
+        'requested' => 'Solicitada',
         _ => run.status,
       };
     }

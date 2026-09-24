@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
@@ -31,6 +31,13 @@ import 'package:go_router/go_router.dart';
 
 part 'repository_detail_widgets.dart';
 part 'repository_detail_screen_actions.dart';
+
+void completeUploadPolicyDialog(
+  BuildContext dialogContext,
+  ManagedUploadBuildPolicy buildPolicy,
+) {
+  Navigator.pop<ManagedUploadBuildPolicy>(dialogContext, buildPolicy);
+}
 
 class RepositoryDetailScreen extends ConsumerStatefulWidget {
   const RepositoryDetailScreen({

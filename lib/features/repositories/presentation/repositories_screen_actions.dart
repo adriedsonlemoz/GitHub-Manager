@@ -5,33 +5,6 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
   set _section(int value);
   Future<void> _refresh();
 
-  Future<void> _editGitHubProfile(GitHubProfile profile) async {
-    final draft = await showGitHubProfileEditDialog(context, profile);
-    if (draft == null || !mounted) return;
-    try {
-      await ref.read(githubProfileRepositoryProvider).updateProfile(
-            name: draft.name,
-            email: draft.email,
-            blog: draft.blog,
-            twitterUsername: draft.twitterUsername,
-            company: draft.company,
-            location: draft.location,
-            bio: draft.bio,
-            hireable: draft.hireable,
-          );
-      ref.invalidate(githubProfileProvider);
-      if (mounted) {
-        showCenteredNotice(
-          context,
-          'Perfil atualizado no GitHub.',
-          kind: CenteredNoticeKind.success,
-        );
-      }
-    } catch (error) {
-      if (mounted) _showError(error);
-    }
-  }
-
   Future<void> _createRepository() async {
     final result = await showCreateRepositoryDialog(context);
     if (result == null || !mounted) return;
@@ -398,8 +371,6 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
             repository.fullName,
           );
       if (!mounted) return;
-      if (fork.fullName.isNotEmpty) {
-      }
       showCenteredNotice(context, fork.fullName.isEmpty
                 ? 'Fork solicitado ao GitHub. Ele pode levar alguns segundos para aparecer.'
                 : 'Fork criado: ${fork.fullName}');
