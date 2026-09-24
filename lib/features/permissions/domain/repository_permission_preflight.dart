@@ -1,6 +1,7 @@
 import 'package:github_manager/features/permissions/domain/repository_permission_report.dart';
 
 enum RepositoryCriticalAction {
+  syncProject,
   sendBuild,
   manageFiles,
   manageSecrets,
@@ -31,6 +32,7 @@ class RepositoryPermissionPreflightDecision {
   bool get mayProceed => !blocked;
 
   String get actionLabel => switch (action) {
+        RepositoryCriticalAction.syncProject => 'Enviar nova versão',
         RepositoryCriticalAction.sendBuild => 'Enviar build',
         RepositoryCriticalAction.manageFiles => 'Gerenciar arquivos',
         RepositoryCriticalAction.manageSecrets => 'Gerenciar Secrets',

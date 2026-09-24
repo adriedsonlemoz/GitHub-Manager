@@ -144,6 +144,9 @@ class PermissionPreflightService {
     }
 
     switch (action) {
+      case RepositoryCriticalAction.syncProject:
+        add(RepositoryPermissionArea.contents);
+        break;
       case RepositoryCriticalAction.sendBuild:
         add(RepositoryPermissionArea.contents);
         add(RepositoryPermissionArea.actions);

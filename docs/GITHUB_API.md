@@ -20,9 +20,9 @@ Se o filtro retornar zero, o app tenta diagnosticar também:
 A interface diferencia API vazia, filtro sem correspondência e erro de consulta. O diagnóstico nunca inclui token ou `Authorization`.
 
 
-## Enviar build após sincronização
+## Enviar nova versão e build opcional após sincronização
 
-O fluxo `Enviar build` não assume mais que atualizar `refs/heads/{branch}` significa que o Actions iniciou. Depois do commit, o app consulta `GET /repos/{owner}/{repo}/actions/runs?head_sha={sha}` e procura especificamente a execução do workflow de APK.
+O fluxo `Enviar nova versão` não assume mais que atualizar `refs/heads/{branch}` significa que o Actions iniciou. Depois do commit, o app consulta `GET /repos/{owner}/{repo}/actions/runs?head_sha={sha}` e procura especificamente a execução do workflow de APK. Antes dessa espera, o app inspeciona os workflows da branch; se não houver workflow de APK compatível, conclui o upload sem tratar a ausência de Actions como erro.
 
 Se o APK não aparecer após algumas verificações, o app inspeciona o conteúdo dos workflows ativos. A seleção manual exige duas evidências estruturais: `workflow_dispatch` no bloco `on` e uma etapa em `jobs` que realmente gere ou publique APK. O nome do arquivo serve apenas para priorizar a busca. Em repositórios recém-criados, o fallback examina todos os YAMLs de `.github/workflows`, sem depender de `android-apk.yml`.
 

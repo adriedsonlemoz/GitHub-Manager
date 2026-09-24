@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
+import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
@@ -22,6 +23,7 @@ import 'package:github_manager/features/repositories/domain/repository_project_i
 import 'package:github_manager/features/repositories/presentation/repository_management_dialogs.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/repositories/presentation/technology_badge.dart';
+import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 import 'package:github_manager/features/uploads/presentation/upload_progress_dialog.dart';
 import 'package:github_manager/features/uploads/presentation/upload_providers.dart';

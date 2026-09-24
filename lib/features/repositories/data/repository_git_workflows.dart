@@ -35,6 +35,41 @@ mixin _RepositoryGitWorkflowOperations
     return workflows;
   }
 
+  Future<bool> hasApkBuildWorkflow({
+    required String repositoryFullName,
+    required String branch,
+  }) async {
+    List<RepositoryWorkflow> workflows = const <RepositoryWorkflow>[];
+    try {
+      workflows = await listWorkflows(repositoryFullName);
+    } catch (_) {
+      // A API de Actions pode não estar disponível para o token. A inspeção
+      // dos YAMLs via Contents ainda consegue confirmar a presença do workflow.
+    }
+
+    if (workflows.isNotEmpty) {
+      final structural = await _findStructuralApkWorkflows(
+        repositoryFullName: repositoryFullName,
+        branch: branch,
+        workflows: workflows,
+      );
+      if (structural.isNotEmpty) return true;
+    }
+
+    final scan = await _scanWorkflowFiles(
+      repositoryFullName: repositoryFullName,
+      branch: branch,
+    );
+    if (scan.hasApkWorkflow) return true;
+    if (scan.inspectionIncomplete) {
+      throw const RepositoryFileException(
+        'Não foi possível confirmar os workflows desta branch.',
+        code: 'APK_WORKFLOW_INSPECTION_FAILED',
+      );
+    }
+    return false;
+  }
+
   Future<bool> workflowSupportsDispatch({
     required String repositoryFullName,
     required String branch,
@@ -129,15 +164,36 @@ mixin _RepositoryGitWorkflowOperations
 
     List<RepositoryWorkflow>? knownWorkflows;
     List<RepositoryWorkflow>? knownApkWorkflows;
+    _WorkflowFileScan? initialWorkflowScan;
+
+    try {
+      knownWorkflows = await listWorkflows(repositoryFullName);
+    } catch (_) {
+      knownWorkflows = const [];
+    }
+    if (knownWorkflows!.isNotEmpty) {
+      knownApkWorkflows = await _findStructuralApkWorkflows(
+        repositoryFullName: repositoryFullName,
+        branch: branch,
+        workflows: knownWorkflows!,
+      );
+    }
+    if (knownApkWorkflows?.isNotEmpty != true) {
+      initialWorkflowScan = await _scanWorkflowFiles(
+        repositoryFullName: repositoryFullName,
+        branch: branch,
+      );
+      if (!initialWorkflowScan.hasApkWorkflow &&
+          !initialWorkflowScan.inspectionIncomplete) {
+        throw const RepositoryFileException(
+          'Esta branch não possui workflow de build de APK. O projeto pode ser atualizado normalmente sem GitHub Actions.',
+          code: 'APK_WORKFLOW_NOT_FOUND',
+        );
+      }
+    }
 
     Future<List<RepositoryWorkflow>> loadKnownWorkflows() async {
-      if (knownWorkflows != null) return knownWorkflows!;
-      try {
-        knownWorkflows = await listWorkflows(repositoryFullName);
-      } catch (_) {
-        knownWorkflows = const [];
-      }
-      return knownWorkflows!;
+      return knownWorkflows ?? const <RepositoryWorkflow>[];
     }
 
     Future<List<RepositoryWorkflowRun>> filterApkRuns(
@@ -254,10 +310,11 @@ mixin _RepositoryGitWorkflowOperations
 
     // Workflows recém-criados podem demorar a aparecer em /actions/workflows.
     // Por isso a fonte de verdade final são os YAMLs reais da branch.
-    final workflowScan = await _scanWorkflowFiles(
-      repositoryFullName: repositoryFullName,
-      branch: branch,
-    );
+    final workflowScan = initialWorkflowScan ??
+        await _scanWorkflowFiles(
+          repositoryFullName: repositoryFullName,
+          branch: branch,
+        );
     final fileWorkflow = workflowScan.firstDispatch;
 
     if (fileWorkflow != null) {
@@ -342,6 +399,13 @@ mixin _RepositoryGitWorkflowOperations
       );
     }
 
+    if (workflowScan.inspectionIncomplete) {
+      throw const RepositoryFileException(
+        'O projeto foi enviado, mas não foi possível confirmar com segurança se a branch possui um workflow de APK. Tente verificar a build novamente.',
+        code: 'APK_WORKFLOW_INSPECTION_FAILED',
+      );
+    }
+
     throw const RepositoryFileException(
       'O projeto foi enviado, mas não foi encontrado nenhum workflow em .github/workflows que gere APK.',
       code: 'APK_WORKFLOW_NOT_FOUND',
@@ -379,7 +443,7 @@ mixin _RepositoryGitWorkflowOperations
         branch: branch,
         path: '.github/workflows',
       );
-    } catch (_) {
+    } on GitHubNotFoundException {
       return const _WorkflowFileScan(apkCandidates: []);
     }
 
@@ -397,6 +461,7 @@ mixin _RepositoryGitWorkflowOperations
       ...yamlFiles.where((item) => !_contentItemLooksLikeApkWorkflow(item)),
     ];
     final apkCandidates = <_WorkflowFileInspection>[];
+    var inspectionIncomplete = false;
 
     for (final item in preferred) {
       try {
@@ -415,10 +480,14 @@ mixin _RepositoryGitWorkflowOperations
           ),
         );
       } catch (_) {
+        inspectionIncomplete = true;
         // Um YAML indisponível não impede verificar os demais.
       }
     }
-    return _WorkflowFileScan(apkCandidates: apkCandidates);
+    return _WorkflowFileScan(
+      apkCandidates: apkCandidates,
+      inspectionIncomplete: inspectionIncomplete,
+    );
   }
 
   Future<_WorkflowFileCandidate?> _findApkDispatchWorkflowFile({

@@ -1,6 +1,6 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.73+200087`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.74+200088`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 ## Arquitetura
 
@@ -195,3 +195,12 @@ Se um ZIP gerar a mesma árvore Git já publicada, não criar commit nem build a
 - correção: `const leftover = ActionArtifact(...)`;
 - nenhuma lógica de `BuildCleanupService` foi alterada;
 - manter o teste de exclusão de artifact remanescente para prevenir regressões no vínculo Build → Artifact/APK.
+
+## Branch de envio, Builds globais e projetos sem workflow — 2.0.74
+
+- O envio permite escolher a branch e persiste localmente a última branch usada por repositório.
+- `RepositoryProjectInfoService.load(..., branch:)` compara os metadados contra a branch escolhida.
+- A navegação principal agora é Projetos / Builds / Downloads / Perfil / Opções; Acompanhados fica dentro de Projetos.
+- `GlobalBuildsService` reúne até cinco runs recentes por repositório em lotes, sem enriquecimento de versão para evitar chamadas extras.
+- `APK_WORKFLOW_NOT_FOUND` deixa de ser falha de build na Central de Envios: o item termina como concluído sem workflow.
+- O preflight `syncProject` exige Contents, enquanto `sendBuild` continua exigindo Contents + Actions para operações explicitamente ligadas ao Actions.

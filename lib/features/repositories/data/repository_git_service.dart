@@ -46,9 +46,11 @@ class _WorkflowFileCandidate {
 class _WorkflowFileScan {
   const _WorkflowFileScan({
     required this.apkCandidates,
+    this.inspectionIncomplete = false,
   });
 
   final List<_WorkflowFileInspection> apkCandidates;
+  final bool inspectionIncomplete;
 
   bool get hasApkWorkflow => apkCandidates.isNotEmpty;
   bool get hasPush => apkCandidates.any((item) => item.info.supportsPush);

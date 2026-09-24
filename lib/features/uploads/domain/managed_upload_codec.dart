@@ -22,6 +22,7 @@ class _ManagedUploadCodec {
         'applicationId': item.applicationId,
         'version': item.version,
         'versionCode': item.versionCode,
+        'buildPolicy': item.buildPolicy.name,
         'status': item.status.name,
         'createdAt': item.createdAt.toIso8601String(),
         'phase': item.phase,
@@ -83,6 +84,10 @@ class _ManagedUploadCodec {
       applicationId: json['applicationId']?.toString(),
       version: json['version']?.toString(),
       versionCode: (json['versionCode'] as num?)?.toInt(),
+      buildPolicy: ManagedUploadBuildPolicy.values.firstWhere(
+        (value) => value.name == json['buildPolicy']?.toString(),
+        orElse: () => ManagedUploadBuildPolicy.automatic,
+      ),
       status: ManagedUploadStatus.values.firstWhere(
         (value) => value.name == statusName,
         orElse: () => ManagedUploadStatus.interrupted,

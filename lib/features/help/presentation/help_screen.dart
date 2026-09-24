@@ -13,7 +13,7 @@ class HelpScreen extends StatelessWidget {
             SizedBox(height: 12),
             _HelpTopic(
               icon: Icons.verified_user_outlined,
-              title: 'Conferir build: identidade e versão',
+              title: 'Conferir envio: identidade, versão e branch',
               children: [
                 Text(
                   'Antes de enviar um ZIP, o GitHub Manager compara as pistas de identidade e a versão do projeto com o repositório aberto. O nome do ZIP é apenas uma pista; applicationId, pacote e metadados internos são mais confiáveis.',
@@ -30,7 +30,7 @@ class HelpScreen extends StatelessWidget {
                 _HelpBullet('Também são reconhecidos github-manager.json e arquivo VERSION.'),
                 SizedBox(height: 8),
                 Text(
-                  'Depois de ajustar a fonte de versão, gere um novo ZIP e abra novamente Enviar build. O quadro de conferência mostrará a versão do projeto a enviar, e não a versão instalada do GitHub Manager.',
+                  'Depois de ajustar a fonte de versão, gere um novo ZIP e abra novamente Enviar nova versão. O quadro de conferência mostrará a versão do projeto a enviar, e não a versão instalada do GitHub Manager.',
                 ),
               ],
             ),
@@ -40,10 +40,11 @@ class HelpScreen extends StatelessWidget {
               title: 'Envio de projetos',
               children: [
                 Text(
-                  'Enviar build sincroniza o conteúdo do ZIP com a branch selecionada. Arquivos antigos que não existem mais no ZIP também podem ser removidos do repositório.',
+                  'Enviar nova versão permite escolher a branch e sincroniza o conteúdo do ZIP com esse destino. Arquivos antigos que não existem mais no ZIP também podem ser removidos do repositório.',
                 ),
                 SizedBox(height: 8),
                 _HelpBullet('Confira projeto, versão, repositório e branch antes de confirmar.'),
+                _HelpBullet('Projetos sem workflow podem ser enviados normalmente; nesse caso não existe build para iniciar.'),
                 _HelpBullet('Uma regressão de versão é permitida, mas aparece como aviso.'),
                 _HelpBullet('Divergências fortes de identidade exigem confirmação adicional.'),
                 _HelpBullet('Se o ZIP for idêntico ao GitHub, o app evita criar commit desnecessário.'),

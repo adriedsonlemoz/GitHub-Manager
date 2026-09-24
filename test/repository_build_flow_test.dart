@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/core/security/secure_storage_service.dart';
 import 'package:github_manager/features/repositories/data/repository_git_service.dart';
@@ -68,6 +69,35 @@ void main() {
 
     expect(result.dispatchTriggered, isFalse);
     expect(service.dispatchCount, 0);
+  });
+
+  test('project without APK workflow is completed as a no-build project', () async {
+    final service = _NoWorkflowRepositoryGitService();
+
+    final hasWorkflow = await service.hasApkBuildWorkflow(
+      repositoryFullName: 'owner/scripts',
+      branch: 'main',
+    );
+    expect(hasWorkflow, isFalse);
+
+    await expectLater(
+      service.ensureBuildForCommit(
+        repositoryFullName: 'owner/scripts',
+        branch: 'main',
+        commitSha: 'abc1234',
+        verificationAttempts: 1,
+        verificationDelay: Duration.zero,
+        postDispatchDelay: Duration.zero,
+      ),
+      throwsA(
+        isA<RepositoryFileException>().having(
+          (error) => error.technicalCode,
+          'technicalCode',
+          'APK_WORKFLOW_NOT_FOUND',
+        ),
+      ),
+    );
+    expect(service.runChecks, 0);
   });
 
   test('dispatches generic structurally valid Release workflow once', () async {
@@ -154,5 +184,33 @@ jobs:
   }) async {
     dispatchCount++;
     return 999;
+  }
+}
+
+class _NoWorkflowRepositoryGitService extends RepositoryGitService {
+  _NoWorkflowRepositoryGitService()
+      : super(GitHubApiClient(SecureStorageService()));
+
+  int runChecks = 0;
+
+  @override
+  Future<List<RepositoryWorkflow>> listWorkflows(String repositoryFullName) async =>
+      const <RepositoryWorkflow>[];
+
+  @override
+  Future<List<RepositoryContentItem>> listContents({
+    required String repositoryFullName,
+    required String branch,
+    String path = '',
+  }) async =>
+      const <RepositoryContentItem>[];
+
+  @override
+  Future<List<RepositoryWorkflowRun>> listWorkflowRunsForCommit({
+    required String repositoryFullName,
+    required String commitSha,
+  }) async {
+    runChecks++;
+    return const <RepositoryWorkflowRun>[];
   }
 }

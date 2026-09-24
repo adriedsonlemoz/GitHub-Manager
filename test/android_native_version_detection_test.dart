@@ -66,12 +66,35 @@ android {
     expect(info.versionCode, 100032);
     expect(info.technologies, contains('Kotlin'));
   });
+
+  test('leitura do repositório respeita a branch escolhida para o envio', () async {
+    final client = _FakeGitHubApiClient(nativeGradle);
+    final service = RepositoryProjectInfoService(client);
+    const repository = GitHubRepository(
+      id: 1,
+      name: 'Nomade-Raiz',
+      fullName: 'owner/Nomade-Raiz',
+      isPrivate: false,
+      isArchived: false,
+      defaultBranch: 'main',
+      updatedAt: null,
+      htmlUrl: 'https://github.com/owner/Nomade-Raiz',
+      language: 'Kotlin',
+    );
+
+    await service.load(repository, branch: 'develop');
+
+    expect(client.requestedRefs, isNotEmpty);
+    expect(client.requestedRefs, everyElement('develop'));
+  });
+
 }
 
 class _FakeGitHubApiClient extends GitHubApiClient {
   _FakeGitHubApiClient(this.gradle) : super(SecureStorageService());
 
   final String gradle;
+  final List<String> requestedRefs = <String>[];
 
   @override
   Future<Response<T>> get<T>(
@@ -79,6 +102,8 @@ class _FakeGitHubApiClient extends GitHubApiClient {
     Map<String, dynamic>? queryParameters,
     CancelToken? cancelToken,
   }) async {
+    final ref = queryParameters?['ref'];
+    if (ref is String) requestedRefs.add(ref);
     dynamic data;
     if (path == '/repos/owner/Nomade-Raiz/contents') {
       data = <dynamic>[

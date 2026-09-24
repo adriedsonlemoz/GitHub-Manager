@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.74+200088 — 2026-09-23
+
+- O envio de uma nova versão agora permite escolher a branch de destino antes da conferência; a última branch escolhida por repositório é lembrada localmente e branches protegidas são identificadas.
+- A comparação de identidade/versão do projeto passa a consultar a branch realmente selecionada, evitando comparar `dev`/`release` contra `main`.
+- Adicionada a aba global **Builds** no menu inferior, reunindo as execuções recentes do GitHub Actions de todos os projetos e permitindo filtrar por executando, sucesso ou falha.
+- **Acompanhados** foi movido para dentro de Projetos em um seletor `Meus projetos / Acompanhados`, mantendo cinco itens no menu inferior.
+- Projetos sem workflow de APK, como scripts e utilitários que não precisam de compilação, agora são identificados já na conferência e terminam como **Projeto atualizado • Sem workflow de build**, sem falso erro ou estado de build pendente.
+- O pré-check de **Enviar nova versão** exige somente permissão de Contents; permissões de Actions continuam necessárias apenas para operações de build.
+- Quando um workflow de APK é detectado, a conferência permite desmarcar **Iniciar build após o envio**; nesse caso o projeto é sincronizado sem consultar/disparar Actions.
+- A detecção de ausência de workflow foi antecipada para evitar espera desnecessária antes de concluir projetos que não utilizam GitHub Actions; falhas de rede/API durante a inspeção continuam sendo tratadas como diagnóstico pendente, não como ausência de workflow.
+- Testes foram ampliados para cobrir branch específica, projeto sem workflow e a separação de permissões entre sincronização e build.
+
 ## 2.0.73+200087 — 2026-09-16
 
 - Corrigidos os dois erros `non_constant_list_element` detectados nos logs Android APK 63 e CI 63.

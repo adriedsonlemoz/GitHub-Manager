@@ -215,7 +215,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      bottomNavigationBar: AppMainNavigation(selectedIndex: _showingFollowed ? 3 : 0),
+      bottomNavigationBar: const AppMainNavigation(selectedIndex: 0),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: CustomScrollView(
@@ -286,6 +286,37 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
               sliver: SliverToBoxAdapter(
                 child: Column(
                   children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<int>(
+                        segments: const [
+                          ButtonSegment<int>(
+                            value: 0,
+                            icon: Icon(Icons.folder_outlined),
+                            label: Text('Meus projetos'),
+                          ),
+                          ButtonSegment<int>(
+                            value: 1,
+                            icon: Icon(Icons.bookmark_outline_rounded),
+                            label: Text('Acompanhados'),
+                          ),
+                        ],
+                        selected: {_section},
+                        onSelectionChanged: (selection) {
+                          final value = selection.first;
+                          if (value == _section) return;
+                          setState(() {
+                            _section = value;
+                            _query = '';
+                            _filter = 'Todos';
+                            _sort = RepositorySort.updatedDesc;
+                            _searchController.clear();
+                          });
+                          _scheduleRepositoryReconciliation();
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     SearchBar(
                       controller: _searchController,
                       hintText: _showingFollowed ? 'Pesquisar acompanhado' : 'Pesquisar projeto',

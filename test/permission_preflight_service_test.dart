@@ -23,6 +23,23 @@ void main() {
       expect(decision.requiredPermissions, contains('repo'));
     });
 
+    test('Enviar nova versão exige Contents, mas não Actions', () async {
+      final gateway = _CountingGateway(
+        token: 'ghp_teste',
+        oauthScopes: 'repo',
+        admin: true,
+      );
+      final service = _service(gateway);
+
+      final decision = await service.check(
+        'owner/repo',
+        RepositoryCriticalAction.syncProject,
+      );
+
+      expect(decision.blocked, isFalse);
+      expect(decision.requiredPermissions, isEmpty);
+    });
+
     test('PAT fine-grained inconclusivo não é bloqueado preventivamente', () async {
       final gateway = _CountingGateway(
         token: 'github_pat_teste',

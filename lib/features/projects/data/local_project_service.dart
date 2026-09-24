@@ -236,6 +236,11 @@ class LocalProjectService {
       applicationId: detectedApplicationId,
       version: detectedVersion,
       versionCode: detectedVersionCode,
+      hasWorkflowFiles: paths.any((rawPath) {
+        final normalized = rawPath.replaceAll('\\', '/').toLowerCase();
+        return normalized.startsWith('.github/workflows/') ||
+            normalized.contains('/.github/workflows/');
+      }),
     );
   }
 

@@ -146,6 +146,7 @@ class UploadManagerService {
     required ZipProjectPreview project,
     required String repositoryFullName,
     required String branch,
+    ManagedUploadBuildPolicy buildPolicy = ManagedUploadBuildPolicy.automatic,
   }) {
     final duplicate = _items.where((item) => item.isActive).firstWhereOrNull(
           (item) =>
@@ -178,6 +179,7 @@ class UploadManagerService {
       applicationId: project.applicationId,
       version: project.version,
       versionCode: project.versionCode,
+      buildPolicy: buildPolicy,
       status: ManagedUploadStatus.queued,
       createdAt: DateTime.now(),
       total: project.fileCount,
@@ -282,6 +284,7 @@ class UploadManagerService {
     final item = find(id);
     if (item == null || item.isActive || !item.canRunBuildAnyway) return;
     item
+      ..buildPolicy = ManagedUploadBuildPolicy.automatic
       ..status = ManagedUploadStatus.queued
       ..phase = 'Aguardando execução da build'
       ..completedAt = null
@@ -363,6 +366,10 @@ class UploadManagerService {
     required bool? allowAutomaticRecovery,
   }) async {
     if (buildOnly) {
+      if (!item.shouldStartBuild) {
+        await _completeWithoutBuild(item);
+        return;
+      }
       await _runBuild(item);
       return;
     }
@@ -447,7 +454,7 @@ class UploadManagerService {
       await _persistHistory();
 
       if (!result.changed) {
-        if (continueBuildOnNoChanges) {
+        if (continueBuildOnNoChanges && item.shouldStartBuild) {
           item.addLog(
             'Retomada confirmou o commit atual; continuando para a build',
           );
@@ -468,10 +475,45 @@ class UploadManagerService {
       }
 
       item.addLog('Projeto sincronizado no commit ${_shortSha(result.commitSha)}');
+      if (!item.shouldStartBuild) {
+        await _completeWithoutBuild(item);
+        return;
+      }
       await _runBuild(item);
     } catch (error) {
       _fail(item, error, stage: 'upload');
     }
+  }
+
+  Future<void> _completeWithoutBuild(ManagedUpload item) async {
+    final noWorkflow =
+        item.buildPolicy == ManagedUploadBuildPolicy.skipNoWorkflow;
+    item
+      ..workflowName = null
+      ..workflowPath = null
+      ..workflowRunId = null
+      ..dispatchTriggered = false
+      ..status = ManagedUploadStatus.completed
+      ..phase = noWorkflow
+          ? 'Projeto atualizado • Sem workflow de build'
+          : 'Projeto atualizado • Build não solicitada'
+      ..completedAt = DateTime.now()
+      ..failedAt = null
+      ..errorMessage = null
+      ..errorCode = null
+      ..errorHttpStatus = null
+      ..errorEndpoint = null
+      ..errorApiMessage = null
+      ..failureStage = null
+      ..failureOperation = null;
+    item.addLog(
+      noWorkflow
+          ? 'Projeto sincronizado sem build porque esta branch não utiliza workflow de APK.'
+          : 'Projeto sincronizado sem iniciar build por escolha do usuário.',
+    );
+    _emit();
+    await _persistHistory();
+    await _deleteManagedZipIfSafe(item);
   }
 
   Future<void> _runBuild(ManagedUpload item) async {
@@ -544,6 +586,32 @@ class UploadManagerService {
       await _persistHistory();
       await _deleteManagedZipIfSafe(item);
     } catch (error) {
+      final appError = error is AppException ? error : null;
+      if (appError?.technicalCode == 'APK_WORKFLOW_NOT_FOUND') {
+        item
+          ..workflowName = null
+          ..workflowPath = null
+          ..workflowRunId = null
+          ..dispatchTriggered = false
+          ..status = ManagedUploadStatus.completed
+          ..phase = 'Projeto atualizado • Sem workflow de build'
+          ..completedAt = DateTime.now()
+          ..failedAt = null
+          ..errorMessage = null
+          ..errorCode = null
+          ..errorHttpStatus = null
+          ..errorEndpoint = null
+          ..errorApiMessage = null
+          ..failureStage = null
+          ..failureOperation = null;
+        item.addLog(
+          'Nenhum workflow de APK detectado nesta branch; envio concluído sem build.',
+        );
+        _emit();
+        await _persistHistory();
+        await _deleteManagedZipIfSafe(item);
+        return;
+      }
       _fail(item, error, stage: 'build');
     }
   }

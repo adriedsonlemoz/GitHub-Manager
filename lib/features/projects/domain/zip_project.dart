@@ -14,6 +14,7 @@ class ZipProjectPreview {
     this.applicationId,
     this.version,
     this.versionCode,
+    this.hasWorkflowFiles = false,
   });
 
   final String path;
@@ -30,6 +31,7 @@ class ZipProjectPreview {
   final String? applicationId;
   final String? version;
   final int? versionCode;
+  final bool hasWorkflowFiles;
 
   String get identityLabel =>
       projectName?.trim().isNotEmpty == true

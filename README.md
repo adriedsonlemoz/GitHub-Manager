@@ -1,6 +1,16 @@
-# GitHub Manager 2.0.70
+# GitHub Manager 2.0.74
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
+
+## Branch de envio, Builds globais e projetos sem workflow 2.0.74
+
+- **Enviar nova versão** permite escolher a branch de destino (`main`, `dev`, `release` ou outra existente) e lembra a última opção usada em cada repositório;
+- a conferência de identidade e versão usa a branch escolhida, não mais obrigatoriamente a branch padrão;
+- o menu inferior passa a ter **Projetos, Builds, Downloads, Perfil e Opções**; **Acompanhados** fica dentro de Projetos;
+- a nova tela **Builds** reúne execuções recentes de todos os projetos, ordenadas da mais nova para a mais antiga, com filtros para executando, sucesso e falha;
+- projetos sem workflow de APK são tratados como projetos válidos que apenas sincronizam arquivos: quando a ausência puder ser confirmada, isso já é explicado na conferência; o envio termina em **Projeto atualizado • Sem workflow de build** e não cria falso alerta de build;
+- quando há workflow de APK, a conferência permite manter marcada ou desmarcar **Iniciar build após o envio**; a permissão de Contents é suficiente para enviar uma nova versão e Actions só é necessária quando uma build for realmente solicitada;
+- a verificação de workflow é feita antes da janela de espera do Actions quando possível, reduzindo atraso em projetos que não usam CI.
 
 
 
@@ -145,7 +155,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.70+200084`;
+- versão: `2.0.74+200088`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
@@ -205,7 +215,7 @@ A CI também deixou de bloquear todo o pipeline por dívida de formatação pree
 
 ## Proteção preventiva de permissões 2.0.28
 
-Ações críticas agora consultam um diagnóstico em cache antes de chamar a API. `Enviar build` verifica as permissões de sincronização/Actions, operações de Secrets verificam `Secrets: write` e a exclusão permanente verifica a capacidade de exclusão. Quando uma negação já foi confirmada, a ação é interrompida antes de selecionar/enviar dados e o app mostra exatamente a permissão necessária, com acesso direto ao diagnóstico do token.
+Ações críticas agora consultam um diagnóstico antes de chamar a API. **Enviar nova versão** exige permissão de Contents para sincronizar arquivos; operações explicitamente ligadas ao GitHub Actions continuam validando Actions, operações de Secrets verificam `Secrets: write` e a exclusão permanente verifica a capacidade de exclusão. Quando uma negação já foi confirmada, a ação é interrompida antes de selecionar/enviar dados e o app mostra exatamente a permissão necessária, com acesso direto ao diagnóstico do token.
 
 O cache dura poucos minutos e usa uma impressão SHA-256 do token apenas em memória como parte da chave. Se o token for trocado, o diagnóstico antigo não é reutilizado. Resultados inconclusivos de PAT fine-grained não bloqueiam a operação: como o GitHub não oferece introspecção segura de todas as permissões de escrita, a chamada real continua sendo a autoridade final. Rate limit ou indisponibilidade temporária do diagnóstico também não são tratados como permissão ausente.
 
@@ -233,7 +243,7 @@ O desenvolvimento oficial usa `adriedsonlemoz/GitHub-Manager`. Validações de A
 
 A lista usa cache local e atualização paralela para abrir rapidamente. Cada acompanhado possui ação `Fork`, que cria uma cópia na conta conectada, e o diálogo de inclusão possui botão para colar a URL.
 
-A tela inicial separa `Meus repositórios` e `Acompanhados`. Repositórios públicos de outros desenvolvedores podem ser adicionados por URL ou `owner/repo`, sem criar outra sessão. Ao colar somente uma URL de perfil, como `github.com/usuario`, o app consulta os repositórios públicos daquela conta e permite escolher qual acompanhar. Eles são mantidos localmente como referências e abertos em modo somente leitura, com download do projeto e acesso a Releases/APKs quando disponíveis.
+A área Projetos possui um seletor interno entre `Meus projetos` e `Acompanhados`. Repositórios públicos de outros desenvolvedores podem ser adicionados por URL ou `owner/repo`, sem criar outra sessão. Ao colar somente uma URL de perfil, como `github.com/usuario`, o app consulta os repositórios públicos daquela conta e permite escolher qual acompanhar. Eles são mantidos localmente como referências e abertos em modo somente leitura, com download do projeto e acesso a Releases/APKs quando disponíveis.
 
 ## Notificações de Builds
 
@@ -247,12 +257,12 @@ A tela Builds usa `GET /repos/{owner}/{repo}/actions/runs` como fonte principal 
 
 A tela agrupa execuções pelo mesmo commit/envio. Cada grupo mostra data e hora com segundos, SHA curto e origem (`push`, manual ou ambos); dentro dele ficam os workflows relacionados, com número, tentativa, branch, status e duração. Runs em andamento são atualizados automaticamente. Jobs e steps exibem explicações simples e, em falhas, o app tenta recuperar a annotation principal do check run para destacar job, etapa e mensagem.
 
-O botão `Enviar build` da tela do projeto sincroniza o ZIP e verifica as execuções pelo SHA do novo commit. Se o `push` já iniciou o workflow Android APK, nenhuma execução duplicada é criada. Se não iniciou, o app aguarda a indexação e usa `workflow_dispatch`; em repositório recém-criado, também inspeciona estruturalmente os YAMLs em `.github/workflows` quando a listagem de workflows ainda estiver vazia. Se um workflow de APK por `push` existe mas o Actions demora a indexar a execução, o app espera uma janela adicional antes de marcar a build como pendente. Falha nessa etapa não desfaz o commit nem transforma o envio já concluído em falha.
+O fluxo **Enviar nova versão** da tela do projeto primeiro permite escolher a branch, compara os metadados contra essa mesma branch, sincroniza o ZIP e, quando existe um workflow de APK compatível, verifica as execuções pelo SHA do novo commit. Se o `push` já iniciou o workflow Android APK, nenhuma execução duplicada é criada. Se não iniciou, o app aguarda a indexação e usa `workflow_dispatch`; em repositório recém-criado, também inspeciona estruturalmente os YAMLs em `.github/workflows` quando a listagem de workflows ainda estiver vazia. Se um workflow de APK por `push` existe mas o Actions demora a indexar a execução, o app espera uma janela adicional antes de marcar a build como pendente. Se não existir workflow de APK na branch escolhida, o envio termina normalmente como **Projeto atualizado • Sem workflow de build**. Falha real em um workflow existente não desfaz o commit nem transforma o envio já concluído em falha.
 
 
 ## Central de Envios
 
-O botão `Enviar build` não depende mais de um diálogo bloqueando a tela. Cada sincronização entra em uma fila global do aplicativo, pode ser minimizada e continua visível em qualquer tela por um indicador flutuante. A Central de Envios mantém histórico, progresso, etapa atual, arquivo processado, commit, workflow, falhas e logs copiáveis.
+O fluxo **Enviar nova versão** não depende de um diálogo bloqueando a tela. Cada sincronização entra em uma fila global do aplicativo, pode ser minimizada e continua visível em qualquer tela por um indicador flutuante. A Central de Envios mantém histórico, progresso, etapa atual, arquivo processado, commit, workflow, falhas e logs copiáveis.
 
 Para reduzir chamadas desnecessárias, o envio calcula o SHA Git dos arquivos do ZIP e reutiliza blobs já idênticos na árvore atual. Envios concorrentes são serializados e uma tentativa duplicada do mesmo ZIP/repositório é ignorada enquanto a anterior estiver ativa.
 

@@ -106,6 +106,7 @@ mixin _RepositoryGitActionsOperations
   Future<List<RepositoryWorkflowRun>> listRecentWorkflowRuns(
     String repositoryFullName, {
     int perPage = 100,
+    bool enrichVersions = true,
   }) async {
     final normalizedPerPage = perPage < 1 ? 1 : (perPage > 100 ? 100 : perPage);
     final response = await _client.get<Map<String, dynamic>>(
@@ -132,6 +133,9 @@ mixin _RepositoryGitActionsOperations
         final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         return bDate.compareTo(aDate);
       });
+    if (!enrichVersions) {
+      return List<RepositoryWorkflowRun>.unmodifiable(runs);
+    }
     return _enrichRunVersions(repositoryFullName, runs, limit: 3);
   }
 

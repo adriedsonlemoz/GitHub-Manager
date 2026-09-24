@@ -6,6 +6,12 @@ part 'managed_upload_lifecycle.dart';
 part 'managed_upload_report.dart';
 part 'managed_upload_state.dart';
 
+enum ManagedUploadBuildPolicy {
+  automatic,
+  skipNoWorkflow,
+  skipByUser,
+}
+
 enum ManagedUploadStatus {
   queued,
   syncing,
@@ -39,6 +45,7 @@ class ManagedUpload {
     this.applicationId,
     this.version,
     this.versionCode,
+    this.buildPolicy = ManagedUploadBuildPolicy.automatic,
     this.phase = 'Aguardando envio',
     this.current = 0,
     this.total = 0,
@@ -100,6 +107,7 @@ class ManagedUpload {
   final String? applicationId;
   final String? version;
   final int? versionCode;
+  ManagedUploadBuildPolicy buildPolicy;
   ManagedUploadStatus status;
   final DateTime createdAt;
   String phase;
@@ -133,6 +141,8 @@ class ManagedUpload {
   final List<String> changedFileSamples;
   final List<String> recoveryEvents;
   final List<String> logLines;
+
+  bool get shouldStartBuild => buildPolicy == ManagedUploadBuildPolicy.automatic;
 
   bool get isActive =>
       status == ManagedUploadStatus.queued ||

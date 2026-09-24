@@ -431,6 +431,181 @@ void main() {
     expect(item.timelineLines.join(' '), contains('Falha durante'));
   });
 
+  test('missing APK workflow completes project upload without build warning', () async {
+    var uploadCount = 0;
+
+    Future<ProjectUploadResult> upload({
+      required ZipProjectPreview project,
+      required String repositoryFullName,
+      required String branch,
+      required String commitMessage,
+      void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
+    }) async {
+      uploadCount++;
+      return ProjectUploadResult(
+        commitSha: 'abcdef0123456789',
+        fileCount: project.fileCount,
+        changed: true,
+      );
+    }
+
+    Future<RepositoryBuildLaunchResult> ensure({
+      required String repositoryFullName,
+      required String branch,
+      required String commitSha,
+      void Function(String status)? onStatus,
+      required int verificationAttempts,
+      required Duration verificationDelay,
+      required Duration postDispatchDelay,
+    }) async {
+      throw const RepositoryFileException(
+        'Nenhum workflow de APK encontrado.',
+        code: 'APK_WORKFLOW_NOT_FOUND',
+      );
+    }
+
+    final zip = File('${temp.path}/no-workflow.zip')..writeAsBytesSync([1]);
+    final manager = UploadManagerService.forTest(
+      uploadZip: upload,
+      ensureBuild: ensure,
+      historyFileFactory: () async => File('${temp.path}/no-workflow-history.json'),
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
+    );
+    addTearDown(manager.dispose);
+
+    final item = manager.startBuild(
+      project: _preview(zip.path, 'NoWorkflow'),
+      repositoryFullName: 'owner/repo',
+      branch: 'dev',
+    );
+    await manager.waitUntilIdle();
+
+    expect(uploadCount, 1);
+    expect(item.status, ManagedUploadStatus.completed);
+    expect(item.branch, 'dev');
+    expect(item.phase, 'Projeto atualizado • Sem workflow de build');
+    expect(item.errorCode, isNull);
+    expect(item.canRetry, isFalse);
+    expect(item.logLines.join(' '), contains('envio concluído sem build'));
+  });
+
+  test('pre-detected no-workflow project skips Actions entirely', () async {
+    var buildCount = 0;
+
+    Future<ProjectUploadResult> upload({
+      required ZipProjectPreview project,
+      required String repositoryFullName,
+      required String branch,
+      required String commitMessage,
+      void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
+    }) async {
+      return ProjectUploadResult(
+        commitSha: 'abcdef0123456789',
+        fileCount: project.fileCount,
+        changed: true,
+      );
+    }
+
+    Future<RepositoryBuildLaunchResult> ensure({
+      required String repositoryFullName,
+      required String branch,
+      required String commitSha,
+      void Function(String status)? onStatus,
+      required int verificationAttempts,
+      required Duration verificationDelay,
+      required Duration postDispatchDelay,
+    }) async {
+      buildCount++;
+      throw StateError('Actions should not be queried for this project');
+    }
+
+    final zip = File('${temp.path}/scripts-only.zip')..writeAsBytesSync([1]);
+    final manager = UploadManagerService.forTest(
+      uploadZip: upload,
+      ensureBuild: ensure,
+      historyFileFactory: () async => File('${temp.path}/scripts-history.json'),
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
+    );
+    addTearDown(manager.dispose);
+
+    final item = manager.startBuild(
+      project: _preview(zip.path, 'ScriptsOnly'),
+      repositoryFullName: 'owner/scripts',
+      branch: 'main',
+      buildPolicy: ManagedUploadBuildPolicy.skipNoWorkflow,
+    );
+    await manager.waitUntilIdle();
+
+    expect(buildCount, 0);
+    expect(item.status, ManagedUploadStatus.completed);
+    expect(item.phase, 'Projeto atualizado • Sem workflow de build');
+    expect(item.buildTriggerLabel, 'Não utilizada neste projeto');
+  });
+
+  test('user can upload without starting a detected build', () async {
+    var buildCount = 0;
+
+    Future<ProjectUploadResult> upload({
+      required ZipProjectPreview project,
+      required String repositoryFullName,
+      required String branch,
+      required String commitMessage,
+      void Function(ProjectUploadProgress progress)? onProgress,
+      required Map<String, String> reusableBlobShas,
+      void Function(String path, String sha)? onBlobUploaded,
+      required ProjectUploadMethod method,
+      required bool allowAutomaticRecovery,
+    }) async =>
+        ProjectUploadResult(
+          commitSha: 'abcdef0123456789',
+          fileCount: project.fileCount,
+          changed: true,
+        );
+
+    Future<RepositoryBuildLaunchResult> ensure({
+      required String repositoryFullName,
+      required String branch,
+      required String commitSha,
+      void Function(String status)? onStatus,
+      required int verificationAttempts,
+      required Duration verificationDelay,
+      required Duration postDispatchDelay,
+    }) async {
+      buildCount++;
+      throw StateError('Build should have been skipped');
+    }
+
+    final zip = File('${temp.path}/skip-build.zip')..writeAsBytesSync([1]);
+    final manager = UploadManagerService.forTest(
+      uploadZip: upload,
+      ensureBuild: ensure,
+      historyFileFactory: () async => File('${temp.path}/skip-build-history.json'),
+      queueDirectoryFactory: () async => Directory('${temp.path}/queue'),
+    );
+    addTearDown(manager.dispose);
+
+    final item = manager.startBuild(
+      project: _preview(zip.path, 'SkipBuild'),
+      repositoryFullName: 'owner/app',
+      branch: 'develop',
+      buildPolicy: ManagedUploadBuildPolicy.skipByUser,
+    );
+    await manager.waitUntilIdle();
+
+    expect(buildCount, 0);
+    expect(item.status, ManagedUploadStatus.completed);
+    expect(item.phase, 'Projeto atualizado • Build não solicitada');
+    expect(item.buildTriggerLabel, 'Não solicitada');
+  });
+
   test('build launch problem keeps successful upload and retries build only', () async {
     var uploadCount = 0;
     var buildCount = 0;
@@ -466,8 +641,8 @@ void main() {
       buildCount++;
       if (buildCount == 1) {
         throw const RepositoryFileException(
-          'Nenhum workflow de APK encontrado.',
-          code: 'APK_WORKFLOW_NOT_FOUND',
+          'Workflow de APK sem gatilho utilizável.',
+          code: 'APK_WORKFLOW_TRIGGER_MISSING',
         );
       }
       return RepositoryBuildLaunchResult(
@@ -496,7 +671,7 @@ void main() {
 
     expect(item.status, ManagedUploadStatus.buildPending);
     expect(item.commitSha, 'abcdef0123456789');
-    expect(item.errorCode, 'APK_WORKFLOW_NOT_FOUND');
+    expect(item.errorCode, 'APK_WORKFLOW_TRIGGER_MISSING');
     expect(item.canRetry, isTrue);
     expect(uploadCount, 1);
 

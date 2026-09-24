@@ -58,11 +58,11 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
           FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () => Navigator.pop(dialogContext, buildPolicy),
             icon: const Icon(Icons.call_split_rounded),
             label: const Text('Criar fork'),
           ),
@@ -89,7 +89,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
         context,
         ref,
         repositoryFullName: repository.fullName,
-        action: RepositoryCriticalAction.sendBuild,
+        action: RepositoryCriticalAction.syncProject,
       );
       if (!allowed || !mounted) return;
 
@@ -98,15 +98,27 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       if (project == null || !mounted) {
         return;
       }
+
+      final targetBranch = await _chooseUploadBranch(repository);
+      if (targetBranch == null || !mounted) return;
+
       final repositoryInfo = await ref
           .read(repositoryProjectInfoServiceProvider)
-          .load(repository);
-      final confirmed = await _confirmZip(
+          .load(repository, branch: targetBranch.name);
+      final branchHasApkWorkflow = await _detectBranchApkWorkflow(
+        repository,
+        targetBranch,
+        project,
+      );
+      if (!mounted) return;
+      final buildPolicy = await _confirmZip(
         project,
         repository,
         repositoryInfo,
+        targetBranch,
+        branchHasApkWorkflow,
       );
-      if (confirmed != true || !mounted) {
+      if (buildPolicy == null || !mounted) {
         return;
       }
 
@@ -114,7 +126,8 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       final upload = manager.startBuild(
         project: project,
         repositoryFullName: repository.fullName,
-        branch: repository.defaultBranch,
+        branch: targetBranch.name,
+        buildPolicy: buildPolicy,
       );
       if (!mounted) {
         return;
@@ -132,10 +145,136 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     }
   }
 
-  Future<bool?> _confirmZip(
+  Future<RepositoryBranch?> _chooseUploadBranch(
+    GitHubRepository repository,
+  ) async {
+    List<RepositoryBranch> branches;
+    try {
+      branches = await ref
+          .read(repositoryGitServiceProvider)
+          .listBranches(repository.fullName);
+    } catch (_) {
+      branches = const <RepositoryBranch>[];
+    }
+    if (!mounted) return null;
+
+    final byName = <String, RepositoryBranch>{
+      for (final branch in branches) branch.name: branch,
+    };
+    byName.putIfAbsent(
+      repository.defaultBranch,
+      () => RepositoryBranch(
+        name: repository.defaultBranch,
+        sha: '',
+        isProtected: false,
+      ),
+    );
+
+    final preferenceKey =
+        'uploads.last_branch.${repository.fullName.toLowerCase()}';
+    final stored = await ref.read(localDatabaseProvider).readJson(preferenceKey);
+    if (!mounted) return null;
+    var selectedName = stored is String && byName.containsKey(stored)
+        ? stored
+        : repository.defaultBranch;
+
+    final selected = await showDialog<RepositoryBranch>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Escolher branch de destino'),
+          content: AdaptiveDialogBody(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 420),
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  Text(
+                    'A nova versão será comparada e enviada usando a branch escolhida.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 10),
+                  ...byName.values.map(
+                    (branch) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        branch.name == selectedName
+                            ? Icons.radio_button_checked_rounded
+                            : Icons.radio_button_off_rounded,
+                      ),
+                      title: Text(branch.name),
+                      subtitle: branch.name == repository.defaultBranch ||
+                              branch.isProtected
+                          ? Text(
+                              [
+                                if (branch.name == repository.defaultBranch)
+                                  'padrão',
+                                if (branch.isProtected) 'protegida',
+                              ].join(' • '),
+                            )
+                          : null,
+                      trailing: branch.isProtected
+                          ? const Icon(Icons.lock_outline_rounded, size: 19)
+                          : null,
+                      onTap: () =>
+                          setDialogState(() => selectedName = branch.name),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, byName[selectedName]),
+              icon: const Icon(Icons.account_tree_outlined),
+              label: const Text('Usar esta branch'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (selected != null) {
+      await ref.read(localDatabaseProvider).putJson(
+            preferenceKey,
+            selected.name,
+          );
+    }
+    return selected;
+  }
+
+  Future<bool?> _detectBranchApkWorkflow(
+    GitHubRepository repository,
+    RepositoryBranch targetBranch,
+    ZipProjectPreview project,
+  ) async {
+    if (project.hasWorkflowFiles) return null;
+
+    try {
+      return await ref.read(repositoryGitServiceProvider).hasApkBuildWorkflow(
+            repositoryFullName: repository.fullName,
+            branch: targetBranch.name,
+          );
+    } catch (_) {
+      // A confirmação pode continuar mesmo quando a inspeção de workflow está
+      // temporariamente indisponível; a etapa pós-upload fará a validação real.
+      return null;
+    }
+  }
+
+  Future<ManagedUploadBuildPolicy?> _confirmZip(
     ZipProjectPreview project,
     GitHubRepository repository,
     RepositoryProjectInfo repositoryInfo,
+    RepositoryBranch targetBranch,
+    bool? branchHasApkWorkflow,
   ) {
     final check = ProjectSafetyCheck.compare(
       project: project,
@@ -143,14 +282,18 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       repositoryInfo: repositoryInfo,
     );
 
-    return showDialog<bool>(
+    var buildPolicy = branchHasApkWorkflow == false
+        ? ManagedUploadBuildPolicy.skipNoWorkflow
+        : ManagedUploadBuildPolicy.automatic;
+
+    return showDialog<ManagedUploadBuildPolicy>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
         titlePadding: const EdgeInsets.fromLTRB(16, 15, 16, 4),
         contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         actionsPadding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
-        title: Text(check.blocked ? 'Risco alto detectado' : 'Conferir build'),
+        title: Text(check.blocked ? 'Risco alto detectado' : 'Conferir envio'),
         content: AdaptiveDialogBody(
           child: SingleChildScrollView(
             child: Column(
@@ -178,6 +321,15 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                   label: 'Repositório aberto',
                   value: repositoryInfo.projectName,
                   icon: Icons.cloud_outlined,
+                ),
+                _BuildSafetyRow(
+                  label: 'Branch de destino',
+                  value: targetBranch.isProtected
+                      ? '${targetBranch.name} • protegida'
+                      : targetBranch.name,
+                  icon: targetBranch.isProtected
+                      ? Icons.lock_outline_rounded
+                      : Icons.account_tree_outlined,
                 ),
                 _BuildSafetyRow(
                   label: 'Versão no GitHub',
@@ -242,26 +394,60 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Destino: ${repository.fullName}/${repository.defaultBranch}',
+                  'Destino: ${repository.fullName} → ${targetBranch.name}',
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  project.importantFiles.any(
-                    (path) => path
-                        .replaceAll('\\', '/')
-                        .toLowerCase()
-                        .contains('.github/workflows/'),
-                  )
-                      ? 'O ZIP contém workflow do GitHub Actions. Arquivos antigos do projeto são removidos, mas workflows existentes que não vierem no ZIP são preservados para não desativar a build por acidente.'
-                      : 'O envio sincroniza os arquivos do projeto com o ZIP. Arquivos antigos são removidos, mas workflows existentes em .github/workflows são preservados para não desativar a build por acidente.',
+                Builder(
+                  builder: (context) {
+                    final message = project.hasWorkflowFiles
+                        ? 'O ZIP contém workflow do GitHub Actions. Depois do envio, o GitHub Manager verificará se existe uma build de APK compatível. Workflows existentes que não vierem no ZIP continuam protegidos contra remoção acidental.'
+                        : branchHasApkWorkflow == false
+                            ? 'Este projeto não possui workflow de build de APK nesta branch. Isso é normal para projetos que não precisam ser compilados pelo GitHub Actions: os arquivos serão atualizados e o envio terminará como sucesso, sem falso erro de build.'
+                            : branchHasApkWorkflow == true
+                                ? 'Foi detectado um workflow de build de APK nesta branch. Depois do envio, o GitHub Manager verificará ou iniciará a build normalmente.'
+                                : 'O envio sincroniza os arquivos do projeto com o ZIP. Se esta branch não tiver workflow de build compatível, o envio será concluído normalmente sem tratar isso como erro.';
+                    return Text(message);
+                  },
                 ),
+                const SizedBox(height: 8),
+                if (branchHasApkWorkflow == false)
+                  const ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    leading: Icon(Icons.code_rounded),
+                    title: Text('Build não utilizada neste projeto'),
+                    subtitle: Text(
+                      'O GitHub Manager enviará os arquivos sem tentar executar GitHub Actions.',
+                    ),
+                  )
+                else
+                  StatefulBuilder(
+                    builder: (context, setBuildState) => CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: buildPolicy == ManagedUploadBuildPolicy.automatic,
+                      onChanged: (value) {
+                        setBuildState(() {
+                          buildPolicy = value == true
+                              ? ManagedUploadBuildPolicy.automatic
+                              : ManagedUploadBuildPolicy.skipByUser;
+                        });
+                      },
+                      title: const Text('Iniciar build após o envio'),
+                      subtitle: Text(
+                        branchHasApkWorkflow == true
+                            ? 'Workflow de APK detectado nesta branch.'
+                            : 'Se houver um workflow de APK compatível após o envio, o GitHub Manager tentará executá-lo.',
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
           FilledButton.icon(
@@ -283,7 +469,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                         title: const Text('Forçar envio para este repositório?'),
                         content: Text(
                           'Foram encontrados identificadores fortes divergentes. '
-                          'O ZIP será sincronizado em ${repository.fullName}/${repository.defaultBranch} '
+                          'O ZIP será sincronizado em ${repository.fullName} → ${targetBranch.name} '
                           'e poderá substituir ou remover arquivos atuais. Continue somente se este destino estiver correto.',
                         ),
                         actions: [
@@ -300,10 +486,10 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                       ),
                     );
                     if (forced == true && dialogContext.mounted) {
-                      Navigator.pop(dialogContext, true);
+                      Navigator.pop(dialogContext, buildPolicy);
                     }
                   }
-                : () => Navigator.pop(dialogContext, true),
+                : () => Navigator.pop(dialogContext, buildPolicy),
             icon: Icon(
               check.blocked || check.warning
                   ? Icons.warning_amber_rounded
@@ -314,7 +500,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                   ? 'Revisar e enviar'
                   : check.warning
                       ? 'Enviar mesmo assim'
-                      : 'Enviar build',
+                      : 'Enviar versão',
             ),
           ),
         ],
@@ -369,7 +555,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                 const Text('• Projetos compatíveis: github-manager.json ou arquivo VERSION.'),
                 const SizedBox(height: 10),
                 const Text(
-                  'Depois de corrigir a versão, gere um novo ZIP e abra novamente “Enviar build”. O nome do ZIP continua sendo apenas uma pista e não substitui os metadados internos.',
+                  'Depois de corrigir a versão, gere um novo ZIP e abra novamente “Enviar nova versão”. O nome do ZIP continua sendo apenas uma pista e não substitui os metadados internos.',
                 ),
               ],
             ),

@@ -10,11 +10,17 @@ class RepositoryProjectInfoService {
 
   final GitHubApiClient _client;
 
-  Future<RepositoryProjectInfo> loadSummary(GitHubRepository repository) async {
+  Future<RepositoryProjectInfo> loadSummary(
+    GitHubRepository repository, {
+    String? branch,
+  }) async {
+    final resolvedBranch = branch?.trim().isNotEmpty == true
+        ? branch!.trim()
+        : repository.defaultBranch;
     try {
       final rootResponse = await _client.get<List<dynamic>>(
         '/repos/${repository.fullName}/contents',
-        queryParameters: {'ref': repository.defaultBranch},
+        queryParameters: {'ref': resolvedBranch},
       );
       final root = (rootResponse.data ?? const <dynamic>[])
           .whereType<Map>()
@@ -29,7 +35,7 @@ class RepositoryProjectInfoService {
         try {
           final response = await _client.get<Map<String, dynamic>>(
             '/repos/${repository.fullName}/contents/${path.split('/').map(Uri.encodeComponent).join('/')}',
-            queryParameters: {'ref': repository.defaultBranch},
+            queryParameters: {'ref': resolvedBranch},
           );
           final json = response.data ?? const <String, dynamic>{};
           if (json['encoding'] != 'base64') return null;
@@ -164,11 +170,17 @@ class RepositoryProjectInfoService {
     }
   }
 
-  Future<RepositoryProjectInfo> load(GitHubRepository repository) async {
+  Future<RepositoryProjectInfo> load(
+    GitHubRepository repository, {
+    String? branch,
+  }) async {
+    final resolvedBranch = branch?.trim().isNotEmpty == true
+        ? branch!.trim()
+        : repository.defaultBranch;
     try {
       final rootResponse = await _client.get<List<dynamic>>(
         '/repos/${repository.fullName}/contents',
-        queryParameters: {'ref': repository.defaultBranch},
+        queryParameters: {'ref': resolvedBranch},
       );
       final root = (rootResponse.data ?? const <dynamic>[])
           .whereType<Map>()
@@ -198,7 +210,7 @@ class RepositoryProjectInfoService {
         final path = item['path'] as String? ?? name;
         final response = await _client.get<Map<String, dynamic>>(
           '/repos/${repository.fullName}/contents/${Uri.encodeComponent(path)}',
-          queryParameters: {'ref': repository.defaultBranch},
+          queryParameters: {'ref': resolvedBranch},
         );
         final json = response.data ?? const <String, dynamic>{};
         if (json['encoding'] != 'base64') {
@@ -346,7 +358,7 @@ class RepositoryProjectInfoService {
           try {
             final response = await _client.get<Map<String, dynamic>>(
               '/repos/${repository.fullName}/contents/${gradlePath.split('/').map(Uri.encodeComponent).join('/')}',
-              queryParameters: {'ref': repository.defaultBranch},
+              queryParameters: {'ref': resolvedBranch},
             );
             final json = response.data ?? const <String, dynamic>{};
             if (json['encoding'] != 'base64') continue;

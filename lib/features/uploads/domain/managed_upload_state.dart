@@ -50,6 +50,12 @@ class _ManagedUploadState {
   }
 
   String get buildTriggerLabel {
+    if (item.buildPolicy == ManagedUploadBuildPolicy.skipNoWorkflow) {
+      return 'Não utilizada neste projeto';
+    }
+    if (item.buildPolicy == ManagedUploadBuildPolicy.skipByUser) {
+      return 'Não solicitada';
+    }
     if (item.workflowRunId == null && item.workflowName == null) {
       return 'Não iniciada';
     }
