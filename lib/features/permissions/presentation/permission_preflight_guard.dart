@@ -14,6 +14,13 @@ Future<bool> ensureRepositoryPermission(
   final decision = await ref
       .read(permissionPreflightServiceProvider)
       .check(repositoryFullName, action);
+  return presentRepositoryPermissionDecision(context, decision);
+}
+
+Future<bool> presentRepositoryPermissionDecision(
+  BuildContext context,
+  RepositoryPermissionPreflightDecision decision,
+) async {
   if (!context.mounted || !decision.blocked) return !decision.blocked;
 
   final openDiagnostics = await showDialog<bool>(
@@ -109,7 +116,7 @@ Future<bool> ensureRepositoryPermission(
   );
 
   if (openDiagnostics == true && context.mounted) {
-    context.push('/repositories/$repositoryFullName/permissions');
+    context.push('/repositories/${decision.repositoryFullName}/permissions');
   }
   return false;
 }

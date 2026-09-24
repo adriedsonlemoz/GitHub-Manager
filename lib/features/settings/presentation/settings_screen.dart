@@ -239,12 +239,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.92',
-                      text: 'Corrige a última expectativa frágil do teste do seletor de branch; 126 testes já passavam e somente essa asserção falhava.',
+                      version: '2.0.93',
+                      text: 'Abre projetos e seletor de branch sem tela vazia, usa cache em memória e adiciona timeout/retry nas consultas lentas.',
                     ),
                     _ChangeNote(
-                      version: '2.0.91',
-                      text: 'Torna os itens de branch identificáveis e rola até branches fora da viewport antes do toque nos testes.',
+                      version: '2.0.92',
+                      text: 'Corrige a última expectativa frágil do teste do seletor de branch.',
                     ),
                     _ChangeNote(
                       version: '2.0.83',

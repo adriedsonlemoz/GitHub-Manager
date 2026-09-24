@@ -1,6 +1,17 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.92+200106`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.93+200107`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+
+## Alterações 2.0.93
+
+- Seletor de branch virou diálogo compacto centralizado e abre antes de `listBranches` concluir; a branch atual fica visível e a lista completa é aberta por **Outras branches**.
+- `listBranches` usa timeout de 12 s e erro inline com **Tentar novamente**; criação de branch também possui timeout explícito.
+- O envio mostra overlay **Preparando envio** logo após a escolha da branch, evitando o intervalo em que parecia que nada acontecia.
+- Pré-check de permissão é feito primeiro; depois versão remota, diff/prévia, workflow e rate limit são disparados em paralelo e possuem limites de tempo.
+- `RepositoryService` mantém cache somente em memória dos repositórios já listados. A tela de detalhe usa esse snapshot para abrir imediatamente e atualiza silenciosamente em segundo plano.
+- Sem cache, a tela Projeto mostra shell de carregamento progressivo; após 12 s sem resposta, exibe erro com **Tentar novamente**.
+- Metadados do projeto têm fallback após timeout e não prendem a tela inteira.
+
 
 
 

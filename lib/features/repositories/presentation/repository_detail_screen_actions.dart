@@ -5,20 +5,63 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
   late Future<List<RepositoryWorkflowRun>> _runsFuture;
 
   void initializeRepositoryDetailState() {
-    _repositoryFuture = _loadRepository();
+    final cached = ref
+        .read(repositoryServiceProvider)
+        .cachedRepository(widget.repositoryFullName);
+    _repositoryFuture = cached == null
+        ? _loadRepository()
+        : Future<GitHubRepository>.value(cached);
     _runsFuture = widget.readOnly
         ? Future<List<RepositoryWorkflowRun>>.value(const [])
         : _loadRuns();
+    if (cached != null) {
+      Future<void>.microtask(_refreshRepositoryInBackground);
+    }
+  }
+
+  Future<void> _refreshRepositoryInBackground() async {
+    try {
+      final fresh = await _loadRepository();
+      if (!mounted) return;
+      setState(() => _repositoryFuture = Future<GitHubRepository>.value(fresh));
+      ref.invalidate(repositoryProjectInfoProvider(fresh));
+    } catch (_) {
+      // O cache já permite usar a tela; uma atualização remota lenta não deve
+      // substituir conteúdo válido por um spinner ou erro.
+    }
   }
 
   Future<GitHubRepository> _loadRepository() async {
     final service = ref.read(repositoryServiceProvider);
-    return service.getRepository(widget.repositoryFullName);
+    return service
+        .getRepository(widget.repositoryFullName)
+        .timeout(const Duration(seconds: 12));
+  }
+
+  void _retryRepositoryLoad() {
+    final cached = ref
+        .read(repositoryServiceProvider)
+        .cachedRepository(widget.repositoryFullName);
+    setState(() {
+      _repositoryFuture = cached == null
+          ? _loadRepository()
+          : Future<GitHubRepository>.value(cached);
+      _runsFuture = widget.readOnly
+          ? Future<List<RepositoryWorkflowRun>>.value(const [])
+          : _loadRuns();
+    });
+    if (cached != null) {
+      Future<void>.microtask(_refreshRepositoryInBackground);
+    }
   }
 
   Future<List<RepositoryWorkflowRun>> _loadRuns() => ref
       .read(repositoryGitServiceProvider)
-      .listWorkflowRuns(widget.repositoryFullName);
+      .listWorkflowRuns(widget.repositoryFullName)
+      .timeout(
+        const Duration(seconds: 12),
+        onTimeout: () => const <RepositoryWorkflowRun>[],
+      );
 
   Future<void> _refresh() async {
     if (!widget.readOnly) {
@@ -87,61 +130,37 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     try {
       final project =
           await ref.read(localProjectServiceProvider).pickAndAnalyzeZip();
-      if (project == null || !mounted) {
-        return;
-      }
+      if (project == null || !mounted) return;
 
       final selectedBranch = await _chooseUploadBranch(repository);
       if (selectedBranch == null || !mounted) return;
       var targetBranch = selectedBranch;
 
-      var syncAllowed = await ensureRepositoryPermission(
-        context,
-        ref,
-        repositoryFullName: repository.fullName,
-        action: project.hasWorkflowFiles
-            ? RepositoryCriticalAction.syncProjectWithWorkflows
-            : RepositoryCriticalAction.syncProject,
-      );
-      if (!syncAllowed || !mounted) return;
-
       late final ManagedUploadBuildPolicy buildPolicy;
       while (true) {
-        final repositoryInfo = await ref
-            .read(repositoryProjectInfoServiceProvider)
-            .load(repository, branch: targetBranch.name);
-        ProjectSyncPreview? syncPreview;
-        GitHubRateLimitSnapshot? rateLimit;
-        try {
-          syncPreview = await ref.read(gitProjectUploadServiceProvider).previewZipSync(
-                project: project,
-                repositoryFullName: repository.fullName,
-                branch: targetBranch.name,
-              );
-        } catch (_) {
-          // A prévia é uma proteção adicional. Falha temporária não impede a
-          // confirmação, mas a interface deixa claro quando ela não foi obtida.
-        }
-        try {
-          rateLimit = await ref.read(repositoryGitServiceProvider).loadRateLimit();
-        } catch (_) {
-          // Informação de cota é auxiliar e não deve bloquear o envio.
-        }
-        final branchHasApkWorkflow = await _detectBranchApkWorkflow(
-          repository,
-          targetBranch,
-          project,
+        final preparation = await _prepareUpload(
+          project: project,
+          repository: repository,
+          targetBranch: targetBranch,
         );
-        if (!mounted) return;
+        if (preparation == null || !mounted) return;
+
+        if (preparation.permissionDecision.blocked) {
+          await presentRepositoryPermissionDecision(
+            context,
+            preparation.permissionDecision,
+          );
+          return;
+        }
 
         final confirmation = await _confirmZip(
           project,
           repository,
-          repositoryInfo,
+          preparation.repositoryInfo!,
           targetBranch,
-          branchHasApkWorkflow,
-          syncPreview,
-          rateLimit,
+          preparation.branchHasApkWorkflow,
+          preparation.syncPreview,
+          preparation.rateLimit,
         );
         if (confirmation == null || !mounted) return;
 
@@ -153,15 +172,6 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
           if (!mounted) return;
           if (changedBranch == null) continue;
           targetBranch = changedBranch;
-          syncAllowed = await ensureRepositoryPermission(
-            context,
-            ref,
-            repositoryFullName: repository.fullName,
-            action: project.hasWorkflowFiles
-                ? RepositoryCriticalAction.syncProjectWithWorkflows
-                : RepositoryCriticalAction.syncProject,
-          );
-          if (!syncAllowed || !mounted) return;
           continue;
         }
         final confirmedPolicy = confirmation.buildPolicy;
@@ -171,11 +181,15 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       }
 
       if (buildPolicy == ManagedUploadBuildPolicy.automatic) {
-        final buildAllowed = await ensureRepositoryPermission(
-          context,
-          ref,
+        final buildDecision = await _checkPermissionWithProgress(
           repositoryFullName: repository.fullName,
           action: RepositoryCriticalAction.sendBuild,
+          label: 'Verificando permissão para iniciar a build…',
+        );
+        if (buildDecision == null || !mounted) return;
+        final buildAllowed = await presentRepositoryPermissionDecision(
+          context,
+          buildDecision,
         );
         if (!buildAllowed || !mounted) return;
       }
@@ -187,9 +201,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
         branch: targetBranch.name,
         buildPolicy: buildPolicy,
       );
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       await showDialog<void>(
         context: context,
@@ -197,10 +209,111 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
         builder: (_) => UploadProgressDialog(uploadId: upload.id),
       );
     } catch (error) {
-      if (mounted) {
-        _showError(error);
-      }
+      if (mounted) _showError(error);
     }
+  }
+
+  Future<_UploadPreparation?> _prepareUpload({
+    required ZipProjectPreview project,
+    required GitHubRepository repository,
+    required RepositoryBranch targetBranch,
+  }) async {
+    final status = ValueNotifier<String>('Verificando permissões da branch…');
+    final overlay = _showOperationOverlay(status, targetBranch.name);
+    try {
+      final action = project.hasWorkflowFiles
+          ? RepositoryCriticalAction.syncProjectWithWorkflows
+          : RepositoryCriticalAction.syncProject;
+      final decision = await ref
+          .read(permissionPreflightServiceProvider)
+          .check(repository.fullName, action)
+          .timeout(const Duration(seconds: 15));
+      if (decision.blocked) {
+        return _UploadPreparation(permissionDecision: decision);
+      }
+
+      status.value = 'Analisando versão, arquivos e workflow…';
+      final repositoryInfoFuture = ref
+          .read(repositoryProjectInfoServiceProvider)
+          .load(repository, branch: targetBranch.name)
+          .timeout(const Duration(seconds: 18));
+      final syncPreviewFuture = (() async {
+        try {
+          return await ref
+              .read(gitProjectUploadServiceProvider)
+              .previewZipSync(
+                project: project,
+                repositoryFullName: repository.fullName,
+                branch: targetBranch.name,
+              )
+              .timeout(const Duration(seconds: 18));
+        } catch (_) {
+          return null;
+        }
+      })();
+      final rateLimitFuture = (() async {
+        try {
+          return await ref
+              .read(repositoryGitServiceProvider)
+              .loadRateLimit()
+              .timeout(const Duration(seconds: 10));
+        } catch (_) {
+          return null;
+        }
+      })();
+      final workflowFuture = _detectBranchApkWorkflow(
+        repository,
+        targetBranch,
+        project,
+      ).timeout(const Duration(seconds: 12), onTimeout: () => null);
+
+      final repositoryInfo = await repositoryInfoFuture;
+      final syncPreview = await syncPreviewFuture;
+      final rateLimit = await rateLimitFuture;
+      final branchHasApkWorkflow = await workflowFuture;
+      return _UploadPreparation(
+        permissionDecision: decision,
+        repositoryInfo: repositoryInfo,
+        syncPreview: syncPreview,
+        rateLimit: rateLimit,
+        branchHasApkWorkflow: branchHasApkWorkflow,
+      );
+    } finally {
+      overlay.remove();
+      status.dispose();
+    }
+  }
+
+  Future<RepositoryPermissionPreflightDecision?> _checkPermissionWithProgress({
+    required String repositoryFullName,
+    required RepositoryCriticalAction action,
+    required String label,
+  }) async {
+    final status = ValueNotifier<String>(label);
+    final overlay = _showOperationOverlay(status, null);
+    try {
+      return await ref
+          .read(permissionPreflightServiceProvider)
+          .check(repositoryFullName, action)
+          .timeout(const Duration(seconds: 15));
+    } finally {
+      overlay.remove();
+      status.dispose();
+    }
+  }
+
+  OverlayEntry _showOperationOverlay(
+    ValueNotifier<String> status,
+    String? branch,
+  ) {
+    final entry = OverlayEntry(
+      builder: (_) => _RepositoryOperationOverlay(
+        status: status,
+        branch: branch,
+      ),
+    );
+    Overlay.of(context, rootOverlay: true).insert(entry);
+    return entry;
   }
 
   Future<RepositoryBranch?> _chooseUploadBranch(
@@ -793,12 +906,30 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
   }
 
   void _showError(Object error) {
-    final message = error is AppException
-        ? error.message
-        : 'Não foi possível concluir a operação.';
+    final message = error is TimeoutException
+        ? 'O GitHub demorou para responder. Tente novamente.'
+        : error is AppException
+            ? error.message
+            : 'Não foi possível concluir a operação.';
     showCenteredNotice(context, message);
   }
 
+}
+
+class _UploadPreparation {
+  const _UploadPreparation({
+    required this.permissionDecision,
+    this.repositoryInfo,
+    this.syncPreview,
+    this.rateLimit,
+    this.branchHasApkWorkflow,
+  });
+
+  final RepositoryPermissionPreflightDecision permissionDecision;
+  final RepositoryProjectInfo? repositoryInfo;
+  final ProjectSyncPreview? syncPreview;
+  final GitHubRateLimitSnapshot? rateLimit;
+  final bool? branchHasApkWorkflow;
 }
 
 class _ConfirmZipResult {

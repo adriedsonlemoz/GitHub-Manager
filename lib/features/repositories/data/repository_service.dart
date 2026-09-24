@@ -12,6 +12,16 @@ class RepositoryService {
   final LocalDatabase _database;
   Future<List<GitHubRepository>>? _repositoriesRefreshInFlight;
   Future<List<GitHubRepository>>? _followedRefreshInFlight;
+  final Map<String, GitHubRepository> _repositoryCache = {};
+
+  GitHubRepository? cachedRepository(String fullName) =>
+      _repositoryCache[fullName.toLowerCase()];
+
+  void _rememberRepository(GitHubRepository repository) {
+    if (repository.fullName.isNotEmpty) {
+      _repositoryCache[repository.fullName.toLowerCase()] = repository;
+    }
+  }
 
   Future<List<GitHubRepository>> listRepositories() => refreshRepositories();
 
@@ -47,6 +57,9 @@ class RepositoryService {
           .map((json) => GitHubRepository.fromJson(Map<String, dynamic>.from(json)))
           .toList(growable: false);
       repositories.addAll(pageItems);
+      for (final repository in pageItems) {
+        _rememberRepository(repository);
+      }
       if (pageItems.length < 100) break;
     }
     try {
@@ -226,6 +239,9 @@ class RepositoryService {
           )
           .toList(growable: false);
       repositories.addAll(pageItems);
+      for (final repository in pageItems) {
+        _rememberRepository(repository);
+      }
       if (pageItems.length < 100) break;
     }
     return repositories;
@@ -248,7 +264,10 @@ class RepositoryService {
 
   Future<GitHubRepository> getRepository(String fullName) async {
     final response = await _client.get<Map<String, dynamic>>('/repos/$fullName');
-    return GitHubRepository.fromJson(response.data ?? const <String, dynamic>{});
+    final repository =
+        GitHubRepository.fromJson(response.data ?? const <String, dynamic>{});
+    _rememberRepository(repository);
+    return repository;
   }
 
   Future<GitHubRepository> forkRepository(String fullName) async {
@@ -332,6 +351,7 @@ class RepositoryService {
         },
       );
       final repository = GitHubRepository.fromJson(response.data ?? const {});
+      _rememberRepository(repository);
       return repository;
     } catch (error) {
       if (_isAmbiguousMutationError(error)) {
@@ -377,6 +397,8 @@ class RepositoryService {
         repository.id,
         repository.fullName,
       );
+      _repositoryCache.remove(fullName.toLowerCase());
+      _rememberRepository(repository);
       return repository;
     } catch (error) {
       if (_isAmbiguousMutationError(error)) {
@@ -438,6 +460,8 @@ class RepositoryService {
         repository.id,
         repository.fullName,
       );
+      _repositoryCache.remove(fullName.toLowerCase());
+      _rememberRepository(repository);
       return repository;
     } catch (error) {
       if (_isAmbiguousMutationError(error)) {
@@ -466,6 +490,7 @@ class RepositoryService {
         rethrow;
       }
     }
+    _repositoryCache.remove(fullName.toLowerCase());
     await unfollowRepository(fullName);
     await _database.removeFavoriteRepositoryByFullName(fullName);
   }

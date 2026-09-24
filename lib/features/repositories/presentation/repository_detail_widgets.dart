@@ -6,12 +6,14 @@ class _RepositoryHeader extends StatelessWidget {
     required this.info,
     required this.runsFuture,
     required this.readOnly,
+    required this.detailsLoading,
   });
 
   final GitHubRepository repository;
   final RepositoryProjectInfo info;
   final Future<List<RepositoryWorkflowRun>> runsFuture;
   final bool readOnly;
+  final bool detailsLoading;
 
   Future<void> _showProjectInfo(BuildContext context) async {
     await showDialog<void>(
@@ -174,6 +176,17 @@ class _RepositoryHeader extends StatelessWidget {
             Text(
               repository.description!,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+          if (detailsLoading) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(minHeight: 2),
+            const SizedBox(height: 5),
+            Text(
+              'Atualizando versão e tecnologias…',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
             ),
@@ -440,5 +453,245 @@ extension _FirstOrNull<E> on Iterable<E> {
   E? get firstOrNull {
     final iterator = this.iterator;
     return iterator.moveNext() ? iterator.current : null;
+  }
+}
+
+class _RepositoryOperationOverlay extends StatelessWidget {
+  const _RepositoryOperationOverlay({
+    required this.status,
+    required this.branch,
+  });
+
+  final ValueListenable<String> status;
+  final String? branch;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.black.withValues(alpha: .18),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Card(
+            margin: const EdgeInsets.symmetric(horizontal: 28),
+            elevation: 6,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2.6),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Preparando envio',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        if (branch?.isNotEmpty == true) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Branch: $branch',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
+                        const SizedBox(height: 7),
+                        ValueListenableBuilder<String>(
+                          valueListenable: status,
+                          builder: (_, value, __) => Text(value),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RepositoryLoadingView extends StatelessWidget {
+  const _RepositoryLoadingView({required this.repositoryFullName});
+
+  final String repositoryFullName;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = repositoryFullName.split('/').last;
+    final scheme = Theme.of(context).colorScheme;
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          title: Text(name.isEmpty ? 'Projeto' : name),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+          sliver: SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: .38),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name.isEmpty ? 'Carregando projeto' : name,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    repositoryFullName,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 14),
+                  const LinearProgressIndicator(minHeight: 3),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Carregando dados do GitHub… A tela será preenchida por partes.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 18)),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          sliver: SliverToBoxAdapter(
+            child: Text(
+              'Projeto',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 7)),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 22),
+          sliver: SliverList.list(
+            children: const [
+              _RepositoryLoadingTile(
+                icon: Icons.menu_book_outlined,
+                title: 'README',
+              ),
+              SizedBox(height: 7),
+              _RepositoryLoadingTile(
+                icon: Icons.folder_open_rounded,
+                title: 'Arquivos',
+              ),
+              SizedBox(height: 7),
+              _RepositoryLoadingTile(
+                icon: Icons.play_circle_outline_rounded,
+                title: 'Builds',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RepositoryLoadingTile extends StatelessWidget {
+  const _RepositoryLoadingTile({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          leading: Icon(icon),
+          title: Text(title),
+          subtitle: const Text('Carregando…'),
+          trailing: const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+}
+
+class _RepositoryErrorView extends StatelessWidget {
+  const _RepositoryErrorView({
+    required this.repositoryFullName,
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String repositoryFullName;
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = repositoryFullName.split('/').last;
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverAppBar(title: Text(name.isEmpty ? 'Projeto' : name)),
+        SliverPadding(
+          padding: const EdgeInsets.all(16),
+          sliver: SliverToBoxAdapter(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.cloud_off_outlined, size: 30),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Não foi possível concluir o carregamento',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(message),
+                    const SizedBox(height: 14),
+                    FilledButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Tentar novamente'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter/services.dart';
@@ -66,34 +68,15 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
           future: _repositoryFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CustomScrollView(
-                physics: AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverAppBar(title: Text('Projeto')),
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                ],
+              return _RepositoryLoadingView(
+                repositoryFullName: widget.repositoryFullName,
               );
             }
             if (snapshot.hasError || !snapshot.hasData) {
-              return CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  const SliverAppBar(title: Text('Projeto')),
-                  SliverPadding(
-                    padding: const EdgeInsets.all(16),
-                    sliver: SliverToBoxAdapter(
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: Text(_message(snapshot.error)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              return _RepositoryErrorView(
+                repositoryFullName: widget.repositoryFullName,
+                message: _message(snapshot.error),
+                onRetry: _retryRepositoryLoad,
               );
             }
 
@@ -159,6 +142,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                       info: info,
                       runsFuture: _runsFuture,
                       readOnly: widget.readOnly,
+                      detailsLoading: infoAsync.isLoading,
                     ),
                   ),
                 ),
@@ -335,7 +319,9 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
     );
   }
 
-  String _message(Object? error) => error is AppException
-      ? error.message
-      : 'Não foi possível carregar este repositório.';
+  String _message(Object? error) => error is TimeoutException
+      ? 'O GitHub demorou para responder. Verifique a conexão e tente novamente.'
+      : error is AppException
+          ? error.message
+          : 'Não foi possível carregar este repositório.';
 }

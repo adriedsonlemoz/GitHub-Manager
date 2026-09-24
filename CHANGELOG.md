@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.93+200107 — 2026-09-24
+
+- redesenha o seletor de branch como diálogo compacto e centralizado, com branch atual, botão **Criar** e lista recolhível **Outras branches**;
+- o seletor abre imediatamente e carrega branches em segundo plano, com timeout de 12 s e **Tentar novamente** em vez de spinner indefinido;
+- ao enviar um ZIP, a interface mostra imediatamente **Preparando envio** e informa a etapa atual enquanto permissões e dados da branch são consultados;
+- versão remota, prévia da sincronização, workflow e rate limit passam a ser iniciados em paralelo para reduzir o tempo entre branch e confirmação;
+- a tela Projeto reaproveita o repositório já carregado na listagem para abrir instantaneamente e atualiza os dados em segundo plano;
+- quando não há cache, substitui a tela quase vazia por carregamento progressivo com cabeçalho e seções visíveis;
+- adiciona timeout/retry ao carregamento principal do repositório e limites às consultas de branches, runs e metadados;
+- mantém o cache somente em memória e o invalida em edição, rename e exclusão para não reapresentar dados antigos;
+- atualiza os testes/contratos do seletor e do fluxo de envio para o novo comportamento.
+
 ## 2.0.92+200106 — 2026-09-24
 
 - corrige a única falha restante dos jobs GitHub Manager CI #81 e Android APK #82;

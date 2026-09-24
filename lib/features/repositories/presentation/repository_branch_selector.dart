@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
@@ -13,66 +15,28 @@ Future<RepositoryBranch?> showRepositoryBranchSelector({
   String? defaultBranch,
   String? emptyBranchName,
   bool allowCreate = true,
-}) async {
-  List<RepositoryBranch> branches;
-  try {
-    branches = await ref
-        .read(repositoryGitServiceProvider)
-        .listBranches(repositoryFullName);
-  } catch (error) {
-    if (context.mounted) {
-      showCenteredNotice(
-        context,
-        error is AppException
-            ? error.message
-            : 'Não foi possível carregar as branches.',
-      );
-    }
-    return null;
-  }
-  if (!context.mounted) return null;
-
-  if (branches.isEmpty && emptyBranchName?.trim().isNotEmpty == true) {
-    branches = [
-      RepositoryBranch(
-        name: emptyBranchName!.trim(),
-        sha: '',
-        isProtected: false,
-      ),
-    ];
-  }
-
-  RepositoryBranch? current;
-  for (final branch in branches) {
-    if (branch.name == currentBranch) {
-      current = branch;
-      break;
-    }
-  }
-  if (current == null && branches.isNotEmpty) current = branches.first;
-  if (current == null) return null;
-  final selectedCurrent = current;
-
-  return showModalBottomSheet<RepositoryBranch>(
+}) {
+  return showDialog<RepositoryBranch>(
     context: context,
-    showDragHandle: true,
-    useSafeArea: true,
-    isScrollControlled: true,
-    builder: (sheetContext) => _RepositoryBranchSheet(
+    barrierDismissible: true,
+    builder: (dialogContext) => _RepositoryBranchDialog(
       repositoryFullName: repositoryFullName,
-      branches: branches,
-      current: selectedCurrent,
+      currentBranch: currentBranch,
       defaultBranch: defaultBranch,
-      repositoryIsEmpty: branches.length == 1 && branches.first.sha.isEmpty,
-      allowCreate: allowCreate && branches.any((branch) => branch.sha.isNotEmpty),
-      onCreate: (name) async {
-        final created = await ref.read(repositoryGitServiceProvider).createBranch(
-              repositoryFullName: repositoryFullName,
-              branchName: name,
-              sourceBranch: selectedCurrent.name,
-            );
-        return created;
-      },
+      emptyBranchName: emptyBranchName,
+      allowCreate: allowCreate,
+      onLoad: () => ref
+          .read(repositoryGitServiceProvider)
+          .listBranches(repositoryFullName)
+          .timeout(const Duration(seconds: 12)),
+      onCreate: (name, sourceBranch) => ref
+          .read(repositoryGitServiceProvider)
+          .createBranch(
+            repositoryFullName: repositoryFullName,
+            branchName: name,
+            sourceBranch: sourceBranch,
+          )
+          .timeout(const Duration(seconds: 15)),
     ),
   );
 }
@@ -109,33 +73,99 @@ class RepositoryBranchButton extends StatelessWidget {
   }
 }
 
-class _RepositoryBranchSheet extends StatefulWidget {
-  const _RepositoryBranchSheet({
+class _RepositoryBranchDialog extends StatefulWidget {
+  const _RepositoryBranchDialog({
     required this.repositoryFullName,
-    required this.branches,
-    required this.current,
+    required this.currentBranch,
     required this.defaultBranch,
-    required this.repositoryIsEmpty,
+    required this.emptyBranchName,
     required this.allowCreate,
+    required this.onLoad,
     required this.onCreate,
   });
 
   final String repositoryFullName;
-  final List<RepositoryBranch> branches;
-  final RepositoryBranch current;
+  final String currentBranch;
   final String? defaultBranch;
-  final bool repositoryIsEmpty;
+  final String? emptyBranchName;
   final bool allowCreate;
-  final Future<RepositoryBranch> Function(String name) onCreate;
+  final Future<List<RepositoryBranch>> Function() onLoad;
+  final Future<RepositoryBranch> Function(String name, String sourceBranch)
+      onCreate;
 
   @override
-  State<_RepositoryBranchSheet> createState() => _RepositoryBranchSheetState();
+  State<_RepositoryBranchDialog> createState() =>
+      _RepositoryBranchDialogState();
 }
 
-class _RepositoryBranchSheetState extends State<_RepositoryBranchSheet> {
+class _RepositoryBranchDialogState extends State<_RepositoryBranchDialog> {
+  List<RepositoryBranch> _branches = const [];
+  RepositoryBranch? _current;
+  bool _loading = true;
   bool _creating = false;
+  bool _showOthers = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    try {
+      var branches = await widget.onLoad();
+      if (branches.isEmpty && widget.emptyBranchName?.trim().isNotEmpty == true) {
+        branches = [
+          RepositoryBranch(
+            name: widget.emptyBranchName!.trim(),
+            sha: '',
+            isProtected: false,
+          ),
+        ];
+      }
+
+      RepositoryBranch? current;
+      for (final branch in branches) {
+        if (branch.name == widget.currentBranch) {
+          current = branch;
+          break;
+        }
+      }
+      if (current == null && branches.isNotEmpty) current = branches.first;
+      if (!mounted) return;
+      setState(() {
+        _branches = branches;
+        _current = current;
+        _loading = false;
+        _showOthers = branches.length > 1 && _showOthers;
+      });
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'O GitHub demorou para responder. Tente novamente.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = error is AppException
+            ? error.message
+            : 'Não foi possível carregar as branches.';
+      });
+    }
+  }
 
   Future<void> _create() async {
+    final source = _current;
+    if (source == null || source.sha.isEmpty) return;
     final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
@@ -145,7 +175,7 @@ class _RepositoryBranchSheetState extends State<_RepositoryBranchSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('A nova branch será criada a partir de ${widget.current.name}.'),
+            Text('A nova branch será criada a partir de ${source.name}.'),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
@@ -175,8 +205,12 @@ class _RepositoryBranchSheetState extends State<_RepositoryBranchSheet> {
     if (name == null || name.isEmpty || !mounted) return;
     setState(() => _creating = true);
     try {
-      final created = await widget.onCreate(name);
+      final created = await widget.onCreate(name, source.name);
       if (mounted) Navigator.pop(context, created);
+    } on TimeoutException {
+      if (mounted) {
+        showCenteredNotice(context, 'O GitHub demorou para criar a branch. Tente novamente.');
+      }
     } catch (error) {
       if (mounted) {
         showCenteredNotice(
@@ -194,96 +228,188 @@ class _RepositoryBranchSheetState extends State<_RepositoryBranchSheet> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: .62,
-      minChildSize: .38,
-      maxChildSize: .88,
-      builder: (context, scrollController) => ListView(
-        controller: scrollController,
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
+    final current = _current;
+    final repositoryIsEmpty =
+        _branches.length == 1 && _branches.first.sha.isEmpty;
+    final canCreate = widget.allowCreate &&
+        current != null &&
+        current.sha.isNotEmpty &&
+        !_loading;
+    final others = current == null
+        ? _branches
+        : _branches.where((branch) => branch.name != current.name).toList();
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460, maxHeight: 560),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Branch de destino',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.repositoryFullName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (canCreate)
+                    FilledButton.tonalIcon(
+                      onPressed: _creating ? null : _create,
+                      icon: _creating
+                          ? const SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Adicionar'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Card(
+                margin: EdgeInsets.zero,
+                child: ListTile(
+                  leading: Icon(
+                    current?.isProtected == true
+                        ? Icons.lock_outline_rounded
+                        : Icons.account_tree_outlined,
+                  ),
+                  title: Text(current?.name ?? widget.currentBranch),
+                  subtitle: Text(
+                    _loading
+                        ? 'Carregando detalhes e outras branches…'
+                        : repositoryIsEmpty
+                            ? 'Repositório vazio • será criada no primeiro envio'
+                            : [
+                                if (current?.name == widget.defaultBranch) 'padrão',
+                                if (current?.isProtected == true) 'protegida',
+                                if (current?.name != widget.defaultBranch &&
+                                    current?.isProtected != true)
+                                  'selecionada',
+                              ].join(' • '),
+                  ),
+                  trailing: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_circle_rounded),
+                  onTap: current == null ? null : () => Navigator.pop(context, current),
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: scheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Escolher branch',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                      Text(
-                        widget.repositoryFullName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                      const Icon(Icons.wifi_off_rounded, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(_error!)),
+                      TextButton(
+                        onPressed: _load,
+                        child: const Text('Tentar novamente'),
                       ),
                     ],
                   ),
                 ),
-                if (widget.allowCreate)
-                  FilledButton.tonalIcon(
-                    onPressed: _creating ? null : _create,
-                    icon: _creating
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.add_rounded),
-                    label: const Text('Criar'),
-                  ),
               ],
-            ),
-          ),
-          if (widget.repositoryIsEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Text(
-                  'Este repositório ainda está vazio. O primeiro envio inicializará a branch ${widget.current.name}.',
-                ),
-              ),
-            ),
-          if (widget.branches.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Este repositório ainda não possui branches.'),
-              ),
-            )
-          else
-            ...widget.branches.map(
-              (branch) => Card(
-                child: ListTile(
-                  key: ValueKey('repository_branch_${branch.name}'),
-                  leading: Icon(
-                    branch.isProtected
-                        ? Icons.lock_outline_rounded
-                        : Icons.account_tree_outlined,
+              if (!_loading && _error == null && others.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => setState(() => _showOthers = !_showOthers),
+                    icon: Icon(
+                      _showOthers
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                    ),
+                    label: Text(
+                      _showOthers
+                          ? 'Ocultar outras branches'
+                          : 'Outras branches (${others.length})',
+                    ),
                   ),
-                  title: Text(branch.name),
-                  subtitle: (branch.isProtected || branch.name == widget.defaultBranch)
-                      ? Text([
-                          if (branch.name == widget.defaultBranch) 'padrão',
-                          if (branch.isProtected) 'protegida',
-                        ].join(' • '))
-                      : null,
-                  trailing: branch.name == widget.current.name
-                      ? const Icon(Icons.check_circle_rounded)
-                      : const Icon(Icons.chevron_right_rounded),
-                  onTap: () => Navigator.pop(context, branch),
+                ),
+              ],
+              if (_showOthers && others.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: others.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 4),
+                    itemBuilder: (context, index) {
+                      final branch = others[index];
+                      return ListTile(
+                        key: ValueKey('repository_branch_${branch.name}'),
+                        dense: true,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        tileColor: scheme.surfaceContainerLow,
+                        leading: Icon(
+                          branch.isProtected
+                              ? Icons.lock_outline_rounded
+                              : Icons.account_tree_outlined,
+                          size: 20,
+                        ),
+                        title: Text(branch.name),
+                        subtitle: (branch.isProtected ||
+                                branch.name == widget.defaultBranch)
+                            ? Text([
+                                if (branch.name == widget.defaultBranch) 'padrão',
+                                if (branch.isProtected) 'protegida',
+                              ].join(' • '))
+                            : null,
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.pop(context, branch),
+                      );
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
                 ),
               ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,4 +1,9 @@
-# GitHub Manager 2.0.92
+# GitHub Manager 2.0.93
+
+## Carregamento responsivo de projeto e branches 2.0.93
+
+A abertura de um repositório agora reaproveita imediatamente os dados que já foram carregados na lista de projetos e atualiza o conteúdo em segundo plano. Quando não existe cache, a tela deixa de ficar vazia: mostra o projeto e as seções em carregamento progressivo, com timeout e **Tentar novamente** em falhas lentas. O seletor de branch passou de folha inferior grande para diálogo compacto centralizado; ele abre antes da resposta da API, mostra a branch atual e carrega **Outras branches** em segundo plano. Após escolher a branch no envio, um indicador explícito informa a etapa de preparação enquanto permissões, versão, prévia de arquivos, workflow e cota da API são consultados em paralelo.
+
 
 ## Correção final do teste do seletor de branch 2.0.92
 
@@ -233,7 +238,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.92+200106`;
+- versão: `2.0.93+200107`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

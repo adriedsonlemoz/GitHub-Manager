@@ -35,11 +35,34 @@ final repositoryProjectInfoServiceProvider = Provider<RepositoryProjectInfoServi
 
 final repositoryProjectSummaryProvider = FutureProvider.autoDispose
     .family<RepositoryProjectInfo, GitHubRepository>(
-  (ref, repository) =>
-      ref.watch(repositoryProjectInfoServiceProvider).loadSummary(repository),
+  (ref, repository) => ref
+      .watch(repositoryProjectInfoServiceProvider)
+      .loadSummary(repository)
+      .timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => RepositoryProjectInfo(
+          projectName: repository.name,
+          version: null,
+          technologies: [
+            if (repository.language?.isNotEmpty == true) repository.language!,
+          ],
+        ),
+      ),
 );
 
 final repositoryProjectInfoProvider = FutureProvider.autoDispose
     .family<RepositoryProjectInfo, GitHubRepository>(
-  (ref, repository) => ref.watch(repositoryProjectInfoServiceProvider).load(repository),
+  (ref, repository) => ref
+      .watch(repositoryProjectInfoServiceProvider)
+      .load(repository)
+      .timeout(
+        const Duration(seconds: 18),
+        onTimeout: () => RepositoryProjectInfo(
+          projectName: repository.name,
+          version: null,
+          technologies: [
+            if (repository.language?.isNotEmpty == true) repository.language!,
+          ],
+        ),
+      ),
 );
