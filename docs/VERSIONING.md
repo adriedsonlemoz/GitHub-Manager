@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.85+200099`
+`version: 2.0.86+200100`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.86+200100` corrige o ciclo de persistência do `UploadManagerService`: testes não deixam mais debounce pendente, `waitUntilIdle()` aguarda gravações e `dispose()` aguarda o encerramento seguro antes de liberar arquivos temporários.
 
 A versão `2.0.85+200099` corrige as três falhas de testes dos jobs CI #74 / Android APK #75 e padroniza os nomes dos workflows/downloads de logs para identificar projeto, tipo de workflow e execução.
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.86+200100 — 2026-09-24
+
+- Corrige o `Timer` de 650 ms que permanecia pendente no teste de interface do fluxo de envio.
+- Remove a corrida entre persistência de `history.json` e exclusão da pasta temporária nos testes do gerenciador de uploads.
+- `UploadManagerService.forTest` passa a persistir sem debounce; produção mantém debounce de 650 ms.
+- `waitUntilIdle()` agora também espera a fila de persistência terminar.
+- `dispose()` agora aguarda persistência e encerramento do serviço de foreground antes de fechar o stream.
+- Mantém os nomes padronizados dos logs introduzidos na 2.0.85.
+
 ## 2.0.85+200099 — 2026-09-24
 
 - Corrige a detecção de identidade/versão em ZIP Android nativo que contém apenas o módulo `app/`, restaurando `applicationId`, `versionName` e `versionCode`.

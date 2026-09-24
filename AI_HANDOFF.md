@@ -1,8 +1,15 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.85+200099`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.86+200100`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
+
+## Alterações 2.0.86
+
+- Corrigido timer de persistência pendente no teste real do fluxo de envio.
+- `UploadManagerService.forTest` usa persistência sem debounce para não deixar `Timer` falso ativo no fim de `testWidgets`.
+- `waitUntilIdle()` agora também aguarda a persistência do histórico terminar.
+- `dispose()` tornou-se assíncrono e aguarda a persistência/foreground antes de fechar, eliminando corrida com a remoção de diretórios temporários.
 
 ## Alterações 2.0.85
 

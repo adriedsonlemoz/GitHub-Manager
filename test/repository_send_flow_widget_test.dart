@@ -147,6 +147,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Enviar versão'));
       await tester.pump();
+      await manager.waitUntilIdle();
 
       expect(manager.items, hasLength(1));
       expect(manager.items.single.branch, 'develop');

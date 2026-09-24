@@ -45,6 +45,7 @@ class UploadManagerService {
     UploadForegroundController? foregroundController,
     Future<bool> Function()? automaticRecoveryEnabled,
     bool restoreHistory = true,
+    Duration persistDebounce = const Duration(milliseconds: 650),
   })  : _uploadZip = (({
           required ZipProjectPreview project,
           required String repositoryFullName,
@@ -90,7 +91,8 @@ class UploadManagerService {
         _foregroundController = foregroundController ??
             PlatformUploadForegroundController(),
         _automaticRecoveryEnabled = automaticRecoveryEnabled ??
-            (() => UploadRecoverySettings.isAutomaticRecoveryEnabled()) {
+            (() => UploadRecoverySettings.isAutomaticRecoveryEnabled()),
+        _persistDebounce = persistDebounce {
     if (restoreHistory) {
       unawaited(_restoreHistory());
     } else {
@@ -106,12 +108,14 @@ class UploadManagerService {
     UploadForegroundController? foregroundController,
     Future<bool> Function()? automaticRecoveryEnabled,
     bool restoreHistory = false,
+    Duration persistDebounce = Duration.zero,
   })  : _uploadZip = uploadZip,
         _ensureBuild = ensureBuild,
         _historyFileFactory = historyFileFactory,
         _queueDirectoryFactory = queueDirectoryFactory,
         _foregroundController = foregroundController,
-        _automaticRecoveryEnabled = automaticRecoveryEnabled ?? (() async => true) {
+        _automaticRecoveryEnabled = automaticRecoveryEnabled ?? (() async => true),
+        _persistDebounce = persistDebounce {
     if (restoreHistory) {
       unawaited(_restoreHistory());
     } else {
@@ -125,6 +129,7 @@ class UploadManagerService {
   final Future<Directory> Function()? _queueDirectoryFactory;
   final UploadForegroundController? _foregroundController;
   final Future<bool> Function() _automaticRecoveryEnabled;
+  final Duration _persistDebounce;
   final _controller = StreamController<List<ManagedUpload>>.broadcast();
   final Completer<void> _restoreCompleter = Completer<void>();
   final List<ManagedUpload> _items = [];
@@ -335,6 +340,7 @@ class UploadManagerService {
     while (_running || _queue.isNotEmpty) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
+    await _flushScheduledPersistence();
   }
 
   Future<void> _drainQueue() async {
@@ -754,10 +760,29 @@ class UploadManagerService {
   }
 
   void _schedulePersist() {
+    if (_disposed) return;
     _persistTimer?.cancel();
-    _persistTimer = Timer(const Duration(milliseconds: 650), () {
+    _persistTimer = null;
+
+    if (_persistDebounce.inMicroseconds <= 0) {
+      unawaited(_persistHistory());
+      return;
+    }
+
+    _persistTimer = Timer(_persistDebounce, () {
+      _persistTimer = null;
       unawaited(_persistHistory());
     });
+  }
+
+  Future<void> _flushScheduledPersistence() async {
+    final timer = _persistTimer;
+    if (timer != null) {
+      timer.cancel();
+      _persistTimer = null;
+      await _persistHistory();
+    }
+    await _persistTail;
   }
 
   Future<void> _persistHistory() {
@@ -926,13 +951,19 @@ class UploadManagerService {
 
   String _shortSha(String sha) => sha.length > 7 ? sha.substring(0, 7) : sha;
 
-  void dispose() {
+  Future<void> dispose() async {
+    if (_disposed) return;
     _disposed = true;
-    _persistTimer?.cancel();
     _foregroundTimer?.cancel();
-    unawaited(_persistHistory());
-    unawaited(_foregroundController?.stop());
-    _controller.close();
+    _foregroundTimer = null;
+
+    await _flushScheduledPersistence();
+    try {
+      await _foregroundController?.stop();
+    } catch (_) {
+      // Encerrar o serviço de foreground é best-effort durante o dispose.
+    }
+    await _controller.close();
   }
 }
 
