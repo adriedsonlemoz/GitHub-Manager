@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.91+200105 — 2026-09-24
+
+- corrige a única falha restante dos jobs GitHub Manager CI #80 e Android APK #81: o teste encontrava a branch `develop`, mas tentava tocá-la fora da área visível do viewport de teste;
+- o teste passa a rolar explicitamente até a branch antes do toque, reproduzindo o comportamento real de uma lista rolável em telas menores;
+- adiciona uma chave estável por item no seletor reutilizável de branches, reduzindo a fragilidade dos testes de interface;
+- remove o import não utilizado apontado pelo analyzer em `repository_send_flow_widget_test.dart`;
+- mantém o timeout de 3 minutos nos workflows como proteção, embora os novos logs confirmem que a suíte já encerra normalmente em menos de 1 minuto.
+
 ## 2.0.90+200104 — 2026-09-24
 
 - substitui o teste end-to-end instável de envio por dois `testWidgets` focados e determinísticos: seleção de branch e minimização do diálogo de progresso;

@@ -263,6 +263,7 @@ class _RepositoryBranchSheetState extends State<_RepositoryBranchSheet> {
             ...widget.branches.map(
               (branch) => Card(
                 child: ListTile(
+                  key: ValueKey('repository_branch_${branch.name}'),
                   leading: Icon(
                     branch.isProtected
                         ? Icons.lock_outline_rounded

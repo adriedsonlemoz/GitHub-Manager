@@ -1,4 +1,8 @@
-# GitHub Manager 2.0.90
+# GitHub Manager 2.0.91
+
+## Correção do seletor de branch nos testes 2.0.91
+
+Os jobs CI #80 e Android APK #81 confirmaram que o travamento anterior foi eliminado: a suíte termina normalmente, com 126 testes aprovados e apenas um teste falhando. A falha ocorria porque `develop` estava presente no seletor, porém fora do viewport de 600 px usado pelo `testWidgets`; o teste agora rola até a branch antes do toque e os itens do seletor possuem chaves estáveis para automação.
 
 ## Estabilidade dos testes de interface 2.0.90
 
@@ -225,7 +229,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.90+200104`;
+- versão: `2.0.91+200105`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

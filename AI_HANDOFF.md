@@ -1,8 +1,16 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.90+200104`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.91+200105`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
+
+## Alterações 2.0.91
+
+- Jobs CI #80 / Android APK #81: a suíte deixa de travar e finaliza rapidamente; restava somente 1 teste falhando.
+- O log mostrou explicitamente que `develop` estava fora do viewport (`y=816` em uma tela de 600 px), portanto o toque não atingia o item e o resultado ficava `null`.
+- O teste agora usa uma chave estável da branch, chama `ensureVisible` e somente depois toca no item.
+- O seletor reutilizável de branches expõe `ValueKey('repository_branch_<nome>')` em cada `ListTile`, melhorando a automação sem alterar a lógica de produção.
+- Removido o import não utilizado apontado pelo analyzer.
 
 ## Alterações 2.0.90
 

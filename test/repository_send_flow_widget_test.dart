@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/core/security/secure_storage_service.dart';
-import 'package:github_manager/features/projects/data/git_project_upload_service.dart';
 import 'package:github_manager/features/projects/domain/zip_project.dart';
 import 'package:github_manager/features/repositories/data/repository_git_service.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
@@ -56,7 +55,13 @@ void main() {
       expect(find.text('main'), findsOneWidget);
       expect(find.text('develop'), findsOneWidget);
 
-      await tester.tap(find.text('develop'));
+      final developTile = find.byKey(
+        const ValueKey('repository_branch_develop'),
+      );
+      expect(developTile, findsOneWidget);
+      await tester.ensureVisible(developTile);
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.tap(developTile);
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(selected?.name, 'develop');
@@ -68,8 +73,8 @@ void main() {
     'dialogo de progresso pode ser minimizado mesmo com progresso indeterminado',
     (tester) async {
       final project = ZipProjectPreview(
-        path: '/tmp/repo-v2.0.90.zip',
-        name: 'repo-v2.0.90.zip',
+        path: '/tmp/repo-v2.0.91.zip',
+        name: 'repo-v2.0.91.zip',
         archiveBytes: 4,
         uncompressedBytes: 4,
         fileCount: 1,
@@ -80,8 +85,8 @@ void main() {
         projectName: 'Repo',
         packageName: 'repo',
         applicationId: 'com.example.repo',
-        version: '2.0.90',
-        versionCode: 200104,
+        version: '2.0.91',
+        versionCode: 200105,
         hasWorkflowFiles: false,
       );
 
