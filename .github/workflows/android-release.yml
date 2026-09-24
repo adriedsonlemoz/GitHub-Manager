@@ -1,4 +1,4 @@
-name: Android Release
+name: GitHub Manager Android Release
 
 on:
   workflow_dispatch:

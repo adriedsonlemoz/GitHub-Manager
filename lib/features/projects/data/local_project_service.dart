@@ -331,7 +331,10 @@ class LocalProjectService {
         useVersion(_versionFromShellScript(text), source);
       } else if (lower == 'android/app/build.gradle' ||
           lower == 'android/app/build.gradle.kts' ||
-          lower == 'app/build.gradle' || lower == 'app/build.gradle.kts') {
+          lower == 'app/build.gradle' ||
+          lower == 'app/build.gradle.kts' ||
+          lower == 'build.gradle' ||
+          lower == 'build.gradle.kts') {
         applicationId ??= RegExp(
           r'''applicationId\s*(?:=\s*)?["']([^"']+)["']''',
         ).firstMatch(text)?.group(1)?.trim();
@@ -380,6 +383,10 @@ class LocalProjectService {
       'android/app/build.gradle': 21,
       'app/build.gradle.kts': 22,
       'app/build.gradle': 23,
+      // Quando o ZIP contém apenas o módulo Android app/, o commonRoot é
+      // removido e o Gradle do módulo passa a aparecer na raiz efetiva.
+      'build.gradle.kts': 24,
+      'build.gradle': 25,
     };
     return priorities[relativePath] ?? 1000;
   }

@@ -63,12 +63,18 @@ void main() {
 
   test('lista vazia de branches é tratada como repositório vazio, não falha de API', () {
     final source = File(
-      'lib/features/repositories/presentation/repository_detail_screen_actions.dart',
+      'lib/features/repositories/presentation/repository_branch_selector.dart',
     ).readAsStringSync();
 
-    expect(source, contains('final repositoryIsEmpty = branches.isEmpty;'));
+    expect(
+      source,
+      contains(
+        'if (branches.isEmpty && emptyBranchName?.trim().isNotEmpty == true)',
+      ),
+    );
     expect(source, contains('O primeiro envio inicializará a branch'));
     expect(source, contains("sha: ''"));
+    expect(source, contains('repositoryIsEmpty: branches.length == 1'));
   });
 
 }

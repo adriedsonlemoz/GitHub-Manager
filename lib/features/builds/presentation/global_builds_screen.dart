@@ -71,7 +71,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
     ref.read(downloadManagerProvider).startWorkflowLogs(
           repositoryFullName: entry.repository.fullName,
           runId: entry.run.id,
-          runTitle: '${entry.repository.name}-${entry.run.name}-${entry.run.runNumber}',
+          runTitle: '${entry.run.name}-${entry.run.runNumber}',
         );
     if (mounted) {
       showCenteredNotice(

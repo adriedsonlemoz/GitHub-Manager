@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.85+200099 — 2026-09-24
+
+- Corrige a detecção de identidade/versão em ZIP Android nativo que contém apenas o módulo `app/`, restaurando `applicationId`, `versionName` e `versionCode`.
+- Atualiza o teste de repositório vazio para validar o seletor de branch reutilizável, onde esse comportamento está implementado desde a 2.0.82.
+- Torna o teste de envio pela interface robusto a conteúdo rolável antes de alternar **Iniciar build após o envio**.
+- Renomeia os workflows para `GitHub Manager CI`, `GitHub Manager Android APK` e `GitHub Manager Android Release`, deixando os arquivos baixados pelo GitHub mais claros.
+- Padroniza também o botão **Log** do aplicativo para salvar `<Repositorio>-<Workflow>-<Run>-logs.zip` sem duplicar o nome do repositório.
+
 ## 2.0.84+200098 — 2026-09-24
 
 - Corrige o erro fatal do CI/APK #73 em `permission_preflight_service_test.dart`: o gateway de teste volta a declarar explicitamente a capacidade `push` usada no diagnóstico de permissões.

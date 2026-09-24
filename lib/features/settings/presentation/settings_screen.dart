@@ -239,16 +239,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.85',
+                      text: 'Corrige três falhas da suíte CI/APK e padroniza os nomes dos logs baixados pelo GitHub e pelo app.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.84',
-                      text: 'Permite alterar a branch na confirmação final e identifica versões Shell/Termux por MANIFEST.json e manager.sh.',
+                      text: 'Corrige a regressão do diagnóstico de permissões e limpa warnings recentes ligados à reorganização.',
                     ),
                     _ChangeNote(
-                      version: '2.0.79',
-                      text: 'Corrige o erro de análise da tela Builds com Riverpod 3 e reforça o contrato tipado do diálogo de envio.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.78',
-                      text: 'Adiciona escolha da branch ao enviar versões, uma tela global de Builds e trata projetos sem workflow como envios válidos sem build.',
+                      version: '2.0.83',
+                      text: 'Agrupa Builds por repositório e adiciona atalhos para baixar Log e APK da execução mais recente.',
                     ),
                   ],
                 ),

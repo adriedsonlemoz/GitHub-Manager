@@ -140,7 +140,10 @@ void main() {
       expect(find.text('develop'), findsWidgets);
       expect(find.text('Iniciar build após o envio'), findsOneWidget);
 
-      await tester.tap(find.text('Iniciar build após o envio'));
+      final buildToggle = find.text('Iniciar build após o envio');
+      await tester.ensureVisible(buildToggle);
+      await tester.pumpAndSettle();
+      await tester.tap(buildToggle);
       await tester.pump();
       await tester.tap(find.text('Enviar versão'));
       await tester.pump();

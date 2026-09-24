@@ -1,8 +1,16 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.84+200098`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.85+200099`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
+
+## Alterações 2.0.85
+
+- corrigidas as três falhas de teste vistas nos jobs CI #74 / Android APK #75;
+- ZIP Android nativo contendo apenas `app/` volta a expor identidade e versão pelo Gradle do módulo;
+- teste de repositório vazio acompanha a implementação atual em `repository_branch_selector.dart`;
+- teste do envio rola o diálogo antes de tocar na opção de build;
+- workflows e downloads internos de logs usam nomes previsíveis com prefixo do repositório.
 
 ## Alterações 2.0.84
 

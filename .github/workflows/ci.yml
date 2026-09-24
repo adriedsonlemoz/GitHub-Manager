@@ -1,4 +1,4 @@
-name: Verificação do Projeto (CI)
+name: GitHub Manager CI
 
 on:
   push:

@@ -64,9 +64,20 @@ class DownloadManagerService {
     required int runId,
     required String runTitle,
   }) {
+    final repositoryName = repositoryFullName.split('/').last.trim();
+    final safeRepositoryName = _safeName(repositoryName);
+    final safeRunTitle = _safeName(runTitle);
+    final lowerRepositoryName = safeRepositoryName.toLowerCase();
+    final lowerRunTitle = safeRunTitle.toLowerCase();
+    final titleAlreadyIncludesRepository =
+        lowerRunTitle == lowerRepositoryName ||
+        lowerRunTitle.startsWith('$lowerRepositoryName-');
+    final fileStem = titleAlreadyIncludesRepository
+        ? safeRunTitle
+        : '$safeRepositoryName-$safeRunTitle';
     return _startRedirected(
       title: 'Logs • $runTitle',
-      fileName: '${_safeName(runTitle)}-logs.zip',
+      fileName: '$fileStem-logs.zip',
       type: ManagedDownloadType.logs,
       repositoryFullName: repositoryFullName,
       endpoint: '/repos/$repositoryFullName/actions/runs/$runId/logs',
