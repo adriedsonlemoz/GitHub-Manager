@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.75+200089 — 2026-09-23
+
+- Corrige erro de análise em `global_builds_screen.dart`: `ListView` não possui construtor `const`.
+- Corrige identificador inexistente `buildPolicy` no diálogo de criação de fork; confirmação volta a retornar `true`.
+- Mantém as melhorias da 2.0.74 para seleção de branch, Builds globais e projetos sem workflow.
+- Correções baseadas nos logs Android-APK-65 e Verificação do Projeto CI-65.
+
 ## 2.0.74+200088 — 2026-09-23
 
 - O envio de uma nova versão agora permite escolher a branch de destino antes da conferência; a última branch escolhida por repositório é lembrada localmente e branches protegidas são identificadas.

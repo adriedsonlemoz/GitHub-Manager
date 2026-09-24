@@ -62,7 +62,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
             child: const Text('Cancelar'),
           ),
           FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, buildPolicy),
+            onPressed: () => Navigator.pop(dialogContext, true),
             icon: const Icon(Icons.call_split_rounded),
             label: const Text('Criar fork'),
           ),
@@ -486,10 +486,10 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                       ),
                     );
                     if (forced == true && dialogContext.mounted) {
-                      Navigator.pop(dialogContext, buildPolicy);
+                      Navigator.pop(dialogContext, true);
                     }
                   }
-                : () => Navigator.pop(dialogContext, buildPolicy),
+                : () => Navigator.pop(dialogContext, true),
             icon: Icon(
               check.blocked || check.warning
                   ? Icons.warning_amber_rounded

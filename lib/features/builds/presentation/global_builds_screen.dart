@@ -51,7 +51,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: builds.when(
-          loading: () => const ListView(
+          loading: () => ListView(
             physics: AlwaysScrollableScrollPhysics(),
             children: [
               SizedBox(height: 240),
