@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.89+200103 — 2026-09-24
+
+- Corrige o travamento real remanescente de `repository_send_flow_widget_test.dart`: o teste não usa mais `pumpAndSettle()` enquanto o diálogo de progresso possui animação contínua.
+- Substitui as esperas abertas do fluxo de envio por helpers limitados (`_pumpUntilVisible`/`_pumpUntilGone`), que avançam o relógio virtual em passos curtos e falham de forma explícita caso a interface não chegue ao estado esperado.
+- Mantém o `UploadManagerService.forTest` sem fila de I/O real nesse `testWidgets`, preservando a separação entre teste de UI e testes unitários da fila.
+- Os logs CI #78 e Android APK #79 confirmaram 33 dos 34 arquivos de teste concluídos; o único arquivo ausente da conclusão era o teste de envio pela interface.
+- Mantém o limite de 3 minutos dos workflows como proteção contra regressões futuras.
+
 ## 2.0.88+200102 — 2026-09-24
 
 - Corrige o travamento remanescente de `repository_send_flow_widget_test.dart`: o teste de interface deixa de iniciar cópia de ZIP e persistência real em disco dentro do `FakeAsync` do Flutter.

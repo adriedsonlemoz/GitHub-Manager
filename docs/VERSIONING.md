@@ -4,14 +4,16 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.88+200102`
+`version: 2.0.89+200103`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.88+200102` corrige o travamento remanescente do teste de interface separando o teste de UI da fila real de I/O: `UploadManagerService.forTest` pode registrar o envio sem iniciar cópia/persistência em segundo plano, enquanto os testes unitários continuam cobrindo a fila completa.
+A versão `2.0.89+200103` corrige o travamento confirmado pelos jobs CI #78 e Android APK #79: o teste de envio pela interface não usa mais `pumpAndSettle()` enquanto o diálogo de progresso possui animação contínua; as esperas agora são limitadas e falham explicitamente se o estado visual esperado não aparecer.
+
+A versão `2.0.88+200102` separa o teste de interface da fila real de I/O usando `runBackgroundQueue: false` e adiciona timeout de 3 minutos às etapas de teste dos workflows.
 
 A versão `2.0.86+200100` corrige o ciclo de persistência do `UploadManagerService`: testes não deixam mais debounce pendente, `waitUntilIdle()` aguarda gravações e `dispose()` aguarda o encerramento seguro antes de liberar arquivos temporários.
 

@@ -1,11 +1,15 @@
-# GitHub Manager 2.0.88
+# GitHub Manager 2.0.89
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
 
-## Correção definitiva do travamento dos testes 2.0.88
+## Correção do `pumpAndSettle` infinito 2.0.89
 
-Os jobs CI #77 e Android APK #78 mostraram que os outros 126 testes terminavam, mas `repository_send_flow_widget_test.dart` continuava preso. A causa remanescente era o teste de interface iniciar a fila real de upload, que faz cópia de ZIP e persistência em disco dentro do `FakeAsync` do Flutter. A 2.0.88 separa essas responsabilidades: nesse teste, o gerenciador registra o envio sem iniciar I/O em segundo plano; os testes unitários continuam exercitando a fila real completa. O diálogo de progresso também é fechado explicitamente antes do fim do teste. Os workflows de CI, APK e Release agora limitam a etapa de testes a 3 minutos, evitando jobs presos indefinidamente em uma regressão futura.
+Os jobs CI #78 e Android APK #79 mostraram que 33 dos 34 arquivos de teste concluíam normalmente e apenas `repository_send_flow_widget_test.dart` nunca finalizava. A causa era `pumpAndSettle()` ser chamado depois da abertura do diálogo de progresso, que contém animação contínua e portanto nunca fica totalmente estável. A 2.0.89 substitui essas esperas por pumps limitados até o estado esperado aparecer ou desaparecer, mantendo o teste de interface sem fila real de I/O e preservando o timeout de 3 minutos dos workflows como proteção.
+
+## Isolamento de I/O do teste 2.0.88
+
+A 2.0.88 separou o `testWidgets` da fila real de upload com `runBackgroundQueue: false` e adicionou timeout de 3 minutos aos workflows. Os logs seguintes mostraram que ainda restava uma espera infinita de UI por `pumpAndSettle()`, corrigida na 2.0.89.
 
 ## Correção de persistência e testes 2.0.86
 
@@ -216,7 +220,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.88+200102`;
+- versão: `2.0.89+200103`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

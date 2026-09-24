@@ -97,13 +97,13 @@ void main() {
         routes: [
           GoRoute(
             path: '/repositories/:owner/:repo',
-            builder: (_, __) => const RepositoryDetailScreen(
+            builder: (_, _) => const RepositoryDetailScreen(
               repositoryFullName: 'owner/repo',
             ),
           ),
           GoRoute(
             path: '/uploads',
-            builder: (_, __) => const Scaffold(body: Text('uploads')),
+            builder: (_, _) => const Scaffold(body: Text('uploads')),
           ),
         ],
       );
@@ -128,14 +128,14 @@ void main() {
           child: MaterialApp.router(routerConfig: router),
         ),
       );
-      await tester.pumpAndSettle();
+      await _pumpUntilVisible(tester, find.text('Enviar'));
 
       await tester.tap(find.text('Enviar').first);
-      await tester.pumpAndSettle();
+      await _pumpUntilVisible(tester, find.text('Escolher branch'));
 
       expect(find.text('Escolher branch'), findsOneWidget);
       await tester.tap(find.text('develop'));
-      await tester.pumpAndSettle();
+      await _pumpUntilVisible(tester, find.text('Conferir envio'));
 
       expect(find.text('Conferir envio'), findsOneWidget);
       expect(find.text('develop'), findsWidgets);
@@ -143,11 +143,11 @@ void main() {
 
       final buildToggle = find.text('Iniciar build após o envio');
       await tester.ensureVisible(buildToggle);
-      await tester.pumpAndSettle();
+      await tester.pump();
       await tester.tap(buildToggle);
       await tester.pump();
       await tester.tap(find.text('Enviar versão'));
-      await tester.pumpAndSettle();
+      await _pumpUntilVisible(tester, find.text('Minimizar'));
 
       expect(manager.items, hasLength(1));
       expect(manager.items.single.branch, 'develop');
@@ -155,7 +155,7 @@ void main() {
 
       expect(find.text('Minimizar'), findsOneWidget);
       await tester.tap(find.text('Minimizar'));
-      await tester.pumpAndSettle();
+      await _pumpUntilGone(tester, find.text('Minimizar'));
 
       final branchesIndex = events.indexOf('branches');
       final permissionIndex = events.indexWhere((event) => event.startsWith('permission:'));
@@ -164,6 +164,32 @@ void main() {
       expect(events[permissionIndex], 'permission:syncProjectWithWorkflows');
     },
   );
+}
+
+Future<void> _pumpUntilVisible(
+  WidgetTester tester,
+  Finder finder, {
+  int maxPumps = 100,
+  Duration step = const Duration(milliseconds: 20),
+}) async {
+  for (var i = 0; i < maxPumps; i += 1) {
+    await tester.pump(step);
+    if (finder.evaluate().isNotEmpty) return;
+  }
+  fail('Widget não apareceu dentro do limite do teste: $finder');
+}
+
+Future<void> _pumpUntilGone(
+  WidgetTester tester,
+  Finder finder, {
+  int maxPumps = 100,
+  Duration step = const Duration(milliseconds: 20),
+}) async {
+  for (var i = 0; i < maxPumps; i += 1) {
+    await tester.pump(step);
+    if (finder.evaluate().isEmpty) return;
+  }
+  fail('Widget permaneceu visível além do limite do teste: $finder');
 }
 
 const _repository = GitHubRepository(

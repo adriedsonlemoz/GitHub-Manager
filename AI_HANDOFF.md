@@ -1,14 +1,22 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.88+200102`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.89+200103`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
+
+## Alterações 2.0.89
+
+- Corrigido o travamento confirmado pelos jobs CI #78 e Android APK #79: `repository_send_flow_widget_test.dart` era o único entre 34 arquivos de teste que não concluía.
+- O teste não usa mais `pumpAndSettle()` no fluxo que abre o diálogo de progresso, porque esse diálogo possui animação contínua e nunca entra em estado totalmente estável.
+- As esperas do fluxo usam `_pumpUntilVisible` e `_pumpUntilGone`, com número máximo de pumps e falha explícita caso a UI não alcance o estado esperado.
+- O teste continua usando `UploadManagerService.forTest(runBackgroundQueue: false)`, portanto não inicia cópia/persistência real dentro do `FakeAsync`.
+- Os workflows continuam com `timeout-minutes: 3` na etapa de testes como proteção contra qualquer regressão futura.
 
 ## Alterações 2.0.88
 
 - `repository_send_flow_widget_test.dart` não inicia mais a fila real de cópia/persistência dentro do `FakeAsync` de `testWidgets`.
 - `UploadManagerService.forTest` ganhou `runBackgroundQueue`, padrão `true`; somente o teste de interface usa `false`, preservando a cobertura real da fila nos testes unitários.
-- O teste fecha explicitamente o diálogo de progresso antes de terminar, evitando Future de interface pendente.
+- O teste fecha explicitamente o diálogo de progresso antes de terminar.
 - CI, Android APK e Android Release definem `timeout-minutes: 3` na etapa de testes para falhar rápido em caso de novo travamento.
 
 ## Alterações 2.0.87
