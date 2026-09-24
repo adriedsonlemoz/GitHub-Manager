@@ -91,38 +91,18 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
         return;
       }
 
-      final targetBranch = await _chooseUploadBranch(repository);
-      if (targetBranch == null || !mounted) return;
-
-      var workflowFilesWillChange = false;
-      if (project.hasWorkflowFiles) {
-        try {
-          workflowFilesWillChange = await ref
-              .read(gitProjectUploadServiceProvider)
-              .workflowFilesWillChange(
-                project: project,
-                repositoryFullName: repository.fullName,
-                branch: targetBranch.name,
-              );
-        } catch (_) {
-          // Se a comparação somente-leitura ficar inconclusiva, tratamos a
-          // presença de workflows como alteração potencial. Isso evita iniciar
-          // um envio que um PAT clássico sem `workflow` não conseguirá publicar.
-          workflowFilesWillChange = true;
-        }
-      }
-      if (!mounted) return;
-
       final syncAllowed = await ensureRepositoryPermission(
         context,
         ref,
         repositoryFullName: repository.fullName,
-        action: workflowFilesWillChange
-            ? RepositoryCriticalAction.syncProjectWorkflowFiles
+        action: project.hasWorkflowFiles
+            ? RepositoryCriticalAction.syncProjectWithWorkflows
             : RepositoryCriticalAction.syncProject,
-        branch: targetBranch.name,
       );
       if (!syncAllowed || !mounted) return;
+
+      final targetBranch = await _chooseUploadBranch(repository);
+      if (targetBranch == null || !mounted) return;
 
       final repositoryInfo = await ref
           .read(repositoryProjectInfoServiceProvider)
@@ -150,7 +130,6 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
           ref,
           repositoryFullName: repository.fullName,
           action: RepositoryCriticalAction.sendBuild,
-          branch: targetBranch.name,
         );
         if (!buildAllowed || !mounted) return;
       }
@@ -181,22 +160,20 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
   Future<RepositoryBranch?> _chooseUploadBranch(
     GitHubRepository repository,
   ) async {
-    List<RepositoryBranch> branches;
-    while (true) {
+    List<RepositoryBranch>? branches;
+    while (branches == null) {
       try {
         branches = await ref
             .read(repositoryGitServiceProvider)
             .listBranches(repository.fullName);
-        break;
       } catch (error) {
         if (!mounted) return null;
         final retry = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Não foi possível carregar as branches'),
-            content: Text(
-              'O GitHub Manager não conseguiu confirmar as branches nem suas proteções. '
-              'O envio não continuará usando uma branch inventada.\n\n${_message(error)}',
+            content: const Text(
+              'O GitHub Manager não vai inventar uma lista incompleta nem assumir que a branch padrão está desprotegida. Tente novamente para escolher o destino com segurança.',
             ),
             actions: [
               TextButton(
@@ -211,7 +188,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
             ],
           ),
         );
-        if (retry != true || !mounted) return null;
+        if (retry != true) return null;
       }
     }
     if (!mounted) return null;
@@ -219,29 +196,25 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     final byName = <String, RepositoryBranch>{
       for (final branch in branches) branch.name: branch,
     };
-    if (byName.isEmpty) {
-      byName[repository.defaultBranch] = RepositoryBranch(
-        name: repository.defaultBranch,
-        sha: '',
-        isProtected: false,
-        protectionKnown: false,
-      );
+    if (byName.isEmpty || !byName.containsKey(repository.defaultBranch)) {
+      if (mounted) {
+        _showError(StateError('A branch padrão não foi retornada pelo GitHub. Atualize os dados do repositório e tente novamente.'));
+      }
+      return null;
     }
 
     final preferenceKey =
         'uploads.last_branch.${repository.fullName.toLowerCase()}';
-    Object? stored;
+    dynamic stored;
     try {
       stored = await ref.read(localDatabaseProvider).readJson(preferenceKey);
     } catch (_) {
-      // Preferência é apenas conveniência e nunca pode bloquear o envio.
+      // Preferência é best-effort: falha local não pode bloquear o envio.
     }
     if (!mounted) return null;
     var selectedName = stored is String && byName.containsKey(stored)
         ? stored
-        : (byName.containsKey(repository.defaultBranch)
-            ? repository.defaultBranch
-            : byName.keys.first);
+        : repository.defaultBranch;
 
     final selected = await showDialog<RepositoryBranch>(
       context: context,
@@ -255,7 +228,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                 shrinkWrap: true,
                 children: [
                   Text(
-                    'A nova versão será comparada e enviada usando a branch escolhida.',
+                    'A nova versão será comparada e enviada usando a branch escolhida. A proteção exibida abaixo é a da própria branch selecionada.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 10),
@@ -269,19 +242,16 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                             : Icons.radio_button_off_rounded,
                       ),
                       title: Text(branch.name),
-                      subtitle: Text(
-                        [
-                          if (branch.name == repository.defaultBranch) 'padrão',
-                          if (branch.protectionKnown && branch.isProtected)
-                            'protegida',
-                          if (!branch.protectionKnown) 'proteção não confirmada',
-                        ].join(' • '),
-                      ),
-                      trailing: branch.protectionKnown && branch.isProtected
+                      subtitle: branch.name == repository.defaultBranch || branch.isProtected
+                          ? Text([
+                              if (branch.name == repository.defaultBranch) 'padrão',
+                              if (branch.isProtected) 'protegida',
+                            ].join(' • '))
+                          : null,
+                      trailing: branch.isProtected
                           ? const Icon(Icons.lock_outline_rounded, size: 19)
                           : null,
-                      onTap: () =>
-                          setDialogState(() => selectedName = branch.name),
+                      onTap: () => setDialogState(() => selectedName = branch.name),
                     ),
                   ),
                 ],
@@ -294,8 +264,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
               child: const Text('Cancelar'),
             ),
             FilledButton.icon(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, byName[selectedName]),
+              onPressed: () => Navigator.pop(dialogContext, byName[selectedName]),
               icon: const Icon(Icons.account_tree_outlined),
               label: const Text('Usar esta branch'),
             ),
@@ -304,14 +273,11 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       ),
     );
 
-    if (selected != null && mounted) {
+    if (selected != null) {
       try {
-        await ref.read(localDatabaseProvider).putJson(
-              preferenceKey,
-              selected.name,
-            );
+        await ref.read(localDatabaseProvider).putJson(preferenceKey, selected.name);
       } catch (_) {
-        // Falha ao salvar a conveniência não invalida uma branch já escolhida.
+        // Preferência é best-effort. O envio continua normalmente.
       }
     }
     return selected;
@@ -391,12 +357,10 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                 ),
                 _BuildSafetyRow(
                   label: 'Branch de destino',
-                  value: !targetBranch.protectionKnown
-                      ? '${targetBranch.name} • proteção não confirmada'
-                      : targetBranch.isProtected
-                          ? '${targetBranch.name} • protegida'
-                          : targetBranch.name,
-                  icon: targetBranch.protectionKnown && targetBranch.isProtected
+                  value: targetBranch.isProtected
+                      ? '${targetBranch.name} • protegida'
+                      : targetBranch.name,
+                  icon: targetBranch.isProtected
                       ? Icons.lock_outline_rounded
                       : Icons.account_tree_outlined,
                 ),
@@ -555,10 +519,10 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                       ),
                     );
                     if (forced == true && dialogContext.mounted) {
-                      completeUploadPolicyDialog(dialogContext, buildPolicy);
+                      Navigator.pop(dialogContext, buildPolicy);
                     }
                   }
-                : () => completeUploadPolicyDialog(dialogContext, buildPolicy),
+                : () => Navigator.pop(dialogContext, buildPolicy),
             icon: Icon(
               check.blocked || check.warning
                   ? Icons.warning_amber_rounded

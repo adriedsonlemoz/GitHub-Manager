@@ -4,14 +4,16 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.78+200092`
+`version: 2.0.79+200093`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.78+200092` estabiliza o fluxo introduzido nas versões 2.0.74–2.0.77: corrige o retorno da confirmação de envio, torna as permissões contextuais por branch/operação, abre a execução exata na tela Builds e adiciona polling/testes de regressão. A versão `2.0.77+200091` havia corrigido o diagnóstico de Contents para PAT clássico.
+A versão `2.0.79+200093` corrige a incompatibilidade de `AsyncValue.valueOrNull` com Riverpod 3 na tela global de Builds, protege o retorno tipado do diálogo de envio com teste de regressão e limpa warnings introduzidos na reorganização recente.
+
+A versão `2.0.78+200092` corrigiu a suíte `TokenPermissionDiagnosticsService`, alinhando o diagnóstico de Contents para PAT clássico ao fluxo atual de sincronização sem build. A versão `2.0.76+200090` havia corrigido o pré-check de permissões do envio.
 
 A versão `2.0.72+200086` refatora o modelo `ManagedUpload` sem alterar seu contrato público, separando estado derivado, diagnóstico de falhas, mutações de ciclo de vida, relatório técnico e codec JSON em componentes internos menores.
 

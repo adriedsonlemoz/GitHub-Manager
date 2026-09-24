@@ -10,7 +10,6 @@ import 'package:github_manager/core/widgets/app_error_card.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/auth/presentation/auth_providers.dart';
-import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/permissions/domain/repository_permission_preflight.dart';
 import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
@@ -94,7 +93,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
   Future<void> _reconcileRepositories() async {
     try {
       if (_showingFollowed) {
-        await ref.refresh(followedRepositoriesProvider.future);
+        final _ = await ref.refresh(followedRepositoriesProvider.future);
       } else {
         final fresh = await ref.refresh(repositoriesProvider.future);
         for (final repository in fresh) {
@@ -134,7 +133,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
   Future<void> _refresh() async {
     try {
       if (_showingFollowed) {
-        await ref.refresh(followedRepositoriesProvider.future);
+        final _ = await ref.refresh(followedRepositoriesProvider.future);
       } else {
         final fresh = await ref.refresh(repositoriesProvider.future);
         for (final repository in fresh) {

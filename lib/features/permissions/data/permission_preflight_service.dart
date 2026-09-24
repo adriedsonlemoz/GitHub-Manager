@@ -21,26 +21,23 @@ class PermissionPreflightService {
   Future<RepositoryPermissionReport> getReport(
     String repositoryFullName, {
     bool forceRefresh = false,
-    String? branch,
   }) async {
     final token = (await _readToken())?.trim();
     if (token == null || token.isEmpty) {
       throw const AuthenticationRequiredException();
     }
-    return _diagnostics.diagnose(repositoryFullName, branch: branch);
+    return _diagnostics.diagnose(repositoryFullName);
   }
 
   Future<RepositoryPermissionPreflightDecision> check(
     String repositoryFullName,
     RepositoryCriticalAction action, {
     bool forceRefresh = false,
-    String? branch,
   }) async {
     try {
       final report = await getReport(
         repositoryFullName,
         forceRefresh: forceRefresh,
-        branch: branch,
       );
       final relevant = _resultsFor(report, action);
       final denied = relevant
@@ -150,31 +147,23 @@ class PermissionPreflightService {
       case RepositoryCriticalAction.syncProject:
         add(RepositoryPermissionArea.contents);
         break;
-      case RepositoryCriticalAction.syncProjectWorkflowFiles:
+      case RepositoryCriticalAction.syncProjectWithWorkflows:
         add(RepositoryPermissionArea.contents);
-        if (report.tokenKind == GitHubTokenKind.classic) {
-          final hasWorkflow = report.classicScopes.contains('workflow');
-          results.add(
-            PermissionAccessResult(
-              verdict: hasWorkflow
-                  ? PermissionVerdict.inferred
-                  : PermissionVerdict.denied,
-              label: hasWorkflow ? 'Disponível' : 'Escopo ausente',
-              detail: hasWorkflow
-                  ? 'O PAT clássico possui workflow para alterar arquivos em .github/workflows.'
-                  : 'Este ZIP altera arquivo(s) em .github/workflows. PAT clássico precisa do escopo workflow além de repo.',
-              requiredPermission: 'workflow',
-            ),
-          );
-        } else if (report.tokenKind == GitHubTokenKind.fineGrained) {
-          results.add(
-            const PermissionAccessResult(
-              verdict: PermissionVerdict.unknown,
-              label: 'Confirmar no token',
-              detail: 'Este ZIP altera arquivo(s) em .github/workflows. Tokens fine-grained precisam de Workflows: write além de Contents: write quando o workflow for modificado.',
-              requiredPermission: 'Workflows: write',
-            ),
-          );
+        if (report.tokenKind == GitHubTokenKind.classic &&
+            !report.classicScopes.contains('workflow')) {
+          results.add(const PermissionAccessResult(
+            verdict: PermissionVerdict.denied,
+            label: 'Escopo workflow ausente',
+            detail: 'Este ZIP modifica .github/workflows. PAT clássico precisa de `repo` e `workflow` para alterar arquivos de workflow.',
+            requiredPermission: 'workflow',
+          ));
+        } else if (report.tokenKind != GitHubTokenKind.classic) {
+          results.add(const PermissionAccessResult(
+            verdict: PermissionVerdict.unknown,
+            label: 'Verifique no token',
+            detail: 'Este ZIP modifica .github/workflows. Confirme no PAT fine-grained a permissão de escrita aplicável a Workflows além de Contents: write.',
+            requiredPermission: 'Workflows: write',
+          ));
         }
         break;
       case RepositoryCriticalAction.sendBuild:

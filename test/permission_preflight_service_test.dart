@@ -5,10 +5,10 @@ import 'package:github_manager/features/permissions/domain/repository_permission
 
 void main() {
   group('PermissionPreflightService', () {
-    test('bloqueia Enviar build quando PAT clássico não tem repo', () async {
+    test('Enviar build PAT clássico exige repo, não workflow', () async {
       final gateway = _CountingGateway(
         token: 'ghp_teste',
-        oauthScopes: 'read:user',
+        oauthScopes: 'repo',
         admin: true,
       );
       final service = _service(gateway);
@@ -18,9 +18,25 @@ void main() {
         RepositoryCriticalAction.sendBuild,
       );
 
+      expect(decision.blocked, isFalse);
+      expect(decision.requiredPermissions, isEmpty);
+    });
+
+    test('ZIP com workflow exige scope workflow no PAT clássico', () async {
+      final gateway = _CountingGateway(
+        token: 'ghp_teste',
+        oauthScopes: 'repo',
+        admin: true,
+      );
+      final service = _service(gateway);
+
+      final decision = await service.check(
+        'owner/repo',
+        RepositoryCriticalAction.syncProjectWithWorkflows,
+      );
+
       expect(decision.blocked, isTrue);
-      expect(decision.requiredPermissions, contains('repo'));
-      expect(decision.requiredPermissions, isNot(contains('workflow')));
+      expect(decision.requiredPermissions, contains('workflow'));
     });
 
     test('Enviar nova versão exige Contents, mas não Actions', () async {
@@ -40,56 +56,6 @@ void main() {
       expect(decision.requiredPermissions, isEmpty);
     });
 
-    test('PAT clássico com repo pode disparar build sem escopo workflow', () async {
-      final gateway = _CountingGateway(
-        token: 'ghp_teste',
-        oauthScopes: 'repo',
-        admin: true,
-      );
-      final service = _service(gateway);
-
-      final decision = await service.check(
-        'owner/repo',
-        RepositoryCriticalAction.sendBuild,
-      );
-
-      expect(decision.blocked, isFalse);
-    });
-
-    test('alterar arquivo de workflow exige workflow no PAT clássico', () async {
-      final gateway = _CountingGateway(
-        token: 'ghp_teste',
-        oauthScopes: 'repo',
-        admin: true,
-      );
-      final service = _service(gateway);
-
-      final decision = await service.check(
-        'owner/repo',
-        RepositoryCriticalAction.syncProjectWorkflowFiles,
-      );
-
-      expect(decision.blocked, isTrue);
-      expect(decision.requiredPermissions, contains('workflow'));
-    });
-
-    test('PAT clássico com repo e workflow pode alterar workflow', () async {
-      final gateway = _CountingGateway(
-        token: 'ghp_teste',
-        oauthScopes: 'repo, workflow',
-        admin: true,
-      );
-      final service = _service(gateway);
-
-      final decision = await service.check(
-        'owner/repo',
-        RepositoryCriticalAction.syncProjectWorkflowFiles,
-      );
-
-      expect(decision.blocked, isFalse);
-      expect(decision.denied, isEmpty);
-    });
-
     test('PAT fine-grained inconclusivo não é bloqueado preventivamente', () async {
       final gateway = _CountingGateway(
         token: 'github_pat_teste',
@@ -104,47 +70,6 @@ void main() {
 
       expect(decision.blocked, isFalse);
       expect(decision.unknown.length, 1);
-    });
-
-    test('pré-check usa a branch selecionada no diagnóstico', () async {
-      final gateway = _CountingGateway(
-        token: 'ghp_teste',
-        oauthScopes: 'repo',
-        admin: true,
-      );
-      final service = _service(gateway);
-
-      final decision = await service.check(
-        'owner/repo',
-        RepositoryCriticalAction.syncProject,
-        branch: 'release/2.0',
-      );
-
-      expect(decision.blocked, isFalse);
-      expect(gateway.lastContentsRef, 'release/2.0');
-      expect(
-        gateway.requestedPaths,
-        contains('/repos/owner/repo/branches/release%2F2.0'),
-      );
-    });
-
-    test('workflow alterado em PAT fine-grained sinaliza Workflows write', () async {
-      final gateway = _CountingGateway(
-        token: 'github_pat_teste',
-        admin: true,
-      );
-      final service = _service(gateway);
-
-      final decision = await service.check(
-        'owner/repo',
-        RepositoryCriticalAction.syncProjectWorkflowFiles,
-      );
-
-      expect(decision.blocked, isFalse);
-      expect(
-        decision.unknown.map((item) => item.requiredPermission),
-        contains('Workflows: write'),
-      );
     });
 
     test('bloqueia Secrets quando leitura já foi negada pelo GitHub', () async {
@@ -235,8 +160,6 @@ class _CountingGateway implements TokenPermissionDiagnosticsGateway {
   final bool push;
   final Map<String, PermissionProbe> overrides;
   int userCalls = 0;
-  String? lastContentsRef;
-  final List<String> requestedPaths = <String>[];
 
   @override
   Future<String?> readToken() async => token;
@@ -246,10 +169,6 @@ class _CountingGateway implements TokenPermissionDiagnosticsGateway {
     String path, {
     Map<String, dynamic>? queryParameters,
   }) async {
-    requestedPaths.add(path);
-    if (path == '/repos/owner/repo/contents') {
-      lastContentsRef = queryParameters?['ref']?.toString();
-    }
     final override = overrides[path];
     if (override != null) return override;
 

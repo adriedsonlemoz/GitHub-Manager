@@ -1,18 +1,15 @@
-# GitHub Manager 2.0.78
+# GitHub Manager 2.0.79
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
-## Estabilização do envio e Builds 2.0.78
+## Correção de build e regressões 2.0.79
 
-- corrige a confirmação final para devolver `ManagedUploadBuildPolicy` corretamente;
-- usa a branch realmente escolhida também no diagnóstico de permissões/proteção;
-- separa permissões de sincronização, alteração de workflow e disparo de Actions, incluindo `Workflows: write` para fine-grained quando aplicável;
-- falha ao carregar branches deixa de ser silenciosa e a preferência da última branch não pode mais bloquear o envio;
-- a aba global **Builds** atualiza automaticamente, filtra pela branch e abre diretamente a execução tocada por `runId`;
-- `requested` e `pending` são estados ativos; fallback tardio sem workflow é normalizado para **Não utilizada neste projeto**;
-- inclui testes de widget/regressão dos fluxos críticos adicionados nas versões 2.0.74–2.0.77.
+- corrige a incompatibilidade com Riverpod 3 na tela global **Builds**, removendo o uso de `AsyncValue.valueOrNull` que bloqueava `flutter analyze` e o APK;
+- preserva o retorno tipado `ManagedUploadBuildPolicy` no diálogo **Enviar versão** e adiciona teste de regressão para impedir retorno `bool` nesse fluxo;
+- mantém polling adaptativo da tela Builds usando apenas estado `AsyncData`, sem depender de extensões removidas;
+- limpa warnings introduzidos pela reorganização recente de Projetos: import sem uso, resultados de `refresh` descartados e helpers/membros mortos.
 
-## Correção de diagnóstico de permissões 2.0.77
+### Funcionalidades consolidadas da 2.0.78
 
 - corrige o diagnóstico de permissões para PAT clássico: **Contents** passa a exibir corretamente apenas `repo` como requisito para sincronização do projeto sem build;
 - **Enviar nova versão** permite escolher a branch de destino (`main`, `dev`, `release` ou outra existente) e lembra a última opção usada em cada repositório;
@@ -166,7 +163,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.78+200092`;
+- versão: `2.0.79+200093`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

@@ -1,7 +1,6 @@
 part of 'repositories_screen.dart';
 
 mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
-  int get _section;
   set _section(int value);
   Future<void> _refresh();
 
@@ -148,7 +147,7 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
         }
       }
 
-      await ref.refresh(followedRepositoriesProvider.future);
+      final _ = await ref.refresh(followedRepositoriesProvider.future);
       if (mounted) {
         showCenteredNotice(
           context,
@@ -371,6 +370,8 @@ mixin _RepositoriesScreenActions on ConsumerState<RepositoriesScreen> {
             repository.fullName,
           );
       if (!mounted) return;
+      if (fork.fullName.isNotEmpty) {
+      }
       showCenteredNotice(context, fork.fullName.isEmpty
                 ? 'Fork solicitado ao GitHub. Ele pode levar alguns segundos para aparecer.'
                 : 'Fork criado: ${fork.fullName}');

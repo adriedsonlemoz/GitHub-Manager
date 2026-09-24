@@ -311,45 +311,6 @@ class _BuildSafetyRow extends StatelessWidget {
       );
 }
 
-class _ProjectInfoBadge extends StatelessWidget {
-  const _ProjectInfoBadge({
-    required this.icon,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .7),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ],
-        ),
-      );
-}
-
 class _CompactQuickAction extends StatelessWidget {
   const _CompactQuickAction({
     required this.icon,

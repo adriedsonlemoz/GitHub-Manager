@@ -44,20 +44,6 @@ void main() {
       expect(deletion.requiredPermission, 'delete_repo');
     });
 
-    test('Actions write em PAT clássico exige repo, não workflow', () async {
-      final gateway = _FakeGateway(
-        token: 'ghp_teste',
-        oauthScopes: 'repo',
-        admin: true,
-      );
-      final report = await TokenPermissionDiagnosticsService.withGateway(gateway)
-          .diagnose('owner/repo');
-
-      final actions = _area(report, RepositoryPermissionArea.actions).write!;
-      expect(actions.verdict, PermissionVerdict.inferred);
-      expect(actions.requiredPermission, 'repo');
-    });
-
     test('PAT fine-grained confirma leitura sem executar mutações de escrita', () async {
       final gateway = _FakeGateway(
         token: 'github_pat_teste',

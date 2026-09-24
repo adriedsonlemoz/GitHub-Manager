@@ -73,9 +73,8 @@ class TokenPermissionDiagnosticsService {
   final TokenPermissionDiagnosticsGateway _gateway;
 
   Future<RepositoryPermissionReport> diagnose(
-    String repositoryFullName, {
-    String? branch,
-  }) async {
+    String repositoryFullName,
+  ) async {
     final token = (await _gateway.readToken())?.trim();
     if (token == null || token.isEmpty) {
       throw const AuthenticationRequiredException();
@@ -130,9 +129,6 @@ class TokenPermissionDiagnosticsService {
       canPull: canPull,
     );
     final defaultBranch = repository['default_branch']?.toString() ?? 'main';
-    final targetBranch = branch?.trim().isNotEmpty == true
-        ? branch!.trim()
-        : defaultBranch;
     final repositorySize = _int(repository['size']);
     final classicScopes = _classicScopes(
       userProbe.oauthScopes ?? repositoryProbe.oauthScopes,
@@ -141,13 +137,13 @@ class TokenPermissionDiagnosticsService {
     final results = await Future.wait<PermissionProbe>([
       _gateway.get(
         '$repoPath/contents',
-        queryParameters: {'ref': targetBranch},
+        queryParameters: {'ref': defaultBranch},
       ),
       _gateway.get('$repoPath/actions/workflows', queryParameters: {'per_page': 1}),
       _gateway.get('$repoPath/actions/secrets', queryParameters: {'per_page': 1}),
       _gateway.get('$repoPath/actions/permissions'),
       _gateway.get(
-        '$repoPath/branches/${Uri.encodeComponent(targetBranch)}',
+        '$repoPath/branches/${Uri.encodeComponent(defaultBranch)}',
       ),
     ]);
 
@@ -164,7 +160,7 @@ class TokenPermissionDiagnosticsService {
     _throwIfRateLimited(administrationProbe, '$repoPath/actions/permissions');
     _throwIfRateLimited(
       branchProbe,
-      '$repoPath/branches/${Uri.encodeComponent(targetBranch)}',
+      '$repoPath/branches/${Uri.encodeComponent(defaultBranch)}',
     );
 
     final capabilities = <RepositoryPermissionCapability>[
@@ -205,7 +201,7 @@ class TokenPermissionDiagnosticsService {
           fineGrainedRequired: 'Actions: write',
           readProbe: actionsProbe,
           detail:
-              'Necessário para workflow_dispatch, cancelar, reexecutar e controlar builds. O escopo clássico workflow é exigido para alterar arquivos em .github/workflows, não para disparar workflow_dispatch.',
+              'Necessário para workflow_dispatch, cancelar, reexecutar e controlar builds.',
         ),
       ),
       RepositoryPermissionCapability(

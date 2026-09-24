@@ -177,16 +177,7 @@ class _RepositoryCommitsScreenState extends ConsumerState<RepositoryCommitsScree
 
   String _message(Object error) => error is AppException ? error.message : 'Não foi possível carregar os commits.';
 
-  static String _formatDate(DateTime? date) {
-    if (date == null) {
-      return 'Data indisponível';
-    }
-    final local = date.toLocal();
-    String two(int value) => value.toString().padLeft(2, '0');
-    return '${two(local.day)}/${two(local.month)}/${local.year} ${two(local.hour)}:${two(local.minute)}';
-  }
 }
-
 
 class _CommitCard extends StatelessWidget {
   const _CommitCard({required this.commit, required this.onCopySha});

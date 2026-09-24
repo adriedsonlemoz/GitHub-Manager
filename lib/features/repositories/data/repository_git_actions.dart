@@ -5,6 +5,7 @@ mixin _RepositoryGitActionsOperations
   Future<RepositoryActionsData> loadActions(
     String repositoryFullName, {
     RepositoryWorkflow? workflow,
+    String? branch,
   }) async {
     final workflows = await listWorkflows(repositoryFullName);
     final repositoryPage = await _listWorkflowRunsEndpoint(
@@ -32,6 +33,12 @@ mixin _RepositoryGitActionsOperations
     var visibleRuns = selected == null
         ? List<RepositoryWorkflowRun>.from(allRuns)
         : allRuns.where((run) => run.belongsTo(selected!)).toList();
+    final branchName = branch?.trim();
+    if (branchName != null && branchName.isNotEmpty) {
+      visibleRuns = visibleRuns
+          .where((run) => run.branch.trim() == branchName)
+          .toList(growable: false);
+    }
 
     String? fallbackEndpoint;
     int? fallbackHttpStatus;
@@ -58,8 +65,13 @@ mixin _RepositoryGitActionsOperations
           fallbackEndpoint = endpoint;
           fallbackHttpStatus = fallback.httpStatus;
           fallbackRunsReceived = fallback.runs.length;
-          if (fallback.runs.isNotEmpty) {
-            visibleRuns = fallback.runs;
+          final fallbackRuns = branchName == null || branchName.isEmpty
+              ? fallback.runs
+              : fallback.runs
+                  .where((run) => run.branch.trim() == branchName)
+                  .toList(growable: false);
+          if (fallbackRuns.isNotEmpty) {
+            visibleRuns = fallbackRuns;
             reason = 'fallback_workflow_especifico';
             break;
           }
@@ -91,29 +103,6 @@ mixin _RepositoryGitActionsOperations
         fallbackRunsReceived: fallbackRunsReceived,
       ),
     );
-  }
-
-  Future<RepositoryWorkflowRun> getWorkflowRun({
-    required String repositoryFullName,
-    required int runId,
-  }) async {
-    final response = await _client.get<Map<String, dynamic>>(
-      '/repos/$repositoryFullName/actions/runs/$runId',
-    );
-    final data = response.data;
-    if (data == null || data['id'] == null) {
-      throw const RepositoryFileException(
-        'O GitHub retornou uma resposta inesperada ao abrir esta execução.',
-        code: 'ACTIONS_RUN_RESPONSE_INVALID',
-      );
-    }
-    final run = RepositoryWorkflowRun.fromJson(data);
-    final enriched = await _enrichRunVersions(
-      repositoryFullName,
-      <RepositoryWorkflowRun>[run],
-      limit: 1,
-    );
-    return enriched.first;
   }
 
   Future<List<RepositoryWorkflowRun>> listWorkflowRuns(

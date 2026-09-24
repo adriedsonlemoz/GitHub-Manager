@@ -1,17 +1,13 @@
 # Changelog
 
-## 2.0.78+200092 — 2026-09-24
+## 2.0.79+200093 — 2026-09-24
 
-- Corrige o retorno do diálogo final de **Enviar versão** para `ManagedUploadBuildPolicy`, eliminando o retorno indevido de `bool` que podia falhar em execução.
-- O pré-check passa a usar a **branch selecionada** e separa permissões por operação: sincronização normal, alteração real de `.github/workflows` e disparo de GitHub Actions.
-- PAT clássico usa `repo` para sincronização/`workflow_dispatch` e exige `workflow` apenas quando o envio realmente altera workflows; fine-grained sinaliza `Contents: write`, `Workflows: write` e `Actions: write` nos contextos correspondentes.
-- A preferência da última branch virou best-effort; falha ao listar branches agora mostra erro e opção de tentar novamente, sem fingir que apenas a branch padrão existe ou que ela não é protegida.
-- A aba global **Builds** abre a execução exata por `runId`, filtra a lista pela branch de origem e atualiza automaticamente a cada 10 s com builds ativas ou 60 s quando estável.
-- Estados `requested` e `pending` passam a ser tratados como execução ativa, evitando exibir build ainda não concluída como concluída.
-- O fallback tardio `APK_WORKFLOW_NOT_FOUND` converte a política para `skipNoWorkflow`, mantendo o rótulo **Não utilizada neste projeto** também quando a ausência só é descoberta após o upload.
-- Adicionados testes de widget/regressão para o tipo retornado pela confirmação, navegação Builds global → execução específica, estados ativos, branch do pré-check e permissões contextuais; removidos resíduos/warnings ligados à reorganização de Projetos.
+- Corrige o erro fatal de análise em `global_builds_screen.dart`: `AsyncValue<GlobalBuildsSnapshot>` não usa mais o getter inexistente `valueOrNull`; o polling passa a ler somente `AsyncData`.
+- Confirma e protege por teste o contrato de `_confirmZip()`: o diálogo `showDialog<ManagedUploadBuildPolicy>` retorna `buildPolicy`; o `bool` permanece apenas no diálogo interno `showDialog<bool>` de confirmação forçada.
+- Limpa warnings introduzidos pela reorganização recente de Projetos, incluindo import sem uso, resultados de `ref.refresh` descartados e helpers/membros mortos.
+- Correção baseada nos logs Android-APK-69 e Verificação do Projeto CI-69.
 
-## 2.0.77+200091 — 2026-09-23
+## 2.0.78+200092 — 2026-09-23
 
 - Corrige a suíte `TokenPermissionDiagnosticsService`: o diagnóstico de **Contents** para PAT clássico volta a exigir apenas `repo`, alinhado ao fluxo atual de sincronização do projeto sem build.
 - Mantém `repo + workflow` exclusivamente para operações de **Actions/Build**, preservando a separação introduzida nas versões 2.0.74–2.0.76.

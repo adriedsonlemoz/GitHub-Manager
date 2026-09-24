@@ -13,7 +13,7 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
   final Set<int> _selectedRunIds = <int>{};
   bool _selectionMode = false;
   bool _deletingSelected = false;
-  bool _initialRunHandled = false;
+  bool _initialRunOpened = false;
 
   void initializeRepositoryActionsState() {
     WidgetsBinding.instance.addObserver(this);
@@ -33,52 +33,31 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
     final data = await ref.read(repositoryGitServiceProvider).loadActions(
           widget.repositoryFullName,
           workflow: _selectedWorkflow,
+          branch: widget.defaultBranch,
         );
     _hasRunning = data.allRuns.any((run) => run.isRunning);
     _currentData = data;
     _lastUpdatedAt = DateTime.now();
-    await _scheduleInitialRunOpen(data);
+    _openInitialRunIfNeeded(data.allRuns);
     return data;
   }
 
-  List<RepositoryWorkflowRun> _filterRunsForBranch(
-    List<RepositoryWorkflowRun> runs,
-  ) {
-    final branch = widget.branchFilter?.trim();
-    if (branch == null || branch.isEmpty) return runs;
-    return runs
-        .where((run) => run.branch.trim() == branch)
-        .toList(growable: false);
-  }
 
-  Future<void> _scheduleInitialRunOpen(RepositoryActionsData data) async {
+  void _openInitialRunIfNeeded(List<RepositoryWorkflowRun> runs) {
     final runId = widget.initialRunId;
-    if (_initialRunHandled || runId == null || runId <= 0) return;
-
+    if (_initialRunOpened || runId == null) return;
     RepositoryWorkflowRun? target;
-    for (final run in data.allRuns) {
+    for (final run in runs) {
       if (run.id == runId) {
         target = run;
         break;
       }
     }
-    if (target == null) {
-      try {
-        target = await ref.read(repositoryGitServiceProvider).getWorkflowRun(
-              repositoryFullName: widget.repositoryFullName,
-              runId: runId,
-            );
-      } catch (_) {
-        // A lista continua utilizável mesmo se a execução profunda não puder
-        // ser carregada; o usuário ainda pode atualizar manualmente.
-      }
-    }
-    if (target == null || !mounted) return;
-
-    _initialRunHandled = true;
-    final resolved = target;
+    if (target == null) return;
+    _initialRunOpened = true;
+    final selected = target;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_showRunDetails(resolved));
+      if (mounted) unawaited(_showRunDetails(selected));
     });
   }
 
@@ -132,9 +111,12 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
         return bDate.compareTo(aDate);
       });
     final selected = _selectedWorkflow;
+    final branchRuns = allRuns
+        .where((run) => run.branch.trim() == widget.defaultBranch.trim())
+        .toList(growable: false);
     final visibleRuns = selected == null
-        ? allRuns
-        : allRuns.where((run) => run.belongsTo(selected)).toList(growable: false);
+        ? branchRuns
+        : branchRuns.where((run) => run.belongsTo(selected)).toList(growable: false);
     final oldDiagnostic = current.diagnostic;
     final data = RepositoryActionsData(
       workflows: current.workflows,
