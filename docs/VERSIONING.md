@@ -4,14 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.83+200097`
+`version: 2.0.84+200098`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.83+200097` reorganiza Builds para um card por repositório, abre os workflows mais recentes em pop-up com downloads rápidos de Log/APK e corrige os erros fatais encontrados nos jobs #72.
+A versão `2.0.84+200098` reorganiza Builds para um card por repositório, abre os workflows mais recentes em pop-up com downloads rápidos de Log/APK e corrige os erros fatais encontrados nos jobs #72.
 
 A versão `2.0.82+200096` unifica a escolha/criação de branches, adiciona prévia read-only da sincronização e melhora a identificação de versões em projetos com subpastas, nomes com pré-release, Godot, Python e Rust.
 

@@ -193,7 +193,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
                     itemCount: group.entries.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (_, index) {
                       final entry = group.entries[index];
                       return _RepositoryBuildRunCard(

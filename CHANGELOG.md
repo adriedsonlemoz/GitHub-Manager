@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.84+200098 — 2026-09-24
+
+- Corrige o erro fatal do CI/APK #73 em `permission_preflight_service_test.dart`: o gateway de teste volta a declarar explicitamente a capacidade `push` usada no diagnóstico de permissões.
+- Remove a expressão nula inalcançável em `repository_git_workflows.dart`, eliminando os warnings `dead_code`/`dead_null_aware_expression` associados.
+- Limpa o lint recente do `separatorBuilder` na tela Builds sem alterar o comportamento da interface.
+- Mantém a nomenclatura atual dos pacotes de logs; nenhuma mudança de nome de saída foi aplicada nesta versão.
+
 ## 2.0.83+200097 — 2026-09-24
 
 - Reorganiza a aba global **Builds** para exibir somente um card por repositório, representando o commit/versão mais recente.

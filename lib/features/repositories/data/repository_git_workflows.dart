@@ -193,7 +193,7 @@ mixin _RepositoryGitWorkflowOperations
     }
 
     Future<List<RepositoryWorkflow>> loadKnownWorkflows() async {
-      return knownWorkflows ?? const <RepositoryWorkflow>[];
+      return knownWorkflows;
     }
 
     Future<List<RepositoryWorkflowRun>> filterApkRuns(

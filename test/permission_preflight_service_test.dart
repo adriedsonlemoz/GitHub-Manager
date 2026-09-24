@@ -150,12 +150,14 @@ class _CountingGateway implements TokenPermissionDiagnosticsGateway {
     required this.token,
     this.oauthScopes,
     this.admin = false,
+    this.push = true,
     this.overrides = const {},
   });
 
   String token;
   final String? oauthScopes;
   final bool admin;
+  final bool push;
   final Map<String, PermissionProbe> overrides;
   int userCalls = 0;
 
