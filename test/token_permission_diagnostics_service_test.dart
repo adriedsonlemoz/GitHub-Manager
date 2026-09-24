@@ -39,7 +39,7 @@ void main() {
       final contents = _area(report, RepositoryPermissionArea.contents).write!;
       final deletion = _area(report, RepositoryPermissionArea.deletion).write!;
       expect(contents.verdict, PermissionVerdict.denied);
-      expect(contents.requiredPermission, 'repo + workflow');
+      expect(contents.requiredPermission, 'repo');
       expect(deletion.verdict, PermissionVerdict.denied);
       expect(deletion.requiredPermission, 'delete_repo');
     });

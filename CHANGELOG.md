@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.77+200091 — 2026-09-23
+
+- Corrige a suíte `TokenPermissionDiagnosticsService`: o diagnóstico de **Contents** para PAT clássico volta a exigir apenas `repo`, alinhado ao fluxo atual de sincronização do projeto sem build.
+- Mantém `repo + workflow` exclusivamente para operações de **Actions/Build**, preservando a separação introduzida nas versões 2.0.74–2.0.76.
+- Correção baseada nos logs Android-APK-67 e Verificação do Projeto CI-67, que apresentavam 99 testes aprovados e 1 falha.
+
 ## 2.0.76+200090 — 2026-09-23
 
 - Corrige o pré-check de **Enviar nova versão**: PAT clássico com `repo` volta a ser suficiente para sincronizar arquivos, sem exigir `workflow` quando a operação não inicia build.
