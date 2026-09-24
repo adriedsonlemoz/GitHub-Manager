@@ -4,7 +4,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.89+200103`
+`version: 2.0.90+200104`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
@@ -84,3 +84,7 @@ A versão `2.0.20+200034` corrigiu os erros de nulabilidade encontrados nos logs
 
 
 A 2.0.58 preserva stale-while-revalidate, mas deixa de depender de invalidações para atualizar a Home: a lista fresca retornada pela API é aplicada diretamente, enquanto falhas de rede mantêm o último snapshot válido.
+
+### 2.0.90
+
+A 2.0.90 corrige o travamento confirmado pelos jobs CI #79 e Android APK #80 ao decompor `repository_send_flow_widget_test.dart` em testes de widget focados. A seleção de branch e o diálogo de progresso continuam cobertos pela interface; a ordem branch → pré-check → confirmação/política permanece coberta pelos testes de contrato; e o upload real permanece nos testes unitários do serviço.

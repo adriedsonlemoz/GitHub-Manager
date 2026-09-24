@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.90+200104 — 2026-09-24
+
+- substitui o teste end-to-end instável de envio por dois `testWidgets` focados e determinísticos: seleção de branch e minimização do diálogo de progresso;
+- remove do teste de interface a dependência da tela completa de repositório, banco local, roteamento de envio e múltiplas operações assíncronas que mantinham o job preso;
+- mantém a ordem branch → permissões → confirmação/política de build coberta pelos testes de contrato que já passam;
+- adiciona cobertura explícita para o diálogo com `LinearProgressIndicator` indeterminado sem usar `pumpAndSettle`;
+- mantém o timeout de 3 minutos da etapa `flutter test` como proteção de CI.
+
 ## 2.0.89+200103 — 2026-09-24
 
 - Corrige o travamento real remanescente de `repository_send_flow_widget_test.dart`: o teste não usa mais `pumpAndSettle()` enquanto o diálogo de progresso possui animação contínua.

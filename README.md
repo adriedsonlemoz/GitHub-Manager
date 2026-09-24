@@ -1,4 +1,9 @@
-# GitHub Manager 2.0.89
+# GitHub Manager 2.0.90
+
+## Estabilidade dos testes de interface 2.0.90
+
+Os jobs CI #79 e Android APK #80 mostraram que 33 dos 34 arquivos de teste terminavam normalmente e somente `repository_send_flow_widget_test.dart` permanecia ativo até o timeout. A 2.0.90 substitui esse teste monolítico por testes de widget focados e determinísticos para seleção de branch e minimização do diálogo de progresso. As regras do fluxo completo continuam cobertas pelos testes de contrato e pelos testes unitários dos serviços.
+
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
@@ -220,7 +225,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.89+200103`;
+- versão: `2.0.90+200104`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

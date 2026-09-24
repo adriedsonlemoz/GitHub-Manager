@@ -1,8 +1,15 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.89+200103`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.90+200104`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
+
+## Alterações 2.0.90
+
+- Jobs CI #79 / Android APK #80: 33 dos 34 arquivos de teste concluíam; o único pendente era `repository_send_flow_widget_test.dart`.
+- O teste end-to-end instável foi decomposto em testes de widget focados para seleção de branch e minimização do progresso.
+- O fluxo branch → pré-check → confirmação/política continua protegido pelos testes de contrato e os serviços de upload continuam cobertos por testes unitários próprios.
+- Evitar `pumpAndSettle()` em UI com progresso indeterminado/animação contínua e evitar testes de widget monolíticos que misturem banco, roteamento, persistência e várias operações assíncronas.
 
 ## Alterações 2.0.89
 
