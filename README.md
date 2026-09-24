@@ -1,13 +1,11 @@
-# GitHub Manager 2.0.87
+# GitHub Manager 2.0.88
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
 
 
-## Correção do travamento dos testes 2.0.87
+## Correção definitiva do travamento dos testes 2.0.88
 
-A 2.0.87 corrige o travamento que fazia os jobs CI #76 e Android APK #77 permanecerem em `flutter test` até cancelamento. `waitUntilIdle()` deixou de usar `Future.delayed`/`Timer` para aguardar a fila e agora usa sinalização por `Completer`, compatível com o `FakeAsync` de `testWidgets`. Caminhos de falha do upload também aguardam a persistência do histórico antes de encerrar, reduzindo corridas com arquivos temporários.
-
-
+Os jobs CI #77 e Android APK #78 mostraram que os outros 126 testes terminavam, mas `repository_send_flow_widget_test.dart` continuava preso. A causa remanescente era o teste de interface iniciar a fila real de upload, que faz cópia de ZIP e persistência em disco dentro do `FakeAsync` do Flutter. A 2.0.88 separa essas responsabilidades: nesse teste, o gerenciador registra o envio sem iniciar I/O em segundo plano; os testes unitários continuam exercitando a fila real completa. O diálogo de progresso também é fechado explicitamente antes do fim do teste. Os workflows de CI, APK e Release agora limitam a etapa de testes a 3 minutos, evitando jobs presos indefinidamente em uma regressão futura.
 
 ## Correção de persistência e testes 2.0.86
 
@@ -218,7 +216,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.87+200101`;
+- versão: `2.0.88+200102`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

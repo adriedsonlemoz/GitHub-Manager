@@ -92,7 +92,8 @@ class UploadManagerService {
             PlatformUploadForegroundController(),
         _automaticRecoveryEnabled = automaticRecoveryEnabled ??
             (() => UploadRecoverySettings.isAutomaticRecoveryEnabled()),
-        _persistDebounce = persistDebounce {
+        _persistDebounce = persistDebounce,
+        _runBackgroundQueue = true {
     if (restoreHistory) {
       unawaited(_restoreHistory());
     } else {
@@ -109,13 +110,16 @@ class UploadManagerService {
     Future<bool> Function()? automaticRecoveryEnabled,
     bool restoreHistory = false,
     Duration persistDebounce = Duration.zero,
+    bool runBackgroundQueue = true,
   })  : _uploadZip = uploadZip,
         _ensureBuild = ensureBuild,
         _historyFileFactory = historyFileFactory,
         _queueDirectoryFactory = queueDirectoryFactory,
         _foregroundController = foregroundController,
-        _automaticRecoveryEnabled = automaticRecoveryEnabled ?? (() async => true),
-        _persistDebounce = persistDebounce {
+        _automaticRecoveryEnabled =
+            automaticRecoveryEnabled ?? (() async => true),
+        _persistDebounce = persistDebounce,
+        _runBackgroundQueue = runBackgroundQueue {
     if (restoreHistory) {
       unawaited(_restoreHistory());
     } else {
@@ -130,6 +134,7 @@ class UploadManagerService {
   final UploadForegroundController? _foregroundController;
   final Future<bool> Function() _automaticRecoveryEnabled;
   final Duration _persistDebounce;
+  final bool _runBackgroundQueue;
   final _controller = StreamController<List<ManagedUpload>>.broadcast();
   final Completer<void> _restoreCompleter = Completer<void>();
   final List<ManagedUpload> _items = [];
@@ -192,6 +197,17 @@ class UploadManagerService {
     )..addLog('Envio adicionado à fila');
 
     _items.insert(0, item);
+    _emit();
+
+    // Seam exclusivo do construtor forTest. Testes de interface precisam
+    // validar que o fluxo escolheu branch/política corretas, mas não devem
+    // iniciar cópia de ZIP e persistência em disco dentro do FakeAsync do
+    // testWidgets. Os testes unitários do gerenciador mantêm o padrão `true`
+    // e continuam exercitando a fila real completa.
+    if (!_runBackgroundQueue) {
+      return item;
+    }
+
     _queue.add(
       _QueuedUploadTask(
         item.id,
@@ -199,7 +215,6 @@ class UploadManagerService {
         method: ProjectUploadMethod.incremental,
       ),
     );
-    _emit();
     _schedulePersist();
     unawaited(_drainQueue());
     return item;

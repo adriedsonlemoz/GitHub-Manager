@@ -80,9 +80,11 @@ jobs:
         run: bash tool/check_version_sync.sh
 
       - name: Analisar código antes do APK
+        timeout-minutes: 3
         run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 
       - name: Executar testes antes do APK
+        timeout-minutes: 3
         run: flutter test --no-pub
 
       - name: Materializar Gradle Wrapper

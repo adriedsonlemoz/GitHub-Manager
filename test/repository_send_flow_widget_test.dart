@@ -88,6 +88,7 @@ void main() {
         historyFileFactory: () async => File('${temp.path}/history.json'),
         queueDirectoryFactory: () async => Directory('${temp.path}/queue')..createSync(recursive: true),
         automaticRecoveryEnabled: () async => false,
+        runBackgroundQueue: false,
       );
       addTearDown(manager.dispose);
 
@@ -146,12 +147,15 @@ void main() {
       await tester.tap(buildToggle);
       await tester.pump();
       await tester.tap(find.text('Enviar versão'));
-      await tester.pump();
-      await manager.waitUntilIdle();
+      await tester.pumpAndSettle();
 
       expect(manager.items, hasLength(1));
       expect(manager.items.single.branch, 'develop');
       expect(manager.items.single.buildPolicy, ManagedUploadBuildPolicy.skipByUser);
+
+      expect(find.text('Minimizar'), findsOneWidget);
+      await tester.tap(find.text('Minimizar'));
+      await tester.pumpAndSettle();
 
       final branchesIndex = events.indexOf('branches');
       final permissionIndex = events.indexWhere((event) => event.startsWith('permission:'));

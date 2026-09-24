@@ -45,7 +45,9 @@ jobs:
           fi
 
       - name: Analisar código
+        timeout-minutes: 3
         run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 
       - name: Executar testes
+        timeout-minutes: 3
         run: flutter test --no-pub

@@ -75,9 +75,11 @@ jobs:
           bash gradlew :app:validateOfficialSigning
 
       - name: Analisar código
+        timeout-minutes: 3
         run: flutter analyze --no-pub
 
       - name: Executar testes
+        timeout-minutes: 3
         run: flutter test --no-pub
 
       - name: Compilar APK oficial universal

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.88+200102 — 2026-09-24
+
+- Corrige o travamento remanescente de `repository_send_flow_widget_test.dart`: o teste de interface deixa de iniciar cópia de ZIP e persistência real em disco dentro do `FakeAsync` do Flutter.
+- `UploadManagerService.forTest` ganha a opção `runBackgroundQueue` (padrão `true`); apenas o teste de interface usa `false`, enquanto a suíte unitária continua exercitando a fila completa.
+- O teste fecha explicitamente o diálogo de progresso após validar branch e política de build, evitando deixar o fluxo visual pendente ao encerrar.
+- Os três workflows limitam a etapa `flutter test` a 3 minutos; qualquer travamento futuro falha automaticamente em vez de exigir cancelamento manual.
+- Mantém as correções anteriores de persistência e `waitUntilIdle()` para o comportamento real do gerenciador.
+
 ## 2.0.87+200101 — 2026-09-24
 
 - Corrige o deadlock do `repository_send_flow_widget_test.dart` que deixava CI #76 e Android APK #77 presos até cancelamento.
