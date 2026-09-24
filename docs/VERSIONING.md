@@ -4,14 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.75+200089`
+`version: 2.0.76+200090`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.75+200089` adiciona seleção de branch no envio, painel global de Builds e tratamento normal para projetos sem workflow, mantendo `2.0.73+200087` como a correção anterior dos testes de limpeza.
+A versão `2.0.76+200090` adiciona seleção de branch no envio, painel global de Builds e tratamento normal para projetos sem workflow, mantendo `2.0.73+200087` como a correção anterior dos testes de limpeza.
 
 A versão `2.0.72+200086` refatora o modelo `ManagedUpload` sem alterar seu contrato público, separando estado derivado, diagnóstico de falhas, mutações de ciclo de vida, relatório técnico e codec JSON em componentes internos menores.
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.76+200090 — 2026-09-23
+
+- Corrige o pré-check de **Enviar nova versão**: PAT clássico com `repo` volta a ser suficiente para sincronizar arquivos, sem exigir `workflow` quando a operação não inicia build.
+- Mantém `repo + workflow` para **Enviar build**, preservando a separação entre sincronização do projeto e controle de GitHub Actions.
+- Ajusta o diagnóstico equivalente de PAT fine-grained para `Contents: write` na sincronização e `Actions: write` na etapa de build.
+- Correção baseada nos logs Android-APK-66 e Verificação do Projeto CI-66, que apresentavam 99 testes aprovados e 1 falha no `PermissionPreflightService`.
+
 ## 2.0.75+200089 — 2026-09-23
 
 - Corrige erro de análise em `global_builds_screen.dart`: `ListView` não possui construtor `const`.

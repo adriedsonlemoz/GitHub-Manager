@@ -197,7 +197,7 @@ class TokenPermissionDiagnosticsService {
           classicScopes: classicScopes,
           roleAllows: canPush,
           roleFailure: 'Sua conta não possui acesso de escrita para controlar builds.',
-          classicRequired: 'repo',
+          classicRequired: 'repo + workflow',
           fineGrainedRequired: 'Actions: write',
           readProbe: actionsProbe,
           detail:
@@ -332,22 +332,21 @@ class TokenPermissionDiagnosticsService {
         label: 'Permissão insuficiente',
         detail: 'A leitura de Contents falhou, então a sincronização por ZIP não está disponível.',
         requiredPermission: tokenKind == GitHubTokenKind.classic
-            ? 'repo + workflow'
-            : 'Contents: write + Workflows: write',
+            ? 'repo'
+            : 'Contents: write',
       );
     }
 
     if (tokenKind == GitHubTokenKind.classic) {
       final hasRepo = classicScopes.contains('repo');
-      final hasWorkflow = classicScopes.contains('workflow');
-      final allowed = hasRepo && hasWorkflow;
+      final allowed = hasRepo;
       if (allowed && branchProtected) {
         return const PermissionAccessResult(
           verdict: PermissionVerdict.unknown,
           label: 'Branch protegida',
           detail:
               'Token e papel permitem escrita, mas a branch está protegida. Rulesets ou regras de proteção podem impedir push direto.',
-          requiredPermission: 'repo + workflow',
+          requiredPermission: 'repo',
         );
       }
       return PermissionAccessResult(
@@ -359,10 +358,10 @@ class TokenPermissionDiagnosticsService {
             : 'Escopo ausente',
         detail: allowed
             ? emptyRepository
-                ? 'O repositório ainda não possui arquivos/branch materializada, mas o acesso ao repositório, o papel de escrita e os escopos `repo` + `workflow` estão confirmados.'
-                : 'O PAT clássico possui `repo` e `workflow`, necessários para sincronizar o projeto inclusive em .github/workflows.'
-            : 'A sincronização completa do GitHub Manager precisa de `repo` e também `workflow` para atualizar arquivos em .github/workflows.',
-        requiredPermission: 'repo + workflow',
+                ? 'O repositório ainda não possui arquivos/branch materializada, mas o acesso ao repositório, o papel de escrita e o escopo `repo` estão confirmados.'
+                : 'O PAT clássico possui `repo`, necessário para sincronizar os arquivos do projeto.'
+            : 'A sincronização do projeto precisa do escopo `repo` no PAT clássico.',
+        requiredPermission: 'repo',
       );
     }
 
@@ -370,11 +369,11 @@ class TokenPermissionDiagnosticsService {
       verdict: PermissionVerdict.unknown,
       label: branchProtected ? 'Branch protegida' : 'Verifique no token',
       detail: branchProtected
-          ? 'A branch está protegida. Além de Contents: write e Workflows: write, as regras da branch/ruleset precisam permitir a atualização.'
+          ? 'A branch está protegida. Além de Contents: write, as regras da branch/ruleset precisam permitir a atualização.'
           : emptyRepository
-              ? 'O repositório está vazio. A leitura 404 é normal neste estado; confirme Contents: write e Workflows: write no PAT fine-grained para o primeiro envio.'
-              : 'Para sincronizar todo o ZIP, inclusive .github/workflows, confirme as duas permissões no PAT fine-grained. O diagnóstico não altera arquivos só para testar escrita.',
-      requiredPermission: 'Contents: write + Workflows: write',
+              ? 'O repositório está vazio. A leitura 404 é normal neste estado; confirme Contents: write no PAT fine-grained para o primeiro envio.'
+              : 'Para sincronizar os arquivos do projeto, confirme Contents: write no PAT fine-grained. O diagnóstico não altera arquivos só para testar escrita.',
+      requiredPermission: 'Contents: write',
     );
   }
 
@@ -498,8 +497,9 @@ class TokenPermissionDiagnosticsService {
   }
 
   static bool _hasClassicScope(List<String> scopes, String required) {
-    if (required == 'repo') {
-      return scopes.contains('repo');
+    if (required == 'repo') return scopes.contains('repo');
+    if (required == 'repo + workflow') {
+      return scopes.contains('repo') && scopes.contains('workflow');
     }
     return scopes.contains(required);
   }
