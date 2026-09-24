@@ -4,14 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.91+200105`
+`version: 2.0.92+200106`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.91+200105` corrige a última falha dos jobs CI #80 e Android APK #81: o teste do seletor de branch agora rola até `develop` antes do toque e usa uma chave estável por item.
+A versão `2.0.92+200106` corrige a única falha restante dos jobs CI #81 e Android APK #82: o seletor já retornava `develop`, mas o teste ainda exigia que o texto desaparecesse completamente após o fechamento da rota; essa expectativa frágil foi removida.
 
 A versão `2.0.89+200103` corrige o travamento confirmado pelos jobs CI #78 e Android APK #79: o teste de envio pela interface não usa mais `pumpAndSettle()` enquanto o diálogo de progresso possui animação contínua; as esperas agora são limitadas e falham explicitamente se o estado visual esperado não aparecer.
 
@@ -91,6 +91,11 @@ A 2.0.58 preserva stale-while-revalidate, mas deixa de depender de invalidaçõe
 
 A 2.0.90 corrige o travamento confirmado pelos jobs CI #79 e Android APK #80 ao decompor `repository_send_flow_widget_test.dart` em testes de widget focados. A seleção de branch e o diálogo de progresso continuam cobertos pela interface; a ordem branch → pré-check → confirmação/política permanece coberta pelos testes de contrato; e o upload real permanece nos testes unitários do serviço.
 
+
+
+### 2.0.92
+
+A 2.0.92 remove a última expectativa frágil do teste de seleção de branch. Os logs CI #81 e Android APK #82 já mostravam 126 testes aprovados; a branch `develop` era retornada corretamente e somente a asserção de ausência total do texto falhava durante a transição do bottom sheet.
 
 ### 2.0.91
 

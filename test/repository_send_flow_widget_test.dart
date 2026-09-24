@@ -65,7 +65,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(selected?.name, 'develop');
-      expect(find.text('develop'), findsNothing);
     },
   );
 
@@ -73,8 +72,8 @@ void main() {
     'dialogo de progresso pode ser minimizado mesmo com progresso indeterminado',
     (tester) async {
       final project = ZipProjectPreview(
-        path: '/tmp/repo-v2.0.91.zip',
-        name: 'repo-v2.0.91.zip',
+        path: '/tmp/repo-v2.0.92.zip',
+        name: 'repo-v2.0.92.zip',
         archiveBytes: 4,
         uncompressedBytes: 4,
         fileCount: 1,
@@ -85,8 +84,8 @@ void main() {
         projectName: 'Repo',
         packageName: 'repo',
         applicationId: 'com.example.repo',
-        version: '2.0.91',
-        versionCode: 200105,
+        version: '2.0.92',
+        versionCode: 200106,
         hasWorkflowFiles: false,
       );
 

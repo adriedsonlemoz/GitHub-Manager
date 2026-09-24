@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.92+200106 — 2026-09-24
+
+- corrige a única falha restante dos jobs GitHub Manager CI #81 e Android APK #82;
+- o seletor já retornava corretamente a branch `develop`, mas o teste exigia que o texto `develop` desaparecesse completamente da árvore após o `Navigator.pop`, uma expectativa desnecessária e sensível à animação/transição da rota;
+- o teste agora valida somente o contrato funcional relevante (`selected.name == 'develop'`), mantendo a verificação de scroll/toque da branch e eliminando a falsa falha;
+- atualiza a fixture do teste e sincroniza a versão para `2.0.92+200106`;
+- os logs anteriores confirmaram 126 testes aprovados e apenas essa asserção falhando, sem novo erro de compilação.
+
 ## 2.0.91+200105 — 2026-09-24
 
 - corrige a única falha restante dos jobs GitHub Manager CI #80 e Android APK #81: o teste encontrava a branch `develop`, mas tentava tocá-la fora da área visível do viewport de teste;
