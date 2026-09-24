@@ -162,7 +162,7 @@ mixin _RepositoryGitWorkflowOperations
       );
     }
 
-    List<RepositoryWorkflow>? knownWorkflows;
+    List<RepositoryWorkflow> knownWorkflows = const [];
     List<RepositoryWorkflow>? knownApkWorkflows;
     _WorkflowFileScan? initialWorkflowScan;
 
@@ -171,11 +171,11 @@ mixin _RepositoryGitWorkflowOperations
     } catch (_) {
       knownWorkflows = const [];
     }
-    if (knownWorkflows!.isNotEmpty) {
+    if (knownWorkflows.isNotEmpty) {
       knownApkWorkflows = await _findStructuralApkWorkflows(
         repositoryFullName: repositoryFullName,
         branch: branch,
-        workflows: knownWorkflows!,
+        workflows: knownWorkflows,
       );
     }
     if (knownApkWorkflows?.isNotEmpty != true) {

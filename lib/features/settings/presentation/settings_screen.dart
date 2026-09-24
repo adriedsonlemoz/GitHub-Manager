@@ -239,7 +239,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.82',
+                      version: '2.0.83',
                       text: 'Permite alterar a branch na confirmação final e identifica versões Shell/Termux por MANIFEST.json e manager.sh.',
                     ),
                     _ChangeNote(

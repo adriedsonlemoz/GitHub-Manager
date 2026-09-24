@@ -8,7 +8,7 @@ class GlobalBuildsService {
   GlobalBuildsService(this._repositoryService, this._gitService);
 
   static const repositoryCacheLifetime = Duration(minutes: 10);
-  static const fullRunsRefreshInterval = Duration(minutes: 3);
+  static const fullRunsRefreshInterval = Duration(minutes: 1);
 
   final RepositoryService _repositoryService;
   final RepositoryGitService _gitService;
@@ -20,7 +20,7 @@ class GlobalBuildsService {
   Future<GlobalBuildsSnapshot>? _loadInFlight;
 
   Future<GlobalBuildsSnapshot> load({
-    int runsPerRepository = 5,
+    int runsPerRepository = 8,
     bool forceFull = false,
   }) {
     final running = _loadInFlight;
@@ -78,8 +78,8 @@ class GlobalBuildsService {
         .map((entry) => entry.repository.fullName)
         .toSet();
     if (activeRepositoryNames.isEmpty) {
-      // Sem execução ativa não há motivo para consultar Actions novamente antes
-      // do próximo refresh completo. Mantém a fotografia já carregada.
+      // A tela pede refresh a cada poucos segundos, mas sem execução ativa o
+      // serviço mantém o snapshot e só faz nova varredura global após 1 minuto.
       return previous;
     }
 
@@ -171,7 +171,7 @@ class GlobalBuildsService {
           failed.add(result.repository.fullName);
           continue;
         }
-        for (final raw in result.runs) {
+        for (final raw in _latestBuildSet(result.runs)) {
           entries.add(
             GlobalBuildEntry(
               repository: result.repository,
@@ -188,6 +188,28 @@ class GlobalBuildsService {
     );
   }
 
+  static List<RepositoryWorkflowRun> _latestBuildSet(
+    List<RepositoryWorkflowRun> runs,
+  ) {
+    if (runs.isEmpty) return const <RepositoryWorkflowRun>[];
+    final ordered = List<RepositoryWorkflowRun>.from(runs)
+      ..sort((a, b) => _runDate(b).compareTo(_runDate(a)));
+    final latest = ordered.first;
+    final latestSha = latest.headSha.trim();
+    if (latestSha.isEmpty) return <RepositoryWorkflowRun>[latest];
+
+    final result = ordered
+        .where((run) => run.headSha.trim() == latestSha)
+        .toList(growable: false);
+    return result.isEmpty ? <RepositoryWorkflowRun>[latest] : result;
+  }
+
+  static DateTime _runDate(RepositoryWorkflowRun run) =>
+      run.createdAt ??
+      run.startedAt ??
+      run.updatedAt ??
+      DateTime.fromMillisecondsSinceEpoch(0);
+
   GlobalBuildsSnapshot _snapshotFrom({
     required List<GitHubRepository> repositories,
     required List<GlobalBuildEntry> entries,
@@ -203,10 +225,9 @@ class GlobalBuildsService {
         .map((entry) => entry.repository.fullName)
         .toSet()
         .length;
-    final limited = entries.take(250).toList(growable: false);
 
     return GlobalBuildsSnapshot(
-      entries: List<GlobalBuildEntry>.unmodifiable(limited),
+      entries: List<GlobalBuildEntry>.unmodifiable(entries),
       repositoryCount: repositories.length,
       repositoriesWithBuilds: repositoriesWithBuilds,
       unavailableRepositories: unavailableRepositories,

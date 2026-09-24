@@ -91,8 +91,9 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
         return;
       }
 
-      var targetBranch = await _chooseUploadBranch(repository);
-      if (targetBranch == null || !mounted) return;
+      final selectedBranch = await _chooseUploadBranch(repository);
+      if (selectedBranch == null || !mounted) return;
+      var targetBranch = selectedBranch;
 
       var syncAllowed = await ensureRepositoryPermission(
         context,
@@ -347,7 +348,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                   actionLabel: syncPreview == null ? null : 'Ver arquivos',
                   onAction: syncPreview == null
                       ? null
-                      : () => _showSyncPreview(dialogContext, syncPreview!),
+                      : () => _showSyncPreview(dialogContext, syncPreview),
                 ),
                 if (rateLimit != null)
                   _BuildSafetyRow(

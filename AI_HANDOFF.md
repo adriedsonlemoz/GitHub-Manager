@@ -1,7 +1,16 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.82+200096`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.83+200097`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
+
+
+## Alterações 2.0.83
+
+- Builds global lista um card por repositório e mantém somente os workflows ligados ao commit/versão mais recente;
+- toque no card abre pop-up com as builds atuais do projeto e atalhos para baixar Log/APK;
+- polling de UI é de 6 s; repositórios com build ativa são repolidos no ciclo curto, enquanto a varredura global é limitada a 1 min ou atualização manual;
+- correção dos erros dos logs #72 em `LocalProjectService` e no fluxo nullable de seleção de branch;
+- testes de Builds atualizados para agrupamento, múltiplos workflows no mesmo commit e navegação específica.
 
 ## Alterações 2.0.82
 

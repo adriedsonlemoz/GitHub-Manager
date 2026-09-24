@@ -593,7 +593,7 @@ class DownloadManagerService {
           ..totalBytes = length;
       } else {
         item.workingPath = null;
-        if (downloadedFile != null && await downloadedFile.exists()) {
+        if (await downloadedFile.exists()) {
           await downloadedFile.delete();
         }
         downloadedFile = null;

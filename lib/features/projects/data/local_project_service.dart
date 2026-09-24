@@ -441,6 +441,14 @@ class LocalProjectService {
     return null;
   }
 
+  static bool _isLikelyRootFile(String path, String fileName) {
+    final normalized = path.replaceAll('\\', '/').toLowerCase();
+    final target = fileName.toLowerCase();
+    if (normalized == target) return true;
+    final parts = normalized.split('/').where((part) => part.isNotEmpty).toList();
+    return parts.length == 2 && parts.last == target;
+  }
+
   static bool _isImportant(String path) {
     final lower = path.toLowerCase();
     return lower.endsWith('pubspec.yaml') ||

@@ -27,6 +27,41 @@ class GlobalBuildEntry {
       }.contains(run.conclusion);
 }
 
+class GlobalRepositoryBuildGroup {
+  GlobalRepositoryBuildGroup({
+    required this.repository,
+    required List<GlobalBuildEntry> entries,
+  }) : entries = List<GlobalBuildEntry>.unmodifiable(
+          List<GlobalBuildEntry>.from(entries)
+            ..sort((a, b) {
+              final aDate = a.date ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final bDate = b.date ?? DateTime.fromMillisecondsSinceEpoch(0);
+              return bDate.compareTo(aDate);
+            }),
+        );
+
+  final GitHubRepository repository;
+  final List<GlobalBuildEntry> entries;
+
+  GlobalBuildEntry get primary => entries.first;
+  DateTime? get date => primary.date;
+  String get branch => primary.branch;
+  String? get version {
+    for (final entry in entries) {
+      final value = entry.run.detectedVersion?.trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  int get buildCount => entries.length;
+  int get runningCount => entries.where((entry) => entry.isRunning).length;
+  bool get isRunning => runningCount > 0;
+  bool get isFailure => !isRunning && entries.any((entry) => entry.isFailure);
+  bool get isSuccess =>
+      entries.isNotEmpty && !isRunning && entries.every((entry) => entry.isSuccess);
+}
+
 class GlobalBuildsSnapshot {
   const GlobalBuildsSnapshot({
     required this.entries,
@@ -41,6 +76,29 @@ class GlobalBuildsSnapshot {
   final int repositoriesWithBuilds;
   final int unavailableRepositories;
   final DateTime loadedAt;
+
+  List<GlobalRepositoryBuildGroup> get groups {
+    final grouped = <String, List<GlobalBuildEntry>>{};
+    final repositories = <String, GitHubRepository>{};
+    for (final entry in entries) {
+      final key = entry.repository.fullName;
+      repositories[key] = entry.repository;
+      grouped.putIfAbsent(key, () => <GlobalBuildEntry>[]).add(entry);
+    }
+    final result = <GlobalRepositoryBuildGroup>[
+      for (final item in grouped.entries)
+        GlobalRepositoryBuildGroup(
+          repository: repositories[item.key]!,
+          entries: item.value,
+        ),
+    ];
+    result.sort((a, b) {
+      final aDate = a.date ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.date ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
+    return List<GlobalRepositoryBuildGroup>.unmodifiable(result);
+  }
 
   int get runningCount => entries.where((item) => item.isRunning).length;
   int get successCount => entries.where((item) => item.isSuccess).length;

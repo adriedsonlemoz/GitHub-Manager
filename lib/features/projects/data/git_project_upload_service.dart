@@ -701,7 +701,7 @@ class GitProjectUploadService {
               request: () => temporaryFile != null
                   ? _client.postBase64File<Map<String, dynamic>>(
                       '/repos/$repositoryFullName/git/blobs',
-                      temporaryFile!,
+                      temporaryFile,
                     )
                   : _client.post<Map<String, dynamic>>(
                       '/repos/$repositoryFullName/git/blobs',

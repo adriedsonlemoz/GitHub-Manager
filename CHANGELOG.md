@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.83+200097 — 2026-09-24
+
+- Reorganiza a aba global **Builds** para exibir somente um card por repositório, representando o commit/versão mais recente.
+- Ao tocar no repositório, abre um pop-up com os workflows atuais daquele commit, preservando casos com duas builds simultâneas, como CI + Android APK.
+- Adiciona ações rápidas **Log** e **APK** em cada build do pop-up; artifacts APK são consultados somente quando o usuário solicita o download.
+- Atualiza o polling visual a cada 6 segundos, mantendo consulta curta apenas nos repositórios com execução ativa e varredura global a cada 1 minuto ou por atualização manual.
+- Corrige os erros fatais dos logs Android-APK-72 e Verificação do Projeto CI-72: `_isLikelyRootFile` ausente e uso nullable de `RepositoryBranch` após a escolha da branch.
+- Remove warnings diretamente relacionados à implementação recente em upload, workflow e preparação de APK.
+- Amplia testes da tela/serviço Builds para agrupamento por repositório, múltiplos workflows no mesmo commit e navegação para a execução específica.
+
 ## 2.0.82+200096 — 2026-09-24
 
 - Unifica a seleção de branch em Arquivos, Commits, Builds e Enviar versão e adiciona criação de nova branch a partir da branch atual.
