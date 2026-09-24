@@ -175,8 +175,13 @@ class RepositoryWorkflowRun {
   final String htmlUrl;
   final String? buildVersion;
 
-  bool get isRunning =>
-      status == 'queued' || status == 'in_progress' || status == 'waiting';
+  bool get isRunning => const <String>{
+        'queued',
+        'in_progress',
+        'waiting',
+        'pending',
+        'requested',
+      }.contains(status);
 
   String get shortSha =>
       headSha.length > 7 ? headSha.substring(0, 7) : headSha;

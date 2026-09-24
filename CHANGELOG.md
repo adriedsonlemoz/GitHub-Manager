@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.77+200091 — 2026-09-23
+## 2.0.78+200092 — 2026-09-23
 
 - Corrige a suíte `TokenPermissionDiagnosticsService`: o diagnóstico de **Contents** para PAT clássico volta a exigir apenas `repo`, alinhado ao fluxo atual de sincronização do projeto sem build.
 - Mantém `repo + workflow` exclusivamente para operações de **Actions/Build**, preservando a separação introduzida nas versões 2.0.74–2.0.76.

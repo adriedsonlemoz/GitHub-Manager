@@ -2,6 +2,7 @@ import 'package:github_manager/features/permissions/domain/repository_permission
 
 enum RepositoryCriticalAction {
   syncProject,
+  syncProjectWithWorkflows,
   sendBuild,
   manageFiles,
   manageSecrets,
@@ -33,6 +34,8 @@ class RepositoryPermissionPreflightDecision {
 
   String get actionLabel => switch (action) {
         RepositoryCriticalAction.syncProject => 'Enviar nova versão',
+        RepositoryCriticalAction.syncProjectWithWorkflows =>
+          'Enviar versão com workflow',
         RepositoryCriticalAction.sendBuild => 'Enviar build',
         RepositoryCriticalAction.manageFiles => 'Gerenciar arquivos',
         RepositoryCriticalAction.manageSecrets => 'Gerenciar Secrets',

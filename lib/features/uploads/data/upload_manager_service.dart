@@ -589,6 +589,7 @@ class UploadManagerService {
       final appError = error is AppException ? error : null;
       if (appError?.technicalCode == 'APK_WORKFLOW_NOT_FOUND') {
         item
+          ..buildPolicy = ManagedUploadBuildPolicy.skipNoWorkflow
           ..workflowName = null
           ..workflowPath = null
           ..workflowRunId = null

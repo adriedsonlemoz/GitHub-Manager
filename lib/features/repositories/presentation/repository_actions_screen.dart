@@ -26,12 +26,14 @@ class RepositoryActionsScreen extends ConsumerStatefulWidget {
     required this.repositoryFullName,
     required this.defaultBranch,
     this.readOnly = false,
+    this.initialRunId,
     super.key,
   });
 
   final String repositoryFullName;
   final String defaultBranch;
   final bool readOnly;
+  final int? initialRunId;
 
   @override
   ConsumerState<RepositoryActionsScreen> createState() =>

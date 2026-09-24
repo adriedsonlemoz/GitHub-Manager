@@ -5,10 +5,10 @@ import 'package:github_manager/features/permissions/domain/repository_permission
 
 void main() {
   group('PermissionPreflightService', () {
-    test('bloqueia Enviar build quando PAT clássico não tem repo/workflow', () async {
+    test('Enviar build PAT clássico exige repo, não workflow', () async {
       final gateway = _CountingGateway(
         token: 'ghp_teste',
-        oauthScopes: 'read:user',
+        oauthScopes: 'repo',
         admin: true,
       );
       final service = _service(gateway);
@@ -18,9 +18,25 @@ void main() {
         RepositoryCriticalAction.sendBuild,
       );
 
+      expect(decision.blocked, isFalse);
+      expect(decision.requiredPermissions, isEmpty);
+    });
+
+    test('ZIP com workflow exige scope workflow no PAT clássico', () async {
+      final gateway = _CountingGateway(
+        token: 'ghp_teste',
+        oauthScopes: 'repo',
+        admin: true,
+      );
+      final service = _service(gateway);
+
+      final decision = await service.check(
+        'owner/repo',
+        RepositoryCriticalAction.syncProjectWithWorkflows,
+      );
+
       expect(decision.blocked, isTrue);
-      expect(decision.requiredPermissions, contains('repo + workflow'));
-      expect(decision.requiredPermissions, contains('repo'));
+      expect(decision.requiredPermissions, contains('workflow'));
     });
 
     test('Enviar nova versão exige Contents, mas não Actions', () async {
@@ -53,7 +69,7 @@ void main() {
       );
 
       expect(decision.blocked, isFalse);
-      expect(decision.unknown.length, 2);
+      expect(decision.unknown.length, 1);
     });
 
     test('bloqueia Secrets quando leitura já foi negada pelo GitHub', () async {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
@@ -16,6 +18,38 @@ class GlobalBuildsScreen extends ConsumerStatefulWidget {
 
 class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
   _GlobalBuildFilter _filter = _GlobalBuildFilter.all;
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedulePoll(const Duration(seconds: 15));
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _schedulePoll(Duration delay) {
+    _pollTimer?.cancel();
+    _pollTimer = Timer(delay, () async {
+      if (!mounted) return;
+      try {
+        await _refresh();
+      } catch (_) {
+        // Mantém a fotografia anterior; próxima tentativa continua agendada.
+      }
+      if (!mounted) return;
+      final snapshot = ref.read(globalBuildsProvider).valueOrNull;
+      _schedulePoll(
+        (snapshot?.runningCount ?? 0) > 0
+            ? const Duration(seconds: 6)
+            : const Duration(seconds: 30),
+      );
+    });
+  }
 
   Future<void> _refresh() async {
     ref.invalidate(globalBuildsProvider);
@@ -140,7 +174,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
                       child: _GlobalBuildCard(
                         entry: entry,
                         onTap: () => context.push(
-                          '/repositories/${entry.repository.fullName}/builds?branch=${Uri.encodeQueryComponent(entry.branch)}',
+                          '/repositories/${entry.repository.fullName}/builds?branch=${Uri.encodeQueryComponent(entry.branch)}&runId=${entry.run.id}',
                         ),
                       ),
                     ),
@@ -294,7 +328,10 @@ class _GlobalBuildCard extends StatelessWidget {
   }
 
   static (IconData, String) _status(String status, String? conclusion) {
-    if (status == 'queued' || status == 'waiting') {
+    if (status == 'queued' ||
+        status == 'waiting' ||
+        status == 'pending' ||
+        status == 'requested') {
       return (Icons.schedule_rounded, 'Fila');
     }
     if (status == 'in_progress') {
@@ -310,7 +347,9 @@ class _GlobalBuildCard extends StatelessWidget {
       'stale' => (Icons.hourglass_disabled_rounded, 'Obsoleta'),
       'neutral' => (Icons.remove_circle_outline_rounded, 'Neutra'),
       'failure' => (Icons.error_outline_rounded, 'Falhou'),
-      _ => (Icons.info_outline_rounded, 'Concluída'),
+      _ => conclusion == null
+          ? (Icons.hourglass_top_rounded, 'Pendente')
+          : (Icons.info_outline_rounded, 'Concluída'),
     };
   }
 

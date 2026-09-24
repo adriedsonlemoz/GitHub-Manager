@@ -13,6 +13,7 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
   final Set<int> _selectedRunIds = <int>{};
   bool _selectionMode = false;
   bool _deletingSelected = false;
+  bool _initialRunOpened = false;
 
   void initializeRepositoryActionsState() {
     WidgetsBinding.instance.addObserver(this);
@@ -32,11 +33,32 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
     final data = await ref.read(repositoryGitServiceProvider).loadActions(
           widget.repositoryFullName,
           workflow: _selectedWorkflow,
+          branch: widget.defaultBranch,
         );
     _hasRunning = data.allRuns.any((run) => run.isRunning);
     _currentData = data;
     _lastUpdatedAt = DateTime.now();
+    _openInitialRunIfNeeded(data.allRuns);
     return data;
+  }
+
+
+  void _openInitialRunIfNeeded(List<RepositoryWorkflowRun> runs) {
+    final runId = widget.initialRunId;
+    if (_initialRunOpened || runId == null) return;
+    RepositoryWorkflowRun? target;
+    for (final run in runs) {
+      if (run.id == runId) {
+        target = run;
+        break;
+      }
+    }
+    if (target == null) return;
+    _initialRunOpened = true;
+    final selected = target;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_showRunDetails(selected));
+    });
   }
 
   Future<void> _refresh({
@@ -89,9 +111,12 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
         return bDate.compareTo(aDate);
       });
     final selected = _selectedWorkflow;
+    final branchRuns = allRuns
+        .where((run) => run.branch.trim() == widget.defaultBranch.trim())
+        .toList(growable: false);
     final visibleRuns = selected == null
-        ? allRuns
-        : allRuns.where((run) => run.belongsTo(selected)).toList(growable: false);
+        ? branchRuns
+        : branchRuns.where((run) => run.belongsTo(selected)).toList(growable: false);
     final oldDiagnostic = current.diagnostic;
     final data = RepositoryActionsData(
       workflows: current.workflows,

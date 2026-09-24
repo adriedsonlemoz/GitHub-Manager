@@ -96,6 +96,7 @@ final appRouter = GoRouter(
               repositoryFullName: fullName,
               defaultBranch: state.uri.queryParameters['branch'] ?? 'main',
               readOnly: state.uri.queryParameters['readOnly'] == '1',
+              initialRunId: int.tryParse(state.uri.queryParameters['runId'] ?? ''),
             );
           },
         ),

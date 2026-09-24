@@ -197,7 +197,7 @@ class TokenPermissionDiagnosticsService {
           classicScopes: classicScopes,
           roleAllows: canPush,
           roleFailure: 'Sua conta não possui acesso de escrita para controlar builds.',
-          classicRequired: 'repo + workflow',
+          classicRequired: 'repo',
           fineGrainedRequired: 'Actions: write',
           readProbe: actionsProbe,
           detail:

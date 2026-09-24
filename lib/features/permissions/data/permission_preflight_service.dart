@@ -147,8 +147,26 @@ class PermissionPreflightService {
       case RepositoryCriticalAction.syncProject:
         add(RepositoryPermissionArea.contents);
         break;
-      case RepositoryCriticalAction.sendBuild:
+      case RepositoryCriticalAction.syncProjectWithWorkflows:
         add(RepositoryPermissionArea.contents);
+        if (report.tokenKind == GitHubTokenKind.classic &&
+            !report.classicScopes.contains('workflow')) {
+          results.add(const PermissionAccessResult(
+            verdict: PermissionVerdict.denied,
+            label: 'Escopo workflow ausente',
+            detail: 'Este ZIP modifica .github/workflows. PAT clássico precisa de `repo` e `workflow` para alterar arquivos de workflow.',
+            requiredPermission: 'workflow',
+          ));
+        } else if (report.tokenKind != GitHubTokenKind.classic) {
+          results.add(const PermissionAccessResult(
+            verdict: PermissionVerdict.unknown,
+            label: 'Verifique no token',
+            detail: 'Este ZIP modifica .github/workflows. Confirme no PAT fine-grained a permissão de escrita aplicável a Workflows além de Contents: write.',
+            requiredPermission: 'Workflows: write',
+          ));
+        }
+        break;
+      case RepositoryCriticalAction.sendBuild:
         add(RepositoryPermissionArea.actions);
         break;
       case RepositoryCriticalAction.manageFiles:

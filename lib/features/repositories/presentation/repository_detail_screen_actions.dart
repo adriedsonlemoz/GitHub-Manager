@@ -85,19 +85,21 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
 
   Future<void> _sendBuild(GitHubRepository repository) async {
     try {
-      final allowed = await ensureRepositoryPermission(
-        context,
-        ref,
-        repositoryFullName: repository.fullName,
-        action: RepositoryCriticalAction.syncProject,
-      );
-      if (!allowed || !mounted) return;
-
       final project =
           await ref.read(localProjectServiceProvider).pickAndAnalyzeZip();
       if (project == null || !mounted) {
         return;
       }
+
+      final syncAllowed = await ensureRepositoryPermission(
+        context,
+        ref,
+        repositoryFullName: repository.fullName,
+        action: project.hasWorkflowFiles
+            ? RepositoryCriticalAction.syncProjectWithWorkflows
+            : RepositoryCriticalAction.syncProject,
+      );
+      if (!syncAllowed || !mounted) return;
 
       final targetBranch = await _chooseUploadBranch(repository);
       if (targetBranch == null || !mounted) return;
@@ -120,6 +122,16 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       );
       if (buildPolicy == null || !mounted) {
         return;
+      }
+
+      if (buildPolicy == ManagedUploadBuildPolicy.automatic) {
+        final buildAllowed = await ensureRepositoryPermission(
+          context,
+          ref,
+          repositoryFullName: repository.fullName,
+          action: RepositoryCriticalAction.sendBuild,
+        );
+        if (!buildAllowed || !mounted) return;
       }
 
       final manager = ref.read(uploadManagerProvider);
@@ -148,31 +160,57 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
   Future<RepositoryBranch?> _chooseUploadBranch(
     GitHubRepository repository,
   ) async {
-    List<RepositoryBranch> branches;
-    try {
-      branches = await ref
-          .read(repositoryGitServiceProvider)
-          .listBranches(repository.fullName);
-    } catch (_) {
-      branches = const <RepositoryBranch>[];
+    List<RepositoryBranch>? branches;
+    while (branches == null) {
+      try {
+        branches = await ref
+            .read(repositoryGitServiceProvider)
+            .listBranches(repository.fullName);
+      } catch (error) {
+        if (!mounted) return null;
+        final retry = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Não foi possível carregar as branches'),
+            content: const Text(
+              'O GitHub Manager não vai inventar uma lista incompleta nem assumir que a branch padrão está desprotegida. Tente novamente para escolher o destino com segurança.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tentar novamente'),
+              ),
+            ],
+          ),
+        );
+        if (retry != true) return null;
+      }
     }
     if (!mounted) return null;
 
     final byName = <String, RepositoryBranch>{
       for (final branch in branches) branch.name: branch,
     };
-    byName.putIfAbsent(
-      repository.defaultBranch,
-      () => RepositoryBranch(
-        name: repository.defaultBranch,
-        sha: '',
-        isProtected: false,
-      ),
-    );
+    if (byName.isEmpty || !byName.containsKey(repository.defaultBranch)) {
+      if (mounted) {
+        _showError(StateError('A branch padrão não foi retornada pelo GitHub. Atualize os dados do repositório e tente novamente.'));
+      }
+      return null;
+    }
 
     final preferenceKey =
         'uploads.last_branch.${repository.fullName.toLowerCase()}';
-    final stored = await ref.read(localDatabaseProvider).readJson(preferenceKey);
+    dynamic stored;
+    try {
+      stored = await ref.read(localDatabaseProvider).readJson(preferenceKey);
+    } catch (_) {
+      // Preferência é best-effort: falha local não pode bloquear o envio.
+    }
     if (!mounted) return null;
     var selectedName = stored is String && byName.containsKey(stored)
         ? stored
@@ -190,7 +228,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                 shrinkWrap: true,
                 children: [
                   Text(
-                    'A nova versão será comparada e enviada usando a branch escolhida.',
+                    'A nova versão será comparada e enviada usando a branch escolhida. A proteção exibida abaixo é a da própria branch selecionada.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 10),
@@ -204,21 +242,16 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                             : Icons.radio_button_off_rounded,
                       ),
                       title: Text(branch.name),
-                      subtitle: branch.name == repository.defaultBranch ||
-                              branch.isProtected
-                          ? Text(
-                              [
-                                if (branch.name == repository.defaultBranch)
-                                  'padrão',
-                                if (branch.isProtected) 'protegida',
-                              ].join(' • '),
-                            )
+                      subtitle: branch.name == repository.defaultBranch || branch.isProtected
+                          ? Text([
+                              if (branch.name == repository.defaultBranch) 'padrão',
+                              if (branch.isProtected) 'protegida',
+                            ].join(' • '))
                           : null,
                       trailing: branch.isProtected
                           ? const Icon(Icons.lock_outline_rounded, size: 19)
                           : null,
-                      onTap: () =>
-                          setDialogState(() => selectedName = branch.name),
+                      onTap: () => setDialogState(() => selectedName = branch.name),
                     ),
                   ),
                 ],
@@ -231,8 +264,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
               child: const Text('Cancelar'),
             ),
             FilledButton.icon(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, byName[selectedName]),
+              onPressed: () => Navigator.pop(dialogContext, byName[selectedName]),
               icon: const Icon(Icons.account_tree_outlined),
               label: const Text('Usar esta branch'),
             ),
@@ -242,10 +274,11 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     );
 
     if (selected != null) {
-      await ref.read(localDatabaseProvider).putJson(
-            preferenceKey,
-            selected.name,
-          );
+      try {
+        await ref.read(localDatabaseProvider).putJson(preferenceKey, selected.name);
+      } catch (_) {
+        // Preferência é best-effort. O envio continua normalmente.
+      }
     }
     return selected;
   }
@@ -486,10 +519,10 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                       ),
                     );
                     if (forced == true && dialogContext.mounted) {
-                      Navigator.pop(dialogContext, true);
+                      Navigator.pop(dialogContext, buildPolicy);
                     }
                   }
-                : () => Navigator.pop(dialogContext, true),
+                : () => Navigator.pop(dialogContext, buildPolicy),
             icon: Icon(
               check.blocked || check.warning
                   ? Icons.warning_amber_rounded
