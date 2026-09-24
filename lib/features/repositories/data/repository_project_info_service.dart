@@ -49,11 +49,14 @@ class RepositoryProjectInfoService {
 
       var projectName = repository.name;
       String? version;
+      String? versionSource;
 
       final metadataFile = const [
         'github-manager.json',
+        'app_identity.json',
         'app.json',
         'project.json',
+        'manifest.json',
       ].where(names.containsKey).firstOrNull;
       if (metadataFile != null) {
         final raw = await readPath(metadataFile);
@@ -67,18 +70,20 @@ class RepositoryProjectInfoService {
                   map['projectName'] ??
                   map['appName'] ??
                   map['name'];
-              final candidateVersion = map['version'] ?? map['versionName'];
+              final candidateVersion = _versionFromJsonMap(map);
               final android = map['android'];
               if (candidateName is String && candidateName.trim().isNotEmpty) {
                 projectName = candidateName.trim();
               }
               if (candidateVersion is String && candidateVersion.trim().isNotEmpty) {
                 version = candidateVersion.trim().split('+').first;
+                versionSource = metadataFile;
               }
               if (version == null && android is Map) {
                 final androidVersion = android['versionName'];
                 if (androidVersion is String && androidVersion.trim().isNotEmpty) {
                   version = androidVersion.trim().split('+').first;
+                  versionSource = metadataFile;
                 }
               }
             }
@@ -104,7 +109,43 @@ class RepositoryProjectInfoService {
           }
           if (yamlVersion?.isNotEmpty == true) {
             version = yamlVersion!.split('+').first;
+            versionSource = 'pubspec.yaml';
           }
+        }
+      }
+
+      if (version == null && names.containsKey('project.godot')) {
+        final raw = await readPath('project.godot');
+        if (raw != null) {
+          final godotName = RegExp(r'^config/name\s*=\s*"([^"]+)"', multiLine: true)
+              .firstMatch(raw)?.group(1)?.trim();
+          final godotVersion = RegExp(r'^config/version\s*=\s*"([^"]+)"', multiLine: true)
+              .firstMatch(raw)?.group(1)?.trim();
+          if (projectName == repository.name && godotName?.isNotEmpty == true) {
+            projectName = godotName!;
+          }
+          if (godotVersion?.isNotEmpty == true) {
+            version = godotVersion;
+            versionSource = 'project.godot';
+          }
+        }
+      }
+
+      if (version == null && names.containsKey('pyproject.toml')) {
+        final raw = await readPath('pyproject.toml');
+        if (raw != null) {
+          version = RegExp(r'''^version\s*=\s*["']([^"']+)["']''', multiLine: true)
+              .firstMatch(raw)?.group(1)?.trim();
+          if (version?.isNotEmpty == true) versionSource = 'pyproject.toml';
+        }
+      }
+
+      if (version == null && names.containsKey('cargo.toml')) {
+        final raw = await readPath('Cargo.toml');
+        if (raw != null) {
+          version = RegExp(r'''^version\s*=\s*["']([^"']+)["']''', multiLine: true)
+              .firstMatch(raw)?.group(1)?.trim();
+          if (version?.isNotEmpty == true) versionSource = 'Cargo.toml';
         }
       }
 
@@ -122,6 +163,7 @@ class RepositoryProjectInfoService {
               }
               if (candidateVersion is String && candidateVersion.trim().isNotEmpty) {
                 version = candidateVersion.trim();
+                versionSource = 'package.json';
               }
             }
           } catch (_) {
@@ -132,7 +174,18 @@ class RepositoryProjectInfoService {
 
       if (version == null && names.containsKey('version')) {
         final raw = await readPath('VERSION');
-        if (raw?.trim().isNotEmpty == true) version = raw!.trim();
+        if (raw?.trim().isNotEmpty == true) {
+          version = raw!.trim();
+          versionSource = 'VERSION';
+        }
+      }
+
+      if (version == null && names.containsKey('manager.sh')) {
+        final raw = await readPath('manager.sh');
+        if (raw != null) {
+          version = _versionFromShellScript(raw);
+          if (version != null) versionSource = 'manager.sh';
+        }
       }
 
       if (version == null) {
@@ -152,13 +205,17 @@ class RepositoryProjectInfoService {
           version = RegExp(
             r'''versionName\s*(?:=\s*)?["']([^"']+)["']''',
           ).firstMatch(raw)?.group(1)?.trim();
-          if (version?.isNotEmpty == true) break;
+          if (version?.isNotEmpty == true) {
+            versionSource = gradlePath;
+            break;
+          }
         }
       }
 
       return RepositoryProjectInfo(
         projectName: projectName,
         version: version,
+        versionSource: versionSource,
         technologies: [if (repository.language?.isNotEmpty == true) repository.language!],
       );
     } on AppException {
@@ -197,6 +254,7 @@ class RepositoryProjectInfoService {
 
       String projectName = repository.name;
       String? version;
+      String? versionSource;
       String? packageName;
       String? applicationId;
       int? versionCode;
@@ -225,8 +283,10 @@ class RepositoryProjectInfoService {
 
       final metadataFile = const [
         'github-manager.json',
+        'app_identity.json',
         'app.json',
         'project.json',
+        'manifest.json',
       ].where(names.containsKey).firstOrNull;
       if (metadataFile != null) {
         final raw = await readRoot(metadataFile);
@@ -240,15 +300,15 @@ class RepositoryProjectInfoService {
                   map['projectName'] ??
                   map['appName'] ??
                   map['name'];
-              final candidateVersion = map['version'] ?? map['versionName'];
+              final candidateVersion = _versionFromJsonMap(map);
               final candidatePackage = map['name'] ?? map['package'];
               final android = map['android'];
               if (candidateName is String && candidateName.trim().isNotEmpty) {
                 projectName = candidateName.trim();
               }
-              if (candidateVersion is String &&
-                  candidateVersion.trim().isNotEmpty) {
-                version = candidateVersion.trim().split('+').first;
+              if (candidateVersion?.isNotEmpty == true) {
+                version = candidateVersion;
+                versionSource = metadataFile;
               }
               if (candidatePackage is String && candidatePackage.trim().isNotEmpty) {
                 packageName = candidatePackage.trim();
@@ -265,6 +325,7 @@ class RepositoryProjectInfoService {
                 final androidVersion = androidMap['versionName'];
                 if (androidVersion is String && androidVersion.trim().isNotEmpty) {
                   version = androidVersion.trim().split('+').first;
+                  versionSource = metadataFile;
                 }
               }
               for (final candidate in [
@@ -303,12 +364,50 @@ class RepositoryProjectInfoService {
           packageName ??= yamlName;
           if (yamlVersion?.isNotEmpty == true) {
             final resolvedVersion = yamlVersion!;
-            version ??= resolvedVersion.split('+').first;
+            if (version == null) {
+              version = resolvedVersion.split('+').first;
+              versionSource = 'pubspec.yaml';
+            }
             if (resolvedVersion.contains('+')) {
               versionCode ??=
                   int.tryParse(resolvedVersion.split('+').last);
             }
           }
+        }
+      }
+
+      if (version == null && names.containsKey('project.godot')) {
+        final raw = await readRoot('project.godot');
+        if (raw != null) {
+          final godotName = RegExp(r'^config/name\s*=\s*"([^"]+)"', multiLine: true)
+              .firstMatch(raw)?.group(1)?.trim();
+          final godotVersion = RegExp(r'^config/version\s*=\s*"([^"]+)"', multiLine: true)
+              .firstMatch(raw)?.group(1)?.trim();
+          if (projectName == repository.name && godotName?.isNotEmpty == true) {
+            projectName = godotName!;
+          }
+          if (godotVersion?.isNotEmpty == true) {
+            version = godotVersion;
+            versionSource = 'project.godot';
+          }
+        }
+      }
+
+      if (version == null && names.containsKey('pyproject.toml')) {
+        final raw = await readRoot('pyproject.toml');
+        if (raw != null) {
+          version = RegExp(r'''^version\s*=\s*["']([^"']+)["']''', multiLine: true)
+              .firstMatch(raw)?.group(1)?.trim();
+          if (version?.isNotEmpty == true) versionSource = 'pyproject.toml';
+        }
+      }
+
+      if (version == null && names.containsKey('cargo.toml')) {
+        final raw = await readRoot('Cargo.toml');
+        if (raw != null) {
+          version = RegExp(r'''^version\s*=\s*["']([^"']+)["']''', multiLine: true)
+              .firstMatch(raw)?.group(1)?.trim();
+          if (version?.isNotEmpty == true) versionSource = 'Cargo.toml';
         }
       }
 
@@ -326,6 +425,7 @@ class RepositoryProjectInfoService {
               }
               if (version == null && candidateVersion is String) {
                 version = candidateVersion.trim();
+                versionSource = 'package.json';
               }
             }
           } catch (_) {
@@ -338,6 +438,15 @@ class RepositoryProjectInfoService {
         final raw = await readRoot('VERSION');
         if (raw?.trim().isNotEmpty == true) {
           version = raw!.trim();
+          versionSource = 'VERSION';
+        }
+      }
+
+      if (version == null && names.containsKey('manager.sh')) {
+        final raw = await readRoot('manager.sh');
+        if (raw != null) {
+          version = _versionFromShellScript(raw);
+          if (version != null) versionSource = 'manager.sh';
         }
       }
 
@@ -371,9 +480,12 @@ class RepositoryProjectInfoService {
             applicationId ??= RegExp(
               r'''namespace\s*(?:=\s*)?["']([^"']+)["']''',
             ).firstMatch(raw)?.group(1)?.trim();
-            version ??= RegExp(
-              r'''versionName\s*(?:=\s*)?["']([^"']+)["']''',
-            ).firstMatch(raw)?.group(1)?.trim();
+            if (version == null) {
+              version = RegExp(
+                r'''versionName\s*(?:=\s*)?["']([^"']+)["']''',
+              ).firstMatch(raw)?.group(1)?.trim();
+              if (version != null) versionSource = gradlePath;
+            }
             versionCode ??= int.tryParse(
               RegExp(r'''versionCode\s*(?:=\s*)?(\d+)''')
                       .firstMatch(raw)
@@ -395,6 +507,15 @@ class RepositoryProjectInfoService {
       }
       if (gradleCandidates.isNotEmpty || names.containsKey('android')) {
         technologies.add('Android');
+      }
+      if (names.containsKey('project.godot')) {
+        technologies.add('Godot');
+      }
+      if (names.containsKey('pyproject.toml')) {
+        technologies.add('Python');
+      }
+      if (names.containsKey('cargo.toml')) {
+        technologies.add('Rust');
       }
       if (names.containsKey('package.json')) {
         technologies.add('Node.js');
@@ -427,6 +548,7 @@ class RepositoryProjectInfoService {
         packageName: packageName,
         applicationId: applicationId,
         versionCode: versionCode,
+        versionSource: versionSource,
       );
     } on AppException {
       return RepositoryProjectInfo(
@@ -435,6 +557,41 @@ class RepositoryProjectInfoService {
         technologies: [if (repository.language != null) repository.language!],
       );
     }
+  }
+
+  static String? _versionFromJsonMap(Map<String, dynamic> map) {
+    for (final candidate in [
+      map['version'],
+      map['versionName'],
+      map['appVersion'],
+    ]) {
+      if (candidate is String && candidate.trim().isNotEmpty) {
+        return candidate.trim().split('+').first;
+      }
+    }
+    for (final key in const ['release', 'app', 'project', 'metadata']) {
+      final nested = map[key];
+      if (nested is! Map) continue;
+      final nestedMap = Map<String, dynamic>.from(nested);
+      for (final candidate in [
+        nestedMap['version'],
+        nestedMap['versionName'],
+        nestedMap['appVersion'],
+      ]) {
+        if (candidate is String && candidate.trim().isNotEmpty) {
+          return candidate.trim().split('+').first;
+        }
+      }
+    }
+    return null;
+  }
+
+  static String? _versionFromShellScript(String text) {
+    return RegExp(
+      r'''^(?:(?:export|readonly)\s+)?[A-Z0-9_]*VERSION\s*=\s*["']?v?([0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9._-]+)?)["']?\s*(?:#.*)?$''',
+      multiLine: true,
+      caseSensitive: false,
+    ).firstMatch(text)?.group(1)?.trim();
   }
 
   static void _ignoreInvalidMetadata() {

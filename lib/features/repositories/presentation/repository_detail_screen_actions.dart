@@ -91,7 +91,10 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
         return;
       }
 
-      final syncAllowed = await ensureRepositoryPermission(
+      var targetBranch = await _chooseUploadBranch(repository);
+      if (targetBranch == null || !mounted) return;
+
+      var syncAllowed = await ensureRepositoryPermission(
         context,
         ref,
         repositoryFullName: repository.fullName,
@@ -101,27 +104,69 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       );
       if (!syncAllowed || !mounted) return;
 
-      final targetBranch = await _chooseUploadBranch(repository);
-      if (targetBranch == null || !mounted) return;
+      late final ManagedUploadBuildPolicy buildPolicy;
+      while (true) {
+        final repositoryInfo = await ref
+            .read(repositoryProjectInfoServiceProvider)
+            .load(repository, branch: targetBranch.name);
+        ProjectSyncPreview? syncPreview;
+        GitHubRateLimitSnapshot? rateLimit;
+        try {
+          syncPreview = await ref.read(gitProjectUploadServiceProvider).previewZipSync(
+                project: project,
+                repositoryFullName: repository.fullName,
+                branch: targetBranch.name,
+              );
+        } catch (_) {
+          // A prévia é uma proteção adicional. Falha temporária não impede a
+          // confirmação, mas a interface deixa claro quando ela não foi obtida.
+        }
+        try {
+          rateLimit = await ref.read(repositoryGitServiceProvider).loadRateLimit();
+        } catch (_) {
+          // Informação de cota é auxiliar e não deve bloquear o envio.
+        }
+        final branchHasApkWorkflow = await _detectBranchApkWorkflow(
+          repository,
+          targetBranch,
+          project,
+        );
+        if (!mounted) return;
 
-      final repositoryInfo = await ref
-          .read(repositoryProjectInfoServiceProvider)
-          .load(repository, branch: targetBranch.name);
-      final branchHasApkWorkflow = await _detectBranchApkWorkflow(
-        repository,
-        targetBranch,
-        project,
-      );
-      if (!mounted) return;
-      final buildPolicy = await _confirmZip(
-        project,
-        repository,
-        repositoryInfo,
-        targetBranch,
-        branchHasApkWorkflow,
-      );
-      if (buildPolicy == null || !mounted) {
-        return;
+        final confirmation = await _confirmZip(
+          project,
+          repository,
+          repositoryInfo,
+          targetBranch,
+          branchHasApkWorkflow,
+          syncPreview,
+          rateLimit,
+        );
+        if (confirmation == null || !mounted) return;
+
+        if (confirmation.changeBranch) {
+          final changedBranch = await _chooseUploadBranch(
+            repository,
+            initialBranchName: targetBranch.name,
+          );
+          if (!mounted) return;
+          if (changedBranch == null) continue;
+          targetBranch = changedBranch;
+          syncAllowed = await ensureRepositoryPermission(
+            context,
+            ref,
+            repositoryFullName: repository.fullName,
+            action: project.hasWorkflowFiles
+                ? RepositoryCriticalAction.syncProjectWithWorkflows
+                : RepositoryCriticalAction.syncProject,
+          );
+          if (!syncAllowed || !mounted) return;
+          continue;
+        }
+        final confirmedPolicy = confirmation.buildPolicy;
+        if (confirmedPolicy == null) return;
+        buildPolicy = confirmedPolicy;
+        break;
       }
 
       if (buildPolicy == ManagedUploadBuildPolicy.automatic) {
@@ -158,51 +203,9 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
   }
 
   Future<RepositoryBranch?> _chooseUploadBranch(
-    GitHubRepository repository,
-  ) async {
-    List<RepositoryBranch>? branches;
-    while (branches == null) {
-      try {
-        branches = await ref
-            .read(repositoryGitServiceProvider)
-            .listBranches(repository.fullName);
-      } catch (error) {
-        if (!mounted) return null;
-        final retry = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Não foi possível carregar as branches'),
-            content: const Text(
-              'O GitHub Manager não vai inventar uma lista incompleta nem assumir que a branch padrão está desprotegida. Tente novamente para escolher o destino com segurança.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancelar'),
-              ),
-              FilledButton.icon(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Tentar novamente'),
-              ),
-            ],
-          ),
-        );
-        if (retry != true) return null;
-      }
-    }
-    if (!mounted) return null;
-
-    final byName = <String, RepositoryBranch>{
-      for (final branch in branches) branch.name: branch,
-    };
-    if (byName.isEmpty || !byName.containsKey(repository.defaultBranch)) {
-      if (mounted) {
-        _showError(StateError('A branch padrão não foi retornada pelo GitHub. Atualize os dados do repositório e tente novamente.'));
-      }
-      return null;
-    }
-
+    GitHubRepository repository, {
+    String? initialBranchName,
+  }) async {
     final preferenceKey =
         'uploads.last_branch.${repository.fullName.toLowerCase()}';
     dynamic stored;
@@ -212,67 +215,26 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       // Preferência é best-effort: falha local não pode bloquear o envio.
     }
     if (!mounted) return null;
-    var selectedName = stored is String && byName.containsKey(stored)
-        ? stored
-        : repository.defaultBranch;
 
-    final selected = await showDialog<RepositoryBranch>(
+    final initial = initialBranchName?.trim().isNotEmpty == true
+        ? initialBranchName!.trim()
+        : stored is String && stored.trim().isNotEmpty
+            ? stored.trim()
+            : repository.defaultBranch.trim().isEmpty
+                ? 'main'
+                : repository.defaultBranch.trim();
+
+    final selected = await showRepositoryBranchSelector(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Escolher branch de destino'),
-          content: AdaptiveDialogBody(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 420),
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  Text(
-                    'A nova versão será comparada e enviada usando a branch escolhida. A proteção exibida abaixo é a da própria branch selecionada.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 10),
-                  ...byName.values.map(
-                    (branch) => ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        branch.name == selectedName
-                            ? Icons.radio_button_checked_rounded
-                            : Icons.radio_button_off_rounded,
-                      ),
-                      title: Text(branch.name),
-                      subtitle: branch.name == repository.defaultBranch || branch.isProtected
-                          ? Text([
-                              if (branch.name == repository.defaultBranch) 'padrão',
-                              if (branch.isProtected) 'protegida',
-                            ].join(' • '))
-                          : null,
-                      trailing: branch.isProtected
-                          ? const Icon(Icons.lock_outline_rounded, size: 19)
-                          : null,
-                      onTap: () => setDialogState(() => selectedName = branch.name),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, byName[selectedName]),
-              icon: const Icon(Icons.account_tree_outlined),
-              label: const Text('Usar esta branch'),
-            ),
-          ],
-        ),
-      ),
+      ref: ref,
+      repositoryFullName: repository.fullName,
+      currentBranch: initial,
+      defaultBranch: repository.defaultBranch,
+      emptyBranchName: repository.defaultBranch.trim().isEmpty
+          ? 'main'
+          : repository.defaultBranch.trim(),
+      allowCreate: true,
     );
-
     if (selected != null) {
       try {
         await ref.read(localDatabaseProvider).putJson(preferenceKey, selected.name);
@@ -302,12 +264,14 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     }
   }
 
-  Future<ManagedUploadBuildPolicy?> _confirmZip(
+  Future<_ConfirmZipResult?> _confirmZip(
     ZipProjectPreview project,
     GitHubRepository repository,
     RepositoryProjectInfo repositoryInfo,
     RepositoryBranch targetBranch,
     bool? branchHasApkWorkflow,
+    ProjectSyncPreview? syncPreview,
+    GitHubRateLimitSnapshot? rateLimit,
   ) {
     final check = ProjectSafetyCheck.compare(
       project: project,
@@ -319,7 +283,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
         ? ManagedUploadBuildPolicy.skipNoWorkflow
         : ManagedUploadBuildPolicy.automatic;
 
-    return showDialog<ManagedUploadBuildPolicy>(
+    return showDialog<_ConfirmZipResult>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
@@ -333,7 +297,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ProjectVersionBanner(versionLabel: project.versionLabel),
+                _ProjectVersionBanner(versionLabel: project.displayVersionLabel),
                 const SizedBox(height: 12),
                 _BuildSafetyRow(
                   label: 'Projeto detectado',
@@ -347,7 +311,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                 ),
                 _BuildSafetyRow(
                   label: 'Versão do ZIP',
-                  value: project.versionLabel ?? 'Não identificada',
+                  value: project.displayVersionLabel ?? 'Não identificada',
                   icon: Icons.new_releases_outlined,
                 ),
                 _BuildSafetyRow(
@@ -363,12 +327,34 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                   icon: targetBranch.isProtected
                       ? Icons.lock_outline_rounded
                       : Icons.account_tree_outlined,
+                  actionLabel: 'Alterar',
+                  onAction: () => Navigator.pop(
+                    dialogContext,
+                    const _ConfirmZipResult.changeBranch(),
+                  ),
                 ),
                 _BuildSafetyRow(
                   label: 'Versão no GitHub',
-                  value: repositoryInfo.versionLabel ?? 'Não identificada',
+                  value: repositoryInfo.displayVersionLabel ?? 'Não identificada',
                   icon: Icons.history_rounded,
                 ),
+                _BuildSafetyRow(
+                  label: 'Prévia da sincronização',
+                  value: syncPreview == null
+                      ? 'Não disponível nesta tentativa'
+                      : '${syncPreview.createdCount} novos • ${syncPreview.modifiedCount} alterados • ${syncPreview.deletedCount} removidos',
+                  icon: Icons.difference_outlined,
+                  actionLabel: syncPreview == null ? null : 'Ver arquivos',
+                  onAction: syncPreview == null
+                      ? null
+                      : () => _showSyncPreview(dialogContext, syncPreview!),
+                ),
+                if (rateLimit != null)
+                  _BuildSafetyRow(
+                    label: 'API GitHub',
+                    value: rateLimit.label,
+                    icon: Icons.speed_rounded,
+                  ),
                 if (project.applicationId?.isNotEmpty == true ||
                     repositoryInfo.applicationId?.isNotEmpty == true)
                   _BuildSafetyRow(
@@ -519,10 +505,16 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                       ),
                     );
                     if (forced == true && dialogContext.mounted) {
-                      Navigator.pop(dialogContext, buildPolicy);
+                      Navigator.pop(
+                        dialogContext,
+                        _ConfirmZipResult.submit(buildPolicy),
+                      );
                     }
                   }
-                : () => Navigator.pop(dialogContext, buildPolicy),
+                : () => Navigator.pop(
+                      dialogContext,
+                      _ConfirmZipResult.submit(buildPolicy),
+                    ),
             icon: Icon(
               check.blocked || check.warning
                   ? Icons.warning_amber_rounded
@@ -541,14 +533,83 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     );
   }
 
+  Future<void> _showSyncPreview(
+    BuildContext parentContext,
+    ProjectSyncPreview preview,
+  ) async {
+    Widget section(String title, List<String> paths, IconData icon) {
+      if (paths.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18),
+                const SizedBox(width: 7),
+                Text('$title (${paths.length})',
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ],
+            ),
+            const SizedBox(height: 5),
+            ...paths.take(80).map(
+                  (path) => Padding(
+                    padding: const EdgeInsets.only(left: 25, bottom: 3),
+                    child: Text(path),
+                  ),
+                ),
+            if (paths.length > 80)
+              Padding(
+                padding: const EdgeInsets.only(left: 25),
+                child: Text('… e mais ${paths.length - 80} arquivo(s)'),
+              ),
+          ],
+        ),
+      );
+    }
+
+    await showDialog<void>(
+      context: parentContext,
+      builder: (context) => AlertDialog(
+        title: const Text('Prévia das alterações'),
+        content: AdaptiveDialogBody(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${preview.createdCount} novos • ${preview.modifiedCount} alterados • ${preview.deletedCount} removidos • ${preview.unchangedCount} sem alteração',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                section('Novos', preview.createdPaths, Icons.add_circle_outline_rounded),
+                section('Alterados', preview.modifiedPaths, Icons.edit_outlined),
+                section('Removidos', preview.deletedPaths, Icons.delete_outline_rounded),
+                if (!preview.hasChanges)
+                  const Text('O ZIP já corresponde ao conteúdo desta branch.'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showBuildSafetyHelp(
     BuildContext parentContext,
     ZipProjectPreview project,
     RepositoryProjectInfo repositoryInfo,
     ProjectSafetyCheck check,
   ) async {
-    final zipVersion = project.versionLabel ?? 'não identificada';
-    final githubVersion = repositoryInfo.versionLabel ?? 'não identificada';
+    final zipVersion = project.displayVersionLabel ?? 'não identificada';
+    final githubVersion = repositoryInfo.displayVersionLabel ?? 'não identificada';
 
     await showDialog<void>(
       context: parentContext,
@@ -585,10 +646,13 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                 const Text('• Node/JavaScript: campo "version" do package.json.'),
                 const Text('• Flutter: campo "version" do pubspec.yaml.'),
                 const Text('• Android/Kotlin: versionName e versionCode no app/build.gradle(.kts).'),
-                const Text('• Projetos compatíveis: github-manager.json ou arquivo VERSION.'),
+                const Text('• Godot: config/version no project.godot.'),
+                const Text('• Python: campo version no pyproject.toml.'),
+                const Text('• Rust: campo version no Cargo.toml.'),
+                const Text('• Projetos compatíveis: github-manager.json, app_identity.json, MANIFEST.json, arquivo VERSION ou VERSION= em manager.sh.'),
                 const SizedBox(height: 10),
                 const Text(
-                  'Depois de corrigir a versão, gere um novo ZIP e abra novamente “Enviar nova versão”. O nome do ZIP continua sendo apenas uma pista e não substitui os metadados internos.',
+                  'Se não houver metadado interno, o GitHub Manager pode mostrar uma versão inferida do nome do ZIP apenas como pista. Para comparação segura, prefira uma das fontes internas acima.',
                 ),
               ],
             ),
@@ -734,4 +798,15 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     showCenteredNotice(context, message);
   }
 
+}
+
+class _ConfirmZipResult {
+  const _ConfirmZipResult.submit(this.buildPolicy) : changeBranch = false;
+
+  const _ConfirmZipResult.changeBranch()
+      : buildPolicy = null,
+        changeBranch = true;
+
+  final ManagedUploadBuildPolicy? buildPolicy;
+  final bool changeBranch;
 }

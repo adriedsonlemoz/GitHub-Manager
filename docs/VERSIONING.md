@@ -4,12 +4,18 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.79+200093`
+`version: 2.0.82+200096`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.82+200096` unifica a escolha/criação de branches, adiciona prévia read-only da sincronização e melhora a identificação de versões em projetos com subpastas, nomes com pré-release, Godot, Python e Rust.
+
+A versão `2.0.81+200095` corrige a ordem branch → pré-check, libera o primeiro envio para repositórios realmente vazios, adota comparação SemVer correta e reduz o consumo da API na aba global Builds com cache em memória e polling seletivo.
+
+A versão `2.0.80+200094` adiciona troca de branch diretamente na confirmação final de envio e amplia a identificação de versão para projetos Shell/Termux por `MANIFEST.json` e `manager.sh`, mantendo o nome do ZIP apenas como pista visual quando não houver metadado interno.
 
 A versão `2.0.79+200093` corrige a incompatibilidade de `AsyncValue.valueOrNull` com Riverpod 3 na tela global de Builds, protege o retorno tipado do diálogo de envio com teste de regressão e limpa warnings introduzidos na reorganização recente.
 

@@ -1,6 +1,34 @@
-# GitHub Manager 2.0.79
+# GitHub Manager 2.0.82
 
 GitHub Manager é um aplicativo Flutter/Dart para Android que administra repositórios e GitHub Actions diretamente pela API do GitHub, sem backend intermediário.
+
+
+## Branches, prévia de sincronização e detecção de projetos 2.0.82
+
+- Arquivos, Commits, Builds e Enviar versão passam a usar o mesmo seletor de branch, com opção de criar uma nova branch a partir da atual quando o repositório já possui um commit de origem.
+- A confirmação de envio mostra uma prévia somente-leitura da sincronização, separando arquivos novos, alterados e removidos antes de qualquer mutação no GitHub.
+- A detecção de identidade/versão do ZIP prioriza a raiz efetiva do projeto, evitando que `example/`, ferramentas ou subprojetos assumam a versão principal.
+- A inferência pelo nome do ZIP preserva versões completas como `0.1.0-alpha.58`, `beta`, `rc` e metadados SemVer; continua explícita como inferência, não como fonte forte.
+- A identificação foi ampliada para Godot (`project.godot`), Python (`pyproject.toml`) e Rust (`Cargo.toml`), e a confirmação informa a origem da versão quando conhecida.
+- A confirmação também exibe o limite REST restante da conta GitHub quando a API disponibiliza essa informação.
+
+
+## Fluxo de envio e Builds mais seguros 2.0.81
+
+- a branch de destino passa a ser escolhida **antes** do pré-check de sincronização; se a branch for alterada na confirmação final, o pré-check é executado novamente antes de continuar;
+- repositórios realmente vazios, quando a API responde com zero branches, podem receber o primeiro envio e inicializar a branch padrão; falhas da API continuam sendo tratadas como erro e nunca são confundidas com repositório vazio;
+- a comparação de versões passa a respeitar precedência **SemVer**, incluindo `alpha`, `beta` e `rc`: uma versão estável é posterior ao pré-lançamento equivalente e identificadores numéricos como `alpha.10` são comparados numericamente;
+- a aba global **Builds** reutiliza a lista de repositórios por até 10 minutos, atualiza a cada 10 segundos somente os projetos com build ativa e faz varredura completa em intervalo de 3 minutos ou quando o usuário atualiza manualmente;
+- adicionados testes SemVer, testes de cache/polling da Builds e um `testWidgets` do fluxo real de envio pela interface, cobrindo escolha de `develop`, build desmarcada e ordem branch → pré-check.
+
+
+## Branch alterável e versão de projetos Shell/Termux 2.0.80
+
+- a confirmação final de **Enviar versão** ganha **Alterar** ao lado da branch de destino; trocar a branch reabre a seleção e recalcula versão do repositório, proteção e presença de workflow para a nova branch antes do envio;
+- a última branch escolhida continua sendo lembrada, mas a confirmação final deixa de ser somente informativa;
+- projetos Shell/Termux passam a ter versão identificada por `MANIFEST.json` e por variáveis `*VERSION=` no `manager.sh`, tanto no ZIP local quanto no repositório GitHub;
+- quando nenhum metadado interno confiável possui versão, o nome do ZIP pode fornecer apenas uma **pista visual**, exibida explicitamente como “pelo nome do ZIP” e sem ser usada como versão confiável na validação de segurança;
+- adiciona testes de regressão para troca de branch no diálogo e detecção de versão do Termux Manager.
 
 ## Correção de build e regressões 2.0.79
 
@@ -163,7 +191,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.79+200093`;
+- versão: `2.0.82+200096`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

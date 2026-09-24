@@ -5,17 +5,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
+import 'package:github_manager/features/repositories/presentation/repository_branch_selector.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 
 class RepositoryCommitsScreen extends ConsumerStatefulWidget {
   const RepositoryCommitsScreen({
     required this.repositoryFullName,
     required this.initialBranch,
+    this.readOnly = false,
     super.key,
   });
 
   final String repositoryFullName;
   final String initialBranch;
+  final bool readOnly;
 
   @override
   ConsumerState<RepositoryCommitsScreen> createState() => _RepositoryCommitsScreenState();
@@ -23,14 +26,12 @@ class RepositoryCommitsScreen extends ConsumerStatefulWidget {
 
 class _RepositoryCommitsScreenState extends ConsumerState<RepositoryCommitsScreen> {
   late String _branch;
-  late Future<List<RepositoryBranch>> _branchesFuture;
   late Future<List<RepositoryCommit>> _commitsFuture;
 
   @override
   void initState() {
     super.initState();
     _branch = widget.initialBranch;
-    _branchesFuture = ref.read(repositoryGitServiceProvider).listBranches(widget.repositoryFullName);
     _commitsFuture = _loadCommits();
   }
 
@@ -45,9 +46,18 @@ class _RepositoryCommitsScreenState extends ConsumerState<RepositoryCommitsScree
     await future;
   }
 
-  void _changeBranch(String branch) {
+  Future<void> _changeBranch() async {
+    final selected = await showRepositoryBranchSelector(
+      context: context,
+      ref: ref,
+      repositoryFullName: widget.repositoryFullName,
+      currentBranch: _branch,
+      defaultBranch: widget.initialBranch,
+      allowCreate: !widget.readOnly,
+    );
+    if (selected == null || selected.name == _branch || !mounted) return;
     setState(() {
-      _branch = branch;
+      _branch = selected.name;
       _commitsFuture = _loadCommits();
     });
   }
@@ -77,47 +87,12 @@ class _RepositoryCommitsScreenState extends ConsumerState<RepositoryCommitsScree
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
           children: [
-            FutureBuilder<List<RepositoryBranch>>(
-              future: _branchesFuture,
-              builder: (context, snapshot) {
-                final branches = snapshot.data ?? const <RepositoryBranch>[];
-                final names = branches.map((item) => item.name).toSet();
-                if (!names.contains(_branch)) names.add(_branch);
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .38),
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _branch,
-                      isExpanded: true,
-                      icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                      items: names
-                          .map(
-                            (name) => DropdownMenuItem(
-                              value: name,
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.account_tree_outlined, size: 17),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Text(name)),
-                                ],
-                              ),
-                            ),
-                          )
-                          .toList(growable: false),
-                      onChanged: (value) {
-                        if (value != null) _changeBranch(value);
-                      },
-                    ),
-                  ),
-                );
-              },
+            SizedBox(
+              width: double.infinity,
+              child: RepositoryBranchButton(
+                branch: _branch,
+                onPressed: _changeBranch,
+              ),
             ),
             const SizedBox(height: 10),
             FutureBuilder<List<RepositoryCommit>>(

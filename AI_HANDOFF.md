@@ -1,6 +1,25 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.79+200093`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.82+200096`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+
+
+## Alterações 2.0.82
+
+- seletor de branch compartilhado por Arquivos, Commits, Builds e Enviar versão, com criação de branch a partir da branch atual;
+- prévia read-only do ZIP antes do envio, com novos/alterados/removidos, preservando a regra de workflows protegidos;
+- detecção local usa a raiz efetiva do projeto e evita escolher metadados de subprojetos por acidente;
+- parser de nome de ZIP preserva pré-lançamentos SemVer;
+- suporte de identidade/versão ampliado para Godot, Python e Rust;
+- conferência de envio mostra origem da versão e rate limit REST restante quando disponível;
+- testes adicionados para os novos contratos.
+
+## Alterações 2.0.81
+
+- envio escolhe a branch antes do pré-check e repete o pré-check ao trocar a branch na confirmação;
+- repositório vazio pode ser inicializado no primeiro envio quando a API retorna zero branches;
+- comparação de versão segue SemVer para prereleases;
+- Builds global usa cache em memória de repositórios, polling seletivo de execuções ativas e varredura completa espaçada;
+- suíte inclui teste de widget do fluxo real de envio.
 
 ## Arquitetura
 

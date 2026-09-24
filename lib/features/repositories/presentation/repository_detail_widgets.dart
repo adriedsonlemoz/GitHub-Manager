@@ -278,11 +278,15 @@ class _BuildSafetyRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String label;
   final String value;
   final IconData icon;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -306,6 +310,17 @@ class _BuildSafetyRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(width: 6),
+              TextButton(
+                onPressed: onAction,
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: Text(actionLabel!),
+              ),
+            ],
           ],
         ),
       );

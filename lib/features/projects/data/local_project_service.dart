@@ -65,11 +65,7 @@ class LocalProjectService {
     final paths = <String>[];
     final seenPaths = <String>{};
     final important = <String>[];
-    String? detectedProjectName;
-    String? detectedPackageName;
-    String? detectedApplicationId;
-    String? detectedVersion;
-    int? detectedVersionCode;
+    final identityTexts = <String, String>{};
 
     try {
       for (final entry in archive) {
@@ -120,93 +116,11 @@ class LocalProjectService {
 
         final lowerPath = normalized.toLowerCase();
         if (_isIdentityFile(lowerPath) &&
-            entry.size <= _maxIdentityFileBytes) {
+            entry.size <= _maxIdentityFileBytes &&
+            identityTexts.length < 64) {
           final bytes = entry.readBytes();
           if (bytes != null) {
-            final text = utf8.decode(bytes, allowMalformed: true);
-            if (lowerPath.endsWith('github-manager.json') ||
-                lowerPath.endsWith('app.json') ||
-                lowerPath.endsWith('project.json')) {
-              try {
-                final raw = jsonDecode(text);
-                if (raw is Map) {
-                  final map = Map<String, dynamic>.from(raw);
-                  detectedProjectName ??= _firstString([
-                    map['displayName'],
-                    map['product'],
-                    map['projectName'],
-                    map['appName'],
-                  ]);
-                  detectedPackageName ??= _firstString([map['name'], map['package']]);
-                  detectedVersion ??= _firstString([map['version'], map['versionName']]);
-                  final android = map['android'];
-                  if (android is Map) {
-                    final androidMap = Map<String, dynamic>.from(android);
-                    detectedApplicationId ??=
-                        _firstString([androidMap['applicationId'], androidMap['namespace']]);
-                    detectedVersion ??=
-                        _firstString([androidMap['versionName']]) ?? detectedVersion;
-                    final code = androidMap['versionCode'];
-                    if (code is num) detectedVersionCode ??= code.toInt();
-                    if (code is String) detectedVersionCode ??= int.tryParse(code);
-                  }
-                }
-              } catch (_) {
-                // Metadado opcional inválido não invalida o ZIP inteiro.
-              }
-            } else if (_isLikelyRootFile(lowerPath, 'package.json')) {
-              try {
-                final raw = jsonDecode(text);
-                if (raw is Map) {
-                  final map = Map<String, dynamic>.from(raw);
-                  detectedProjectName ??= _firstString([
-                    map['displayName'],
-                    map['productName'],
-                    map['appName'],
-                  ]);
-                  detectedPackageName ??= _firstString([map['name']]);
-                  detectedVersion ??= _firstString([map['version']]);
-                }
-              } catch (_) {
-                // package.json opcional inválido não invalida o ZIP inteiro.
-              }
-            } else if (lowerPath.endsWith('pubspec.yaml')) {
-              detectedPackageName ??= RegExp(r'^name:\s*([^\s#]+)', multiLine: true)
-                  .firstMatch(text)
-                  ?.group(1)
-                  ?.trim();
-              final version = RegExp(r'^version:\s*([^\s#]+)', multiLine: true)
-                  .firstMatch(text)
-                  ?.group(1)
-                  ?.trim();
-              if (version?.isNotEmpty == true) {
-                final resolvedVersion = version!;
-                detectedVersion ??= resolvedVersion.split('+').first;
-                if (resolvedVersion.contains('+')) {
-                  detectedVersionCode ??=
-                      int.tryParse(resolvedVersion.split('+').last);
-                }
-              }
-            } else if (lowerPath.endsWith('/version') || lowerPath == 'version') {
-              detectedVersion ??= text.trim().split('+').first;
-            } else if (lowerPath.endsWith('build.gradle') ||
-                lowerPath.endsWith('build.gradle.kts')) {
-              detectedApplicationId ??= RegExp(
-                r'''applicationId\s*(?:=\s*)?["']([^"']+)["']''',
-              ).firstMatch(text)?.group(1)?.trim();
-              detectedApplicationId ??= RegExp(
-                r'''namespace\s*(?:=\s*)?["']([^"']+)["']''',
-              ).firstMatch(text)?.group(1)?.trim();
-              detectedVersion ??= RegExp(
-                r'''versionName\s*(?:=\s*)?["']([^"']+)["']''',
-              ).firstMatch(text)?.group(1)?.trim();
-              detectedVersionCode ??= int.tryParse(
-                RegExp(r'''versionCode\s*(?:=\s*)?(\d+)''')
-                        .firstMatch(text)
-                        ?.group(1) ??
-                    '',
-              );
-            }
+            identityTexts[normalized] = utf8.decode(bytes, allowMalformed: true);
           }
           entry.clear();
         }
@@ -221,9 +135,14 @@ class LocalProjectService {
     }
 
     final commonRoot = _findCommonRoot(paths);
+    final identity = _detectIdentity(identityTexts, commonRoot);
+    final resolvedDisplayName = displayName ?? source.uri.pathSegments.last;
+    final inferredVersion = identity.version == null
+        ? _versionFromArchiveName(resolvedDisplayName)
+        : null;
     return ZipProjectPreview(
       path: path,
-      name: displayName ?? source.uri.pathSegments.last,
+      name: resolvedDisplayName,
       archiveBytes: archiveBytes,
       uncompressedBytes: totalBytes,
       fileCount: files,
@@ -231,11 +150,13 @@ class LocalProjectService {
       projectType: _detectProjectType(paths),
       importantFiles: important.take(12).toList(growable: false),
       commonRoot: commonRoot,
-      projectName: detectedProjectName,
-      packageName: detectedPackageName,
-      applicationId: detectedApplicationId,
-      version: detectedVersion,
-      versionCode: detectedVersionCode,
+      projectName: identity.projectName,
+      packageName: identity.packageName,
+      applicationId: identity.applicationId,
+      version: identity.version,
+      versionCode: identity.versionCode,
+      versionSource: identity.versionSource,
+      inferredVersion: inferredVersion,
       hasWorkflowFiles: paths.any((rawPath) {
         final normalized = rawPath.replaceAll('\\', '/').toLowerCase();
         return normalized.startsWith('.github/workflows/') ||
@@ -289,27 +210,228 @@ class LocalProjectService {
 
   static bool _isIdentityFile(String lowerPath) =>
       lowerPath.endsWith('github-manager.json') ||
+      lowerPath.endsWith('app_identity.json') ||
       lowerPath.endsWith('app.json') ||
       lowerPath.endsWith('project.json') ||
-      _isLikelyRootFile(lowerPath, 'package.json') ||
+      lowerPath.endsWith('manifest.json') ||
+      lowerPath.endsWith('package.json') ||
       lowerPath.endsWith('pubspec.yaml') ||
+      lowerPath.endsWith('project.godot') ||
+      lowerPath.endsWith('pyproject.toml') ||
+      lowerPath.endsWith('cargo.toml') ||
+      lowerPath.endsWith('composer.json') ||
       lowerPath.endsWith('/version') ||
       lowerPath == 'version' ||
+      lowerPath.endsWith('manager.sh') ||
       lowerPath.endsWith('app/build.gradle') ||
       lowerPath.endsWith('app/build.gradle.kts');
 
-  static bool _isLikelyRootFile(String lowerPath, String fileName) {
-    final parts = lowerPath
-        .split('/')
-        .where((part) => part.isNotEmpty && part != '.')
-        .toList(growable: false);
-    if (parts.isEmpty || parts.last != fileName) return false;
-    if (parts.any((part) => part == 'node_modules' || part == 'build')) {
-      return false;
+  static _DetectedProjectIdentity _detectIdentity(
+    Map<String, String> identityTexts,
+    String? commonRoot,
+  ) {
+    final candidates = identityTexts.entries.map((entry) {
+      final relative = _stripCommonRoot(entry.key, commonRoot);
+      return _IdentityTextCandidate(
+        relativePath: relative,
+        text: entry.value,
+        priority: _identityPriority(relative.toLowerCase()),
+      );
+    }).where((entry) => entry.priority < 1000).toList()
+      ..sort((a, b) => a.priority != b.priority
+          ? a.priority.compareTo(b.priority)
+          : a.relativePath.length.compareTo(b.relativePath.length));
+
+    String? projectName;
+    String? packageName;
+    String? applicationId;
+    String? version;
+    int? versionCode;
+    String? versionSource;
+
+    void useVersion(String? value, String source, {int? code}) {
+      final normalized = value?.trim();
+      if (normalized == null || normalized.isEmpty || version != null) return;
+      final parts = normalized.split('+');
+      version = parts.first;
+      versionSource = source;
+      versionCode ??= code ?? (parts.length > 1 ? int.tryParse(parts.last) : null);
     }
-    // Aceita arquivo na raiz do ZIP ou dentro de uma única pasta-raiz,
-    // formato comum dos ZIPs baixados/exportados pelo GitHub Manager.
-    return parts.length <= 2;
+
+    for (final candidate in candidates) {
+      final lower = candidate.relativePath.toLowerCase();
+      final text = candidate.text;
+      final source = candidate.relativePath;
+
+      if (lower == 'github-manager.json' ||
+          lower == 'app_identity.json' ||
+          lower == 'app.json' ||
+          lower == 'project.json' ||
+          lower == 'manifest.json') {
+        try {
+          final raw = jsonDecode(text);
+          if (raw is Map) {
+            final map = Map<String, dynamic>.from(raw);
+            projectName ??= _firstString([
+              map['displayName'], map['product'], map['projectName'],
+              map['appName'], map['name'],
+            ]);
+            packageName ??= _firstString([map['name'], map['package']]);
+            useVersion(_versionFromJsonMap(map), source);
+            final android = map['android'];
+            if (android is Map) {
+              final androidMap = Map<String, dynamic>.from(android);
+              applicationId ??= _firstString([
+                androidMap['applicationId'], androidMap['namespace'],
+              ]);
+              final code = androidMap['versionCode'];
+              final parsedCode = code is num ? code.toInt() : int.tryParse('$code');
+              useVersion(_firstString([androidMap['versionName']]), source, code: parsedCode);
+              versionCode ??= parsedCode;
+            }
+          }
+        } catch (_) {}
+      } else if (lower == 'pubspec.yaml') {
+        packageName ??= RegExp(r'^name:\s*([^\s#]+)', multiLine: true)
+            .firstMatch(text)?.group(1)?.trim();
+        useVersion(
+          RegExp(r'^version:\s*([^\s#]+)', multiLine: true)
+              .firstMatch(text)?.group(1)?.trim(),
+          source,
+        );
+      } else if (lower == 'package.json' || lower == 'composer.json') {
+        try {
+          final raw = jsonDecode(text);
+          if (raw is Map) {
+            final map = Map<String, dynamic>.from(raw);
+            projectName ??= _firstString([map['displayName'], map['productName'], map['appName']]);
+            packageName ??= _firstString([map['name']]);
+            useVersion(_firstString([map['version']]), source);
+          }
+        } catch (_) {}
+      } else if (lower == 'project.godot') {
+        projectName ??= RegExp(r'^config/name\s*=\s*"([^"]+)"', multiLine: true)
+            .firstMatch(text)?.group(1)?.trim();
+        useVersion(
+          RegExp(r'^config/version\s*=\s*"([^"]+)"', multiLine: true)
+              .firstMatch(text)?.group(1)?.trim(),
+          source,
+        );
+      } else if (lower == 'pyproject.toml' || lower == 'cargo.toml') {
+        packageName ??= RegExp(r'''^name\s*=\s*["']([^"']+)["']''', multiLine: true)
+            .firstMatch(text)?.group(1)?.trim();
+        useVersion(
+          RegExp(r'''^version\s*=\s*["']([^"']+)["']''', multiLine: true)
+              .firstMatch(text)?.group(1)?.trim(),
+          source,
+        );
+      } else if (lower == 'version') {
+        useVersion(text.trim(), source);
+      } else if (lower == 'manager.sh') {
+        useVersion(_versionFromShellScript(text), source);
+      } else if (lower == 'android/app/build.gradle' ||
+          lower == 'android/app/build.gradle.kts' ||
+          lower == 'app/build.gradle' || lower == 'app/build.gradle.kts') {
+        applicationId ??= RegExp(
+          r'''applicationId\s*(?:=\s*)?["']([^"']+)["']''',
+        ).firstMatch(text)?.group(1)?.trim();
+        applicationId ??= RegExp(
+          r'''namespace\s*(?:=\s*)?["']([^"']+)["']''',
+        ).firstMatch(text)?.group(1)?.trim();
+        final code = int.tryParse(
+          RegExp(r'''versionCode\s*(?:=\s*)?(\d+)''').firstMatch(text)?.group(1) ?? '',
+        );
+        useVersion(
+          RegExp(r'''versionName\s*(?:=\s*)?["']([^"']+)["']''')
+              .firstMatch(text)?.group(1)?.trim(),
+          source,
+          code: code,
+        );
+        versionCode ??= code;
+      }
+    }
+
+    return _DetectedProjectIdentity(
+      projectName: projectName,
+      packageName: packageName,
+      applicationId: applicationId,
+      version: version,
+      versionCode: versionCode,
+      versionSource: versionSource,
+    );
+  }
+
+  static int _identityPriority(String relativePath) {
+    const priorities = <String, int>{
+      'github-manager.json': 0,
+      'app_identity.json': 1,
+      'manifest.json': 2,
+      'app.json': 3,
+      'project.json': 4,
+      'pubspec.yaml': 10,
+      'project.godot': 11,
+      'package.json': 12,
+      'pyproject.toml': 13,
+      'cargo.toml': 14,
+      'composer.json': 15,
+      'version': 16,
+      'manager.sh': 17,
+      'android/app/build.gradle.kts': 20,
+      'android/app/build.gradle': 21,
+      'app/build.gradle.kts': 22,
+      'app/build.gradle': 23,
+    };
+    return priorities[relativePath] ?? 1000;
+  }
+
+  static String _stripCommonRoot(String path, String? root) {
+    if (root == null || root.isEmpty) return path;
+    final prefix = '$root/';
+    return path.startsWith(prefix) ? path.substring(prefix.length) : path;
+  }
+
+  static String? _versionFromJsonMap(Map<String, dynamic> map) {
+    final direct = _firstString([
+      map['version'],
+      map['versionName'],
+      map['appVersion'],
+    ]);
+    if (direct != null) return direct.split('+').first;
+
+    for (final key in const ['release', 'app', 'project', 'metadata']) {
+      final nested = map[key];
+      if (nested is Map) {
+        final nestedMap = Map<String, dynamic>.from(nested);
+        final value = _firstString([
+          nestedMap['version'],
+          nestedMap['versionName'],
+          nestedMap['appVersion'],
+        ]);
+        if (value != null) return value.split('+').first;
+      }
+    }
+    return null;
+  }
+
+  static String? _versionFromShellScript(String text) {
+    final match = RegExp(
+      r'''^(?:(?:export|readonly)\s+)?[A-Z0-9_]*VERSION\s*=\s*["']?v?([0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9._-]+)?)["']?\s*(?:#.*)?$''',
+      multiLine: true,
+      caseSensitive: false,
+    ).firstMatch(text);
+    return match?.group(1)?.trim();
+  }
+
+  static String? _versionFromArchiveName(String fileName) {
+    final base = fileName.replaceFirst(
+      RegExp(r'\.zip$', caseSensitive: false),
+      '',
+    );
+    final match = RegExp(
+      r'''(?:^|[-_.\s])v?([0-9]+\.[0-9]+(?:\.[0-9]+){0,2}(?:-(?:alpha|beta|rc|pre|preview|dev)(?:[._-]?[0-9]+)?)?(?:\+[0-9A-Za-z.-]+)?)(?=$|[-_.\s])''',
+      caseSensitive: false,
+    ).firstMatch(base);
+    return match?.group(1)?.trim();
   }
 
   static String? _firstString(List<Object?> values) {
@@ -323,6 +445,13 @@ class LocalProjectService {
     final lower = path.toLowerCase();
     return lower.endsWith('pubspec.yaml') ||
         lower.endsWith('package.json') ||
+        lower.endsWith('project.godot') ||
+        lower.endsWith('pyproject.toml') ||
+        lower.endsWith('cargo.toml') ||
+        _isLikelyRootFile(lower, 'manifest.json') ||
+        _isLikelyRootFile(lower, 'manager.sh') ||
+        lower.endsWith('/version') ||
+        lower == 'version' ||
         lower.endsWith('build.gradle') ||
         lower.endsWith('build.gradle.kts') ||
         lower.endsWith('androidmanifest.xml') ||
@@ -337,18 +466,61 @@ class LocalProjectService {
         lower.any((path) => path.contains('lib/main.dart'))) {
       return 'Flutter';
     }
+    if (lower.any((path) => path.endsWith('project.godot'))) {
+      return 'Godot';
+    }
     if (lower.any((path) => path.endsWith('androidmanifest.xml')) &&
         lower.any(
           (path) => path.endsWith('build.gradle') || path.endsWith('build.gradle.kts'),
         )) {
       return 'Android';
     }
+    if (lower.any((path) => path.endsWith('pyproject.toml'))) {
+      return 'Python';
+    }
+    if (lower.any((path) => path.endsWith('cargo.toml'))) {
+      return 'Rust';
+    }
     if (lower.any((path) => path.endsWith('package.json'))) {
       return 'Node/JavaScript';
+    }
+    if (lower.any((path) => _isLikelyRootFile(path, 'manager.sh'))) {
+      return 'Shell/Termux';
     }
     if (lower.any((path) => path.endsWith('.php'))) {
       return 'PHP';
     }
     return 'Projeto genérico';
   }
+}
+
+
+class _IdentityTextCandidate {
+  const _IdentityTextCandidate({
+    required this.relativePath,
+    required this.text,
+    required this.priority,
+  });
+
+  final String relativePath;
+  final String text;
+  final int priority;
+}
+
+class _DetectedProjectIdentity {
+  const _DetectedProjectIdentity({
+    this.projectName,
+    this.packageName,
+    this.applicationId,
+    this.version,
+    this.versionCode,
+    this.versionSource,
+  });
+
+  final String? projectName;
+  final String? packageName;
+  final String? applicationId;
+  final String? version;
+  final int? versionCode;
+  final String? versionSource;
 }

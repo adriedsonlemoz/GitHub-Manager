@@ -192,39 +192,37 @@ class ProjectSafetyCheck {
     String? repoVersion,
     int? repoCode,
   ) {
+    final zipSemantic = _SemanticVersion.tryParse(zipVersion);
+    final repoSemantic = _SemanticVersion.tryParse(repoVersion);
+
+    if (zipSemantic != null && repoSemantic != null) {
+      final semantic = zipSemantic.compareTo(repoSemantic);
+      if (semantic != 0) {
+        return semantic < 0
+            ? ProjectVersionComparison.older
+            : ProjectVersionComparison.newer;
+      }
+
+      // Quando versionName é semanticamente igual, o versionCode ainda ajuda
+      // a distinguir revisões Android da mesma versão visível.
+      if (zipCode != null && repoCode != null && zipCode != repoCode) {
+        return zipCode < repoCode
+            ? ProjectVersionComparison.older
+            : ProjectVersionComparison.newer;
+      }
+      return ProjectVersionComparison.same;
+    }
+
+    // Projetos sem SemVer confiável ainda podem usar o versionCode como sinal
+    // forte de ordenação, sem tentar transformar qualquer número do texto em
+    // uma versão semântica.
     if (zipCode != null && repoCode != null && zipCode != repoCode) {
       return zipCode < repoCode
           ? ProjectVersionComparison.older
           : ProjectVersionComparison.newer;
     }
 
-    final a = _versionParts(zipVersion);
-    final b = _versionParts(repoVersion);
-    if (a == null || b == null) {
-      return ProjectVersionComparison.unknown;
-    }
-
-    final max = a.length > b.length ? a.length : b.length;
-    for (var i = 0; i < max; i++) {
-      final av = i < a.length ? a[i] : 0;
-      final bv = i < b.length ? b[i] : 0;
-      if (av != bv) {
-        return av < bv
-            ? ProjectVersionComparison.older
-            : ProjectVersionComparison.newer;
-      }
-    }
-    return ProjectVersionComparison.same;
-  }
-
-  static List<int>? _versionParts(String? value) {
-    final trimmed = value?.trim();
-    if (trimmed == null || trimmed.isEmpty) return null;
-    final matches = RegExp(r'\d+').allMatches(trimmed).toList(growable: false);
-    if (matches.isEmpty) return null;
-    return matches
-        .map((match) => int.parse(match.group(0)!))
-        .toList(growable: false);
+    return ProjectVersionComparison.unknown;
   }
 
   static String _canonicalProjectName(
@@ -258,3 +256,80 @@ class ProjectSafetyCheck {
     return normalized.replaceAll(RegExp(r'[^a-z0-9]'), '');
   }
 }
+
+class _SemanticVersion implements Comparable<_SemanticVersion> {
+  const _SemanticVersion({
+    required this.major,
+    required this.minor,
+    required this.patch,
+    required this.preRelease,
+  });
+
+  final int major;
+  final int minor;
+  final int patch;
+  final List<String> preRelease;
+
+  static _SemanticVersion? tryParse(String? raw) {
+    var value = raw?.trim();
+    if (value == null || value.isEmpty) return null;
+    if (value.startsWith('v') || value.startsWith('V')) {
+      value = value.substring(1);
+    }
+
+    // Metadados após + não participam da precedência SemVer.
+    value = value.split('+').first.trim();
+    final match = RegExp(
+      r'^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$',
+    ).firstMatch(value);
+    if (match == null) return null;
+
+    final preRelease = (match.group(4) ?? '')
+        .split('.')
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    return _SemanticVersion(
+      major: int.parse(match.group(1)!),
+      minor: int.parse(match.group(2)!),
+      patch: int.parse(match.group(3)!),
+      preRelease: preRelease,
+    );
+  }
+
+  @override
+  int compareTo(_SemanticVersion other) {
+    for (final pair in <(int, int)>[
+      (major, other.major),
+      (minor, other.minor),
+      (patch, other.patch),
+    ]) {
+      if (pair.$1 != pair.$2) return pair.$1.compareTo(pair.$2);
+    }
+
+    if (preRelease.isEmpty && other.preRelease.isEmpty) return 0;
+    if (preRelease.isEmpty) return 1;
+    if (other.preRelease.isEmpty) return -1;
+
+    final max = preRelease.length > other.preRelease.length
+        ? preRelease.length
+        : other.preRelease.length;
+    for (var i = 0; i < max; i++) {
+      if (i >= preRelease.length) return -1;
+      if (i >= other.preRelease.length) return 1;
+
+      final left = preRelease[i];
+      final right = other.preRelease[i];
+      if (left == right) continue;
+      final leftNumber = int.tryParse(left);
+      final rightNumber = int.tryParse(right);
+      if (leftNumber != null && rightNumber != null) {
+        return leftNumber.compareTo(rightNumber);
+      }
+      if (leftNumber != null) return -1;
+      if (rightNumber != null) return 1;
+      return left.toLowerCase().compareTo(right.toLowerCase());
+    }
+    return 0;
+  }
+}
+

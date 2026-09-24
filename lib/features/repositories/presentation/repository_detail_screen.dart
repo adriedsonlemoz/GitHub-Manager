@@ -20,6 +20,7 @@ import 'package:github_manager/features/projects/presentation/project_providers.
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:github_manager/features/repositories/domain/repository_project_info.dart';
+import 'package:github_manager/features/repositories/presentation/repository_branch_selector.dart';
 import 'package:github_manager/features/repositories/presentation/repository_management_dialogs.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/repositories/presentation/technology_badge.dart';
@@ -309,7 +310,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                         title: 'Commits',
                         subtitle: 'Histórico, autores, datas e SHA por branch',
                         onTap: () => context.push(
-                          '/repositories/${repository.fullName}/commits?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
+                          '/repositories/${repository.fullName}/commits?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}&readOnly=${widget.readOnly ? '1' : '0'}',
                         ),
                       ),
                       if (!widget.readOnly) ...[

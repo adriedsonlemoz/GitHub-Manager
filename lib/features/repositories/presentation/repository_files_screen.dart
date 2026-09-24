@@ -7,6 +7,7 @@ import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/features/permissions/domain/repository_permission_preflight.dart';
 import 'package:github_manager/features/permissions/presentation/permission_preflight_guard.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
+import 'package:github_manager/features/repositories/presentation/repository_branch_selector.dart';
 import 'package:github_manager/features/repositories/presentation/repository_file_editor_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_text_preview_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
@@ -31,6 +32,7 @@ class RepositoryFilesScreen extends ConsumerStatefulWidget {
 
 class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
   String _path = '';
+  late String _branch;
   late Future<List<RepositoryContentItem>> _future;
   bool _uploading = false;
   bool _clearing = false;
@@ -40,12 +42,13 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
   @override
   void initState() {
     super.initState();
+    _branch = widget.defaultBranch;
     _future = _load();
   }
 
   Future<List<RepositoryContentItem>> _load() => ref.read(repositoryGitServiceProvider).listContents(
         repositoryFullName: widget.repositoryFullName,
-        branch: widget.defaultBranch,
+        branch: _branch,
         path: _path,
       );
 
@@ -75,6 +78,23 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
     });
   }
 
+  Future<void> _changeBranch() async {
+    final selected = await showRepositoryBranchSelector(
+      context: context,
+      ref: ref,
+      repositoryFullName: widget.repositoryFullName,
+      currentBranch: _branch,
+      defaultBranch: widget.defaultBranch,
+      allowCreate: !widget.readOnly,
+    );
+    if (selected == null || selected.name == _branch || !mounted) return;
+    setState(() {
+      _branch = selected.name;
+      _path = '';
+      _future = _load();
+    });
+  }
+
   Future<void> _uploadFiles() async {
     final service = ref.read(repositoryGitServiceProvider);
     final files = await service.pickFiles();
@@ -90,7 +110,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
       for (final file in files) {
         await service.uploadPickedFile(
           repositoryFullName: widget.repositoryFullName,
-          branch: widget.defaultBranch,
+          branch: _branch,
           directory: _path,
           pickedFile: file,
         );
@@ -118,7 +138,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
       MaterialPageRoute(
         builder: (_) => RepositoryFileEditorScreen.newFile(
           repositoryFullName: widget.repositoryFullName,
-          branch: widget.defaultBranch,
+          branch: _branch,
           directory: _path,
         ),
       ),
@@ -154,7 +174,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
       MaterialPageRoute(
         builder: (_) => RepositoryTextPreviewScreen.file(
           repositoryFullName: widget.repositoryFullName,
-          branch: widget.defaultBranch,
+          branch: _branch,
           item: item,
         ),
       ),
@@ -166,7 +186,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
       MaterialPageRoute(
         builder: (_) => RepositoryFileEditorScreen.existing(
           repositoryFullName: widget.repositoryFullName,
-          branch: widget.defaultBranch,
+          branch: _branch,
           item: item,
           readOnly: false,
         ),
@@ -184,7 +204,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
         title: const Text('Excluir arquivo?'),
         content: AdaptiveDialogBody(
           child: Text(
-            'Excluir permanentemente “${item.path}” da branch ${widget.defaultBranch}?',
+            'Excluir permanentemente “${item.path}” da branch ${_branch}?',
           ),
         ),
         actions: [
@@ -199,7 +219,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
     try {
       await ref.read(repositoryGitServiceProvider).deleteItem(
             repositoryFullName: widget.repositoryFullName,
-            branch: widget.defaultBranch,
+            branch: _branch,
             item: item,
           );
       await _refresh();
@@ -229,14 +249,14 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
       final service = ref.read(repositoryGitServiceProvider);
       final count = await service.countRepositoryFiles(
         repositoryFullName: widget.repositoryFullName,
-        branch: widget.defaultBranch,
+        branch: _branch,
       );
       if (!mounted) return;
 
       if (count == 0) {
         showCenteredNotice(
           context,
-          'A branch ${widget.defaultBranch} já está sem arquivos.',
+          'A branch ${_branch} já está sem arquivos.',
         );
         return;
       }
@@ -257,7 +277,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text('$count arquivo(s) serão removidos da branch '
-                    '${widget.defaultBranch} em um único commit.'),
+                    '${_branch} em um único commit.'),
                 const SizedBox(height: 8),
                 const Text(
                   'O repositório NÃO será excluído. Histórico, Issues, Secrets, '
@@ -283,7 +303,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
 
       final removed = await service.clearRepositoryFiles(
         repositoryFullName: widget.repositoryFullName,
-        branch: widget.defaultBranch,
+        branch: _branch,
       );
       _path = '';
       await _refresh();
@@ -360,9 +380,20 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
           onRefresh: _refresh,
           child: Column(
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: RepositoryBranchButton(
+                    branch: _branch,
+                    onPressed: _changeBranch,
+                    compact: true,
+                  ),
+                ),
+              ),
               _PathHeader(
                 repositoryFullName: widget.repositoryFullName,
-                branch: widget.defaultBranch,
+                branch: _branch,
                 path: _path,
               ),
               if (!widget.readOnly)

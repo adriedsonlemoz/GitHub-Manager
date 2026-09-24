@@ -1,19 +1,145 @@
 import 'package:github_manager/features/builds/domain/global_build_entry.dart';
 import 'package:github_manager/features/repositories/data/repository_git_service.dart';
 import 'package:github_manager/features/repositories/data/repository_service.dart';
+import 'package:github_manager/features/repositories/domain/github_repository.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 
 class GlobalBuildsService {
   GlobalBuildsService(this._repositoryService, this._gitService);
 
+  static const repositoryCacheLifetime = Duration(minutes: 10);
+  static const fullRunsRefreshInterval = Duration(minutes: 3);
+
   final RepositoryService _repositoryService;
   final RepositoryGitService _gitService;
 
-  Future<GlobalBuildsSnapshot> load({int runsPerRepository = 5}) async {
+  List<GitHubRepository>? _repositoriesCache;
+  DateTime? _repositoriesLoadedAt;
+  DateTime? _lastFullRunsRefresh;
+  GlobalBuildsSnapshot? _snapshot;
+  Future<GlobalBuildsSnapshot>? _loadInFlight;
+
+  Future<GlobalBuildsSnapshot> load({
+    int runsPerRepository = 5,
+    bool forceFull = false,
+  }) {
+    final running = _loadInFlight;
+    if (running != null) return running;
+    final future = _loadNow(
+      runsPerRepository: runsPerRepository,
+      forceFull: forceFull,
+    );
+    _loadInFlight = future;
+    return future.whenComplete(() {
+      if (identical(_loadInFlight, future)) _loadInFlight = null;
+    });
+  }
+
+  void invalidate() {
+    _repositoriesCache = null;
+    _repositoriesLoadedAt = null;
+    _lastFullRunsRefresh = null;
+    _snapshot = null;
+  }
+
+  Future<GlobalBuildsSnapshot> _loadNow({
+    required int runsPerRepository,
+    required bool forceFull,
+  }) async {
+    final now = DateTime.now();
+    final repositories = await _repositories(
+      now: now,
+      forceRefresh: forceFull,
+    );
+    final previous = _snapshot;
+    final fullRefreshDue = forceFull ||
+        previous == null ||
+        _lastFullRunsRefresh == null ||
+        now.difference(_lastFullRunsRefresh!) >= fullRunsRefreshInterval;
+
+    if (fullRefreshDue) {
+      final loaded = await _queryRepositories(
+        repositories,
+        runsPerRepository: runsPerRepository,
+      );
+      final snapshot = _snapshotFrom(
+        repositories: repositories,
+        entries: loaded.entries,
+        unavailableRepositories: loaded.failedRepositoryNames.length,
+        loadedAt: now,
+      );
+      _snapshot = snapshot;
+      _lastFullRunsRefresh = now;
+      return snapshot;
+    }
+
+    final activeRepositoryNames = previous.entries
+        .where((entry) => entry.isRunning)
+        .map((entry) => entry.repository.fullName)
+        .toSet();
+    if (activeRepositoryNames.isEmpty) {
+      // Sem execução ativa não há motivo para consultar Actions novamente antes
+      // do próximo refresh completo. Mantém a fotografia já carregada.
+      return previous;
+    }
+
+    final activeRepositories = repositories
+        .where((repo) => activeRepositoryNames.contains(repo.fullName))
+        .toList(growable: false);
+    if (activeRepositories.isEmpty) return previous;
+
+    final loaded = await _queryRepositories(
+      activeRepositories,
+      runsPerRepository: runsPerRepository,
+    );
+    final failed = loaded.failedRepositoryNames;
+
+    final merged = <GlobalBuildEntry>[
+      for (final entry in previous.entries)
+        if (!activeRepositoryNames.contains(entry.repository.fullName) ||
+            failed.contains(entry.repository.fullName))
+          entry,
+      ...loaded.entries,
+    ];
+    final snapshot = _snapshotFrom(
+      repositories: repositories,
+      entries: merged,
+      unavailableRepositories: failed.isEmpty
+          ? previous.unavailableRepositories
+          : previous.unavailableRepositories > failed.length
+              ? previous.unavailableRepositories
+              : failed.length,
+      loadedAt: now,
+    );
+    _snapshot = snapshot;
+    return snapshot;
+  }
+
+  Future<List<GitHubRepository>> _repositories({
+    required DateTime now,
+    required bool forceRefresh,
+  }) async {
+    final cached = _repositoriesCache;
+    final loadedAt = _repositoriesLoadedAt;
+    if (!forceRefresh &&
+        cached != null &&
+        loadedAt != null &&
+        now.difference(loadedAt) < repositoryCacheLifetime) {
+      return cached;
+    }
+
     final repositories = await _repositoryService.listRepositories();
+    _repositoriesCache = List<GitHubRepository>.unmodifiable(repositories);
+    _repositoriesLoadedAt = now;
+    return _repositoriesCache!;
+  }
+
+  Future<_GlobalBuildQueryResult> _queryRepositories(
+    List<GitHubRepository> repositories, {
+    required int runsPerRepository,
+  }) async {
     final entries = <GlobalBuildEntry>[];
-    var unavailable = 0;
-    var withBuilds = 0;
+    final failed = <String>{};
 
     const batchSize = 6;
     for (var start = 0; start < repositories.length; start += batchSize) {
@@ -42,10 +168,9 @@ class GlobalBuildsService {
 
       for (final result in results) {
         if (result.failed) {
-          unavailable++;
+          failed.add(result.repository.fullName);
           continue;
         }
-        if (result.runs.isNotEmpty) withBuilds++;
         for (final raw in result.runs) {
           entries.add(
             GlobalBuildEntry(
@@ -57,18 +182,45 @@ class GlobalBuildsService {
       }
     }
 
+    return _GlobalBuildQueryResult(
+      entries: entries,
+      failedRepositoryNames: failed,
+    );
+  }
+
+  GlobalBuildsSnapshot _snapshotFrom({
+    required List<GitHubRepository> repositories,
+    required List<GlobalBuildEntry> entries,
+    required int unavailableRepositories,
+    required DateTime loadedAt,
+  }) {
     entries.sort((a, b) {
       final aDate = a.date ?? DateTime.fromMillisecondsSinceEpoch(0);
       final bDate = b.date ?? DateTime.fromMillisecondsSinceEpoch(0);
       return bDate.compareTo(aDate);
     });
+    final repositoriesWithBuilds = entries
+        .map((entry) => entry.repository.fullName)
+        .toSet()
+        .length;
+    final limited = entries.take(250).toList(growable: false);
 
     return GlobalBuildsSnapshot(
-      entries: List<GlobalBuildEntry>.unmodifiable(entries.take(250)),
+      entries: List<GlobalBuildEntry>.unmodifiable(limited),
       repositoryCount: repositories.length,
-      repositoriesWithBuilds: withBuilds,
-      unavailableRepositories: unavailable,
-      loadedAt: DateTime.now(),
+      repositoriesWithBuilds: repositoriesWithBuilds,
+      unavailableRepositories: unavailableRepositories,
+      loadedAt: loadedAt,
     );
   }
+}
+
+class _GlobalBuildQueryResult {
+  const _GlobalBuildQueryResult({
+    required this.entries,
+    required this.failedRepositoryNames,
+  });
+
+  final List<GlobalBuildEntry> entries;
+  final Set<String> failedRepositoryNames;
 }

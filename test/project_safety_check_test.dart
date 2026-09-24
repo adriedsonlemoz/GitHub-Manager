@@ -214,4 +214,39 @@ void main() {
     expect(result.blocked, isFalse);
     expect(result.warning, isTrue);
   });
+
+  group('SemVer', () {
+    test('versão estável é posterior ao prerelease da mesma versão', () {
+      expect(
+        ProjectSafetyCheck.compareVersions('1.0.0-alpha.2', null, '1.0.0', null),
+        ProjectVersionComparison.older,
+      );
+      expect(
+        ProjectSafetyCheck.compareVersions('1.0.0', null, '1.0.0-rc.9', null),
+        ProjectVersionComparison.newer,
+      );
+    });
+
+    test('identificadores numéricos de prerelease usam ordem numérica', () {
+      expect(
+        ProjectSafetyCheck.compareVersions('0.1.0-alpha.10', null, '0.1.0-alpha.2', null),
+        ProjectVersionComparison.newer,
+      );
+    });
+
+    test('versionCode não sobrepõe a precedência SemVer', () {
+      expect(
+        ProjectSafetyCheck.compareVersions('1.0.0-alpha.99', 999, '1.0.0', 1),
+        ProjectVersionComparison.older,
+      );
+    });
+
+    test('metadados de build após + não alteram precedência', () {
+      expect(
+        ProjectSafetyCheck.compareVersions('1.2.3+200095', null, '1.2.3+200094', null),
+        ProjectVersionComparison.same,
+      );
+    });
+  });
+
 }

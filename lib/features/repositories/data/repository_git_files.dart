@@ -211,6 +211,48 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
     );
   }
 
+  Future<RepositoryBranch> createBranch({
+    required String repositoryFullName,
+    required String branchName,
+    required String sourceBranch,
+  }) async {
+    final name = branchName.trim();
+    if (name.isEmpty || name == '@' || name.startsWith('/') || name.endsWith('/') ||
+        name.endsWith('.') || name.endsWith('.lock') || name.contains('..') ||
+        name.contains('//') || name.contains('@{') || name.contains(' ') ||
+        name.contains('~') || name.contains('^') || name.contains(':') ||
+        name.contains('?') || name.contains('*') || name.contains('[') ||
+        name.contains('\\')) {
+      throw const RepositoryFileException(
+        'Nome de branch inválido. Use letras, números, hífen, ponto, barra ou sublinhado.',
+        code: 'BRANCH_NAME_INVALID',
+      );
+    }
+    final source = await _client.get<Map<String, dynamic>>(
+      '/repos/$repositoryFullName/git/ref/heads/${_gitRefPath(sourceBranch)}',
+    );
+    final object = source.data?['object'];
+    final sha = object is Map ? object['sha']?.toString() : null;
+    if (sha?.isNotEmpty != true) {
+      throw const RepositoryFileException(
+        'Não foi possível identificar o commit da branch de origem.',
+        code: 'BRANCH_SOURCE_SHA_MISSING',
+      );
+    }
+    await _client.post<Map<String, dynamic>>(
+      '/repos/$repositoryFullName/git/refs',
+      data: {'ref': 'refs/heads/$name', 'sha': sha},
+    );
+    return RepositoryBranch(name: name, sha: sha!, isProtected: false);
+  }
+
+  Future<GitHubRateLimitSnapshot> loadRateLimit() async {
+    final response = await _client.get<Map<String, dynamic>>('/rate_limit');
+    return GitHubRateLimitSnapshot.fromJson(
+      response.data ?? const <String, dynamic>{},
+    );
+  }
+
   Future<List<RepositoryBranch>> listBranches(String repositoryFullName) async {
     final branches = <RepositoryBranch>[];
     for (var page = 1; page <= 5; page++) {

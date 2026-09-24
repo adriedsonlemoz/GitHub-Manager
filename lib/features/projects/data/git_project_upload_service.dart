@@ -42,6 +42,151 @@ class GitProjectUploadService {
       !zipPaths.contains(path) &&
       !isProtectedRepositoryInfrastructurePath(path);
 
+  Future<ProjectSyncPreview> previewZipSync({
+    required ZipProjectPreview project,
+    required String repositoryFullName,
+    required String branch,
+  }) async {
+    final existingEntries = await _loadExistingEntriesForPreview(
+      repositoryFullName: repositoryFullName,
+      branch: branch,
+    );
+    final newPaths = <String>{};
+    final created = <String>[];
+    final modified = <String>[];
+    var unchanged = 0;
+
+    final input = InputFileStream(project.path);
+    final archive = ZipDecoder().decodeStream(input, verify: true);
+    var index = 0;
+    try {
+      for (final entry in archive) {
+        if (!entry.isFile || entry.isSymbolicLink) continue;
+        final validated = LocalProjectService.validateArchivePath(entry.name);
+        final gitPath = _stripCommonRoot(validated, project.commonRoot);
+        if (gitPath.isEmpty) continue;
+        newPaths.add(gitPath);
+
+        List<int>? bytes;
+        File? temporaryFile;
+        int contentLength;
+        String contentBlobSha;
+        try {
+          if (entry.size > _streamingFileThreshold) {
+            temporaryFile = File(
+              p.join(
+                Directory.systemTemp.path,
+                'github_manager_preview_${DateTime.now().microsecondsSinceEpoch}_${index++}.tmp',
+              ),
+            );
+            final output = OutputFileStream(temporaryFile.path);
+            try {
+              entry.writeContent(output);
+            } finally {
+              output.closeSync();
+            }
+            contentLength = await temporaryFile.length();
+            contentBlobSha = await GitObjectHash.blobShaFile(temporaryFile);
+          } else {
+            bytes = entry.readBytes();
+            if (bytes == null) {
+              throw InvalidZipException(
+                'Não foi possível ler $gitPath para gerar a prévia.',
+                code: 'ZIP_ENTRY_READ_FAILED',
+              );
+            }
+            contentLength = bytes.length;
+            contentBlobSha = GitObjectHash.blobSha(bytes);
+          }
+          final mode = _gitMode(entry.mode);
+          final existing = existingEntries[gitPath];
+          if (existing == null) {
+            created.add(gitPath);
+          } else if (existing.type == 'blob' &&
+              existing.mode == mode &&
+              (existing.size == null || existing.size == contentLength) &&
+              existing.sha == contentBlobSha) {
+            unchanged++;
+          } else {
+            modified.add(gitPath);
+          }
+        } finally {
+          entry.clear();
+          if (temporaryFile != null && await temporaryFile.exists()) {
+            await temporaryFile.delete();
+          }
+        }
+      }
+    } finally {
+      archive.clearSync();
+      input.closeSync();
+    }
+
+    final deleted = existingEntries.keys
+        .where((path) => shouldRemoveRepositoryPath(path: path, zipPaths: newPaths))
+        .toList(growable: false)
+      ..sort();
+    created.sort();
+    modified.sort();
+    return ProjectSyncPreview(
+      createdPaths: List.unmodifiable(created),
+      modifiedPaths: List.unmodifiable(modified),
+      deletedPaths: List.unmodifiable(deleted),
+      unchangedCount: unchanged,
+    );
+  }
+
+  Future<Map<String, _ExistingEntry>> _loadExistingEntriesForPreview({
+    required String repositoryFullName,
+    required String branch,
+  }) async {
+    try {
+      final refResponse = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/ref/heads/$branch',
+      );
+      final object = refResponse.data?['object'];
+      final commitSha = object is Map ? object['sha']?.toString() : null;
+      if (commitSha?.isNotEmpty != true) return const <String, _ExistingEntry>{};
+      final commitResponse = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/commits/$commitSha',
+      );
+      final treeRaw = commitResponse.data?['tree'];
+      final treeSha = treeRaw is Map ? treeRaw['sha']?.toString() : null;
+      if (treeSha?.isNotEmpty != true) return const <String, _ExistingEntry>{};
+      final treeResponse = await _client.get<Map<String, dynamic>>(
+        '/repos/$repositoryFullName/git/trees/$treeSha',
+        queryParameters: const {'recursive': '1'},
+      );
+      if (treeResponse.data?['truncated'] == true) {
+        throw const UnexpectedAppException('BASE_TREE_TRUNCATED');
+      }
+      final result = <String, _ExistingEntry>{};
+      final rawTree = treeResponse.data?['tree'];
+      if (rawTree is List) {
+        for (final raw in rawTree.whereType<Map>()) {
+          final path = raw['path'];
+          final mode = raw['mode'];
+          final type = raw['type'];
+          final sha = raw['sha'];
+          if (path is String && mode is String && type is String && sha is String &&
+              (type == 'blob' || type == 'commit')) {
+            result[path] = _ExistingEntry(
+              mode: mode,
+              type: type,
+              sha: sha,
+              size: (raw['size'] as num?)?.toInt(),
+            );
+          }
+        }
+      }
+      return result;
+    } on GitHubNotFoundException {
+      // Repositório realmente vazio: a prévia deve ser somente leitura e não
+      // inicializar a branch com .gitkeep.
+      return const <String, _ExistingEntry>{};
+    }
+  }
+
   Future<ProjectUploadResult> uploadZip({
     required ZipProjectPreview project,
     required String repositoryFullName,

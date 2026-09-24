@@ -450,3 +450,34 @@ class RepositoryBulkDeleteResult {
   int get failedCount => failedIds.length;
   bool get hasFailures => failedIds.isNotEmpty;
 }
+
+class GitHubRateLimitSnapshot {
+  const GitHubRateLimitSnapshot({
+    required this.limit,
+    required this.remaining,
+    required this.used,
+    required this.resetAt,
+  });
+
+  final int limit;
+  final int remaining;
+  final int used;
+  final DateTime? resetAt;
+
+  String get label => '$remaining de $limit requisições restantes';
+
+  factory GitHubRateLimitSnapshot.fromJson(Map<String, dynamic> json) {
+    final resources = json['resources'];
+    final core = resources is Map ? resources['core'] : null;
+    final data = core is Map ? Map<String, dynamic>.from(core) : const <String, dynamic>{};
+    final resetSeconds = (data['reset'] as num?)?.toInt();
+    return GitHubRateLimitSnapshot(
+      limit: (data['limit'] as num?)?.toInt() ?? 0,
+      remaining: (data['remaining'] as num?)?.toInt() ?? 0,
+      used: (data['used'] as num?)?.toInt() ?? 0,
+      resetAt: resetSeconds == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(resetSeconds * 1000, isUtc: true).toLocal(),
+    );
+  }
+}

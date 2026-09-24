@@ -2,6 +2,7 @@ part of 'repository_actions_screen.dart';
 
 mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen>, WidgetsBindingObserver {
   late Future<RepositoryActionsData> _future;
+  late String _branch;
   RepositoryWorkflow? _selectedWorkflow;
   Timer? _timer;
   bool _hasRunning = false;
@@ -17,6 +18,7 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
 
   void initializeRepositoryActionsState() {
     WidgetsBinding.instance.addObserver(this);
+    _branch = widget.defaultBranch;
     unawaited(BuildMonitorService.watchRepository(widget.repositoryFullName));
     _future = _load();
     _future.then<void>(
@@ -33,7 +35,7 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
     final data = await ref.read(repositoryGitServiceProvider).loadActions(
           widget.repositoryFullName,
           workflow: _selectedWorkflow,
-          branch: widget.defaultBranch,
+          branch: _branch,
         );
     _hasRunning = data.allRuns.any((run) => run.isRunning);
     _currentData = data;
@@ -112,7 +114,7 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
       });
     final selected = _selectedWorkflow;
     final branchRuns = allRuns
-        .where((run) => run.branch.trim() == widget.defaultBranch.trim())
+        .where((run) => run.branch.trim() == _branch.trim())
         .toList(growable: false);
     final visibleRuns = selected == null
         ? branchRuns
@@ -157,6 +159,36 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
     _timer = Timer(interval, () {
       if (mounted) unawaited(_refresh(silent: true, lightweight: true));
     });
+  }
+
+  Future<void> _changeBranch() async {
+    final selected = await showRepositoryBranchSelector(
+      context: context,
+      ref: ref,
+      repositoryFullName: widget.repositoryFullName,
+      currentBranch: _branch,
+      defaultBranch: widget.defaultBranch,
+      allowCreate: !widget.readOnly,
+    );
+    if (selected == null || selected.name == _branch || !mounted) return;
+    _timer?.cancel();
+    _branch = selected.name;
+    _selectedWorkflow = null;
+    _initialRunOpened = true;
+    final next = _load();
+    setState(() {
+      _selectedRunIds.clear();
+      _selectionMode = false;
+      _future = next;
+    });
+    next.then<void>(
+      (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+      onError: (_) {
+        if (mounted) _scheduleAutoRefresh();
+      },
+    );
   }
 
   void _selectWorkflow(RepositoryWorkflow? workflow) {
@@ -368,7 +400,7 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
 
       final supportsDispatch = await service.workflowSupportsDispatch(
         repositoryFullName: widget.repositoryFullName,
-        branch: widget.defaultBranch,
+        branch: _branch,
         workflow: selected,
       );
       if (!supportsDispatch) {
@@ -381,10 +413,10 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
       await service.dispatchWorkflow(
         repositoryFullName: widget.repositoryFullName,
         workflow: selected,
-        ref: widget.defaultBranch,
+        ref: _branch,
       );
       if (mounted) {
-        showCenteredNotice(context, '${selected.name} iniciado na branch ${widget.defaultBranch}.');
+        showCenteredNotice(context, '${selected.name} iniciado na branch $_branch.');
         _selectedWorkflow = selected;
         await Future<void>.delayed(const Duration(seconds: 2));
         await _refresh();

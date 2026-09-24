@@ -23,7 +23,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
   @override
   void initState() {
     super.initState();
-    _schedulePoll(const Duration(seconds: 15));
+    _schedulePoll(const Duration(seconds: 10));
   }
 
   @override
@@ -48,13 +48,16 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
           : null;
       _schedulePoll(
         (snapshot?.runningCount ?? 0) > 0
-            ? const Duration(seconds: 6)
-            : const Duration(seconds: 30),
+            ? const Duration(seconds: 10)
+            : const Duration(minutes: 3),
       );
     });
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool forceFull = false}) async {
+    if (forceFull) {
+      ref.read(globalBuildsServiceProvider).invalidate();
+    }
     ref.invalidate(globalBuildsProvider);
     await ref.read(globalBuildsProvider.future);
   }
@@ -80,13 +83,13 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
         actions: [
           IconButton(
             tooltip: 'Atualizar',
-            onPressed: _refresh,
+            onPressed: () => _refresh(forceFull: true),
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _refresh,
+        onRefresh: () => _refresh(forceFull: true),
         child: builds.when(
           loading: () => ListView(
             physics: AlwaysScrollableScrollPhysics(),
@@ -113,7 +116,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
                       Text(error.toString()),
                       const SizedBox(height: 12),
                       FilledButton.icon(
-                        onPressed: _refresh,
+                        onPressed: () => _refresh(forceFull: true),
                         icon: const Icon(Icons.refresh_rounded),
                         label: const Text('Tentar novamente'),
                       ),

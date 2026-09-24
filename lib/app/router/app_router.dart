@@ -108,6 +108,7 @@ final appRouter = GoRouter(
             return RepositoryCommitsScreen(
               repositoryFullName: fullName,
               initialBranch: state.uri.queryParameters['branch'] ?? 'main',
+              readOnly: state.uri.queryParameters['readOnly'] == '1',
             );
           },
         ),

@@ -14,6 +14,8 @@ class ZipProjectPreview {
     this.applicationId,
     this.version,
     this.versionCode,
+    this.versionSource,
+    this.inferredVersion,
     this.hasWorkflowFiles = false,
   });
 
@@ -31,6 +33,8 @@ class ZipProjectPreview {
   final String? applicationId;
   final String? version;
   final int? versionCode;
+  final String? versionSource;
+  final String? inferredVersion;
   final bool hasWorkflowFiles;
 
   String get identityLabel =>
@@ -46,7 +50,19 @@ class ZipProjectPreview {
     if (versionCode == null || value.contains('+')) return value;
     return '$value+$versionCode';
   }
+
+  String? get displayVersionLabel {
+    final identified = versionLabel;
+    if (identified != null) {
+      final source = versionSource?.trim();
+      return source == null || source.isEmpty ? identified : '$identified • $source';
+    }
+    final inferred = inferredVersion?.trim();
+    if (inferred == null || inferred.isEmpty) return null;
+    return '$inferred • pelo nome do ZIP';
+  }
 }
+
 
 enum ProjectUploadMethod {
   incremental,
@@ -130,4 +146,24 @@ class ProjectUploadResult {
   final bool changed;
   final ProjectUploadMethod method;
   final int commitCount;
+}
+
+class ProjectSyncPreview {
+  const ProjectSyncPreview({
+    required this.createdPaths,
+    required this.modifiedPaths,
+    required this.deletedPaths,
+    required this.unchangedCount,
+  });
+
+  final List<String> createdPaths;
+  final List<String> modifiedPaths;
+  final List<String> deletedPaths;
+  final int unchangedCount;
+
+  int get createdCount => createdPaths.length;
+  int get modifiedCount => modifiedPaths.length;
+  int get deletedCount => deletedPaths.length;
+  int get changedCount => createdCount + modifiedCount + deletedCount;
+  bool get hasChanges => changedCount > 0;
 }

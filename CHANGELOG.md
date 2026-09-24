@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.0.82+200096 — 2026-09-24
+
+- Unifica a seleção de branch em Arquivos, Commits, Builds e Enviar versão e adiciona criação de nova branch a partir da branch atual.
+- Adiciona prévia somente-leitura antes do envio com contagem/lista de arquivos novos, alterados e removidos.
+- Corrige identificação de versão em ZIPs com múltiplos projetos ao priorizar metadados da raiz efetiva em vez do primeiro arquivo compatível encontrado.
+- Preserva pré-lançamentos completos (`alpha`, `beta`, `rc`, `dev`) ao inferir versão pelo nome do ZIP e mantém essa origem explicitamente marcada como inferida.
+- Amplia detecção de identidade/versão para Godot (`project.godot`), Python (`pyproject.toml`) e Rust (`Cargo.toml`).
+- Exibe a origem da versão e, quando disponível, o saldo do rate limit REST do GitHub na conferência de envio.
+- Adiciona testes para detecção de raiz, versão alpha no nome, prévia de sincronização, criação de branch e leitura de rate limit.
+
+## 2.0.81+200095 — 2026-09-24
+
+- Move a escolha da branch para antes do pré-check de sincronização e repete o diagnóstico quando a branch é alterada na confirmação final.
+- Permite o primeiro envio para repositório realmente vazio quando o GitHub retorna zero branches, mantendo falhas de API separadas desse caso.
+- Corrige a comparação de versões para SemVer, incluindo precedência de `alpha`, `beta`, `rc`, identificadores numéricos e metadados `+build`.
+- Reduz chamadas da tela global **Builds**: cache em memória da lista de repositórios por 10 minutos, polling de 10 segundos apenas nos repositórios com execução ativa e varredura global a cada 3 minutos.
+- Adiciona testes de SemVer, cache/polling e um teste de widget do fluxo de envio pela interface com escolha de branch e build desmarcada.
+
+## 2.0.80+200094 — 2026-09-24
+
+- Adiciona **Alterar** diretamente em **Branch de destino** na confirmação final de envio. Ao trocar a branch, o app recarrega os metadados e a detecção de workflow daquela branch antes de permitir o envio.
+- Mantém a preferência da última branch usada como best-effort e preserva a seleção atual ao reabrir o seletor.
+- Passa a identificar versões de projetos Shell/Termux via `MANIFEST.json` e variáveis `*VERSION=` no `manager.sh`, no ZIP local e no repositório remoto.
+- Quando não há versão interna confiável, exibe uma versão inferida do nome do ZIP apenas como pista visual, sem usá-la como fonte forte na comparação de segurança.
+- Adiciona testes de regressão para o retorno tipado do diálogo, troca de branch e detecção de versão do Termux Manager.
+
 ## 2.0.79+200093 — 2026-09-24
 
 - Corrige o erro fatal de análise em `global_builds_screen.dart`: `AsyncValue<GlobalBuildsSnapshot>` não usa mais o getter inexistente `valueOrNull`; o polling passa a ler somente `AsyncData`.

@@ -239,16 +239,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.82',
+                      text: 'Permite alterar a branch na confirmação final e identifica versões Shell/Termux por MANIFEST.json e manager.sh.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.79',
                       text: 'Corrige o erro de análise da tela Builds com Riverpod 3 e reforça o contrato tipado do diálogo de envio.',
                     ),
                     _ChangeNote(
                       version: '2.0.78',
                       text: 'Adiciona escolha da branch ao enviar versões, uma tela global de Builds e trata projetos sem workflow como envios válidos sem build.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.73',
-                      text: 'Corrige os erros de análise nos testes de limpeza de builds detectados pelos logs Android/CI 63.',
                     ),
                   ],
                 ),

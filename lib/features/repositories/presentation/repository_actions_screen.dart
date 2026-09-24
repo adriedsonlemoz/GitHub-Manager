@@ -11,6 +11,7 @@ import 'package:github_manager/features/builds/presentation/build_providers.dart
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
+import 'package:github_manager/features/repositories/presentation/repository_branch_selector.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 import 'package:go_router/go_router.dart';
@@ -171,6 +172,17 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                   ),
                   const SizedBox(height: 7),
                 ],
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: RepositoryBranchButton(
+                      branch: _branch,
+                      onPressed: _changeBranch,
+                      compact: true,
+                    ),
+                  ),
+                ),
                 _WorkflowsPanel(
                   data: data,
                   selectedWorkflow: _selectedWorkflow,
