@@ -1,7 +1,15 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.86+200100`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.87+200101`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
+
+
+## Alterações 2.0.87
+
+- corrigido deadlock em `waitUntilIdle()` dentro de `testWidgets`; não há mais polling com `Future.delayed`;
+- a fila usa `Completer` para sinalizar conclusão e permitir que testes de widget terminem sem avançar relógio virtual;
+- falhas de upload/build aguardam a persistência do histórico e a limpeza do ZIP antes de liberar a fila;
+- mudança motivada pelos jobs CI #76 e Android APK #77, que completavam os demais testes em ~30 s e ficavam presos até cancelamento.
 
 
 ## Alterações 2.0.86

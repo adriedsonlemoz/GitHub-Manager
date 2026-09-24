@@ -239,7 +239,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.86',
+                      version: '2.0.87',
                       text: 'Corrige três falhas da suíte CI/APK e padroniza os nomes dos logs baixados pelo GitHub e pelo app.',
                     ),
                     _ChangeNote(

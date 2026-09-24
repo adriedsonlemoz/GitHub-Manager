@@ -137,6 +137,7 @@ class UploadManagerService {
   Timer? _persistTimer;
   Timer? _foregroundTimer;
   Future<void> _persistTail = Future<void>.value();
+  Completer<void>? _idleCompleter;
   bool _running = false;
   bool _foregroundWasActive = false;
   bool _disposed = false;
@@ -337,8 +338,18 @@ class UploadManagerService {
 
   Future<void> waitUntilIdle() async {
     await ready;
-    while (_running || _queue.isNotEmpty) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+    while (!_disposed && (_running || _queue.isNotEmpty)) {
+      final idle = _idleCompleter;
+      if (idle != null && !idle.isCompleted) {
+        await idle.future;
+        continue;
+      }
+
+      // A fila pode ter sido preenchida imediatamente antes de _drainQueue()
+      // assumir a execução. Ceder uma microtask é suficiente e, ao contrário
+      // de Future.delayed/Timer, funciona também dentro do FakeAsync usado por
+      // testWidgets.
+      await Future<void>.value();
     }
     await _flushScheduledPersistence();
   }
@@ -346,6 +357,8 @@ class UploadManagerService {
   Future<void> _drainQueue() async {
     if (_running || _disposed) return;
     _running = true;
+    final idle = Completer<void>();
+    _idleCompleter = idle;
     try {
       while (_queue.isNotEmpty && !_disposed) {
         final task = _queue.removeAt(0);
@@ -361,6 +374,12 @@ class UploadManagerService {
       }
     } finally {
       _running = false;
+      if (!idle.isCompleted) {
+        idle.complete();
+      }
+      if (identical(_idleCompleter, idle)) {
+        _idleCompleter = null;
+      }
     }
   }
 
@@ -487,7 +506,7 @@ class UploadManagerService {
       }
       await _runBuild(item);
     } catch (error) {
-      _fail(item, error, stage: 'upload');
+      await _fail(item, error, stage: 'upload');
     }
   }
 
@@ -525,7 +544,7 @@ class UploadManagerService {
   Future<void> _runBuild(ManagedUpload item) async {
     final commitSha = item.commitSha;
     if (commitSha == null || commitSha.isEmpty) {
-      _fail(
+      await _fail(
         item,
         const RepositoryFileException(
           'Não há commit válido para iniciar a build.',
@@ -619,11 +638,15 @@ class UploadManagerService {
         await _deleteManagedZipIfSafe(item);
         return;
       }
-      _fail(item, error, stage: 'build');
+      await _fail(item, error, stage: 'build');
     }
   }
 
-  void _fail(ManagedUpload item, Object error, {required String stage}) {
+  Future<void> _fail(
+    ManagedUpload item,
+    Object error, {
+    required String stage,
+  }) async {
     final appError = error is AppException ? error : null;
     final failedFile = item.currentFile;
     final failedOperation = item.phase.trim();
@@ -651,8 +674,8 @@ class UploadManagerService {
       }
       item.addLog('Projeto enviado; build pendente: ${item.errorMessage}');
       _emit();
-      unawaited(_persistHistory());
-      unawaited(_deleteManagedZipIfSafe(item));
+      await _persistHistory();
+      await _deleteManagedZipIfSafe(item);
       return;
     }
 
@@ -682,7 +705,7 @@ class UploadManagerService {
       );
     }
     _emit();
-    unawaited(_persistHistory());
+    await _persistHistory();
   }
 
   Future<void> _restoreHistory() async {

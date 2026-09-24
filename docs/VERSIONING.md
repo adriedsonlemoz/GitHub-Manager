@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.86+200100`
+`version: 2.0.87+200101`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.87+200101` corrige o deadlock de `waitUntilIdle()` em `testWidgets`, substituindo polling com `Future.delayed` por sinalização de conclusão da fila sem Timer.
 
 A versão `2.0.86+200100` corrige o ciclo de persistência do `UploadManagerService`: testes não deixam mais debounce pendente, `waitUntilIdle()` aguarda gravações e `dispose()` aguarda o encerramento seguro antes de liberar arquivos temporários.
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.87+200101 — 2026-09-24
+
+- Corrige o deadlock do `repository_send_flow_widget_test.dart` que deixava CI #76 e Android APK #77 presos até cancelamento.
+- `waitUntilIdle()` deixa de fazer polling com `Future.delayed(10 ms)` e passa a aguardar a conclusão da fila por `Completer`, funcionando dentro de `testWidgets`/`FakeAsync`.
+- A conclusão da fila sinaliza explicitamente o estado ocioso sem depender da passagem de tempo virtual.
+- Caminhos de falha de upload/build passam a aguardar a persistência do histórico e a limpeza segura do ZIP gerenciado antes de concluir.
+- Mantém o debounce de 650 ms somente no uso normal; `UploadManagerService.forTest` continua sem debounce.
+
 ## 2.0.86+200100 — 2026-09-24
 
 - Corrige o `Timer` de 650 ms que permanecia pendente no teste de interface do fluxo de envio.
