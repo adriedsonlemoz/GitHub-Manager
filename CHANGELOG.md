@@ -1,3 +1,11 @@
+## 2.0.95+200109 — 2026-09-24
+- corrige as duas falhas restantes dos jobs GitHub Manager CI #84 e Android APK #85;
+- torna o contrato de repositório vazio independente de formatação/whitespace, evitando falso negativo quando o Dart formatter quebra a condição em várias linhas;
+- adiciona chave estável ao botão **Outras branches** e faz o `testWidgets` aguardar o estado real da lista em pumps limitados, sem depender de atraso fixo de 400 ms;
+- a CI deixa de executar `dart format lib test` de forma mutável antes da análise/testes e passa a usar `dart format --output=none --set-exit-if-changed`, apenas avisando sobre formatação pendente;
+- adiciona teste de regressão garantindo que o workflow não volte a modificar o código antes da suíte;
+- mantém as melhorias de carregamento progressivo e timeout/retry das versões anteriores.
+
 ## 2.0.94+200108 — 2026-09-24
 - Corrige erro fatal do analyzer `Undefined class 'ValueListenable'` em `repository_detail_widgets.dart`, adicionando o import explícito de `package:flutter/foundation.dart` à biblioteca de detalhe do repositório.
 - Mantém as melhorias de carregamento progressivo e seletor compacto de branch introduzidas na 2.0.93.

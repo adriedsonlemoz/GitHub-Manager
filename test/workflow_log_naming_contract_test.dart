@@ -26,11 +26,23 @@ void main() {
       'lib/features/builds/presentation/global_builds_screen.dart',
     ).readAsStringSync();
 
-    expect(managerSource, contains('final safeRepositoryName = _safeName(repositoryName);'));
+    expect(
+      managerSource,
+      contains('final safeRepositoryName = _safeName(repositoryName);'),
+    );
     expect(managerSource, contains("fileName: '\$fileStem-logs.zip'"));
     expect(
       buildsSource,
       contains("runTitle: '\${entry.run.name}-\${entry.run.runNumber}'"),
     );
+  });
+  test('CI verifica formatação sem modificar o código que será testado', () {
+    final ci = File('.github/workflows/ci.yml').readAsStringSync();
+
+    expect(
+      ci,
+      contains('dart format --output=none --set-exit-if-changed lib test'),
+    );
+    expect(ci, isNot(contains('dart format lib test\n')));
   });
 }

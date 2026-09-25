@@ -4,14 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.94+200108`
+`version: 2.0.95+200109`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.94+200108` corrige a regressão de análise da 2.0.93: o overlay de operação usa `ValueListenable<String>` e agora a biblioteca importa explicitamente `package:flutter/foundation.dart`. As melhorias de carregamento responsivo da 2.0.93 permanecem inalteradas.
+A versão `2.0.95+200109` corrige as duas falhas residuais de testes dos jobs CI #84 / Android APK #85 e elimina uma fonte de divergência do pipeline: a CI não reformata mais os fontes antes de executar análise e testes. Os contratos do seletor de branch agora são independentes de whitespace e de atrasos fixos de rede/UI.
 
 A versão `2.0.92+200106` corrige a única falha restante dos jobs CI #81 e Android APK #82: o seletor já retornava `develop`, mas o teste ainda exigia que o texto desaparecesse completamente após o fechamento da rota; essa expectativa frágil foi removida.
 
@@ -103,6 +103,11 @@ A 2.0.92 remove a última expectativa frágil do teste de seleção de branch. O
 
 A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada nos jobs CI #80 e Android APK #81. A branch `develop` já existia na UI, mas estava fora da área visível do `testWidgets`; o teste agora a traz para a viewport com `ensureVisible` antes de tocar.
 
+
+
+### 2.0.95
+
+A 2.0.95 estabiliza a suíte após o redesenho do seletor de branches: o teste de repositório vazio tolera formatação automática, o `testWidgets` aguarda o botão/lista por estado real com timeout finito e a CI verifica formatação sem alterar o código que será testado.
 
 ### 2.0.94
 

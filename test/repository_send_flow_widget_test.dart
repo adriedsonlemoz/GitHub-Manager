@@ -50,18 +50,20 @@ void main() {
       );
 
       await tester.tap(find.text('Escolher branch'));
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
 
       expect(find.text('main'), findsOneWidget);
-      expect(find.text('Outras branches (1)'), findsOneWidget);
-      await tester.tap(find.text('Outras branches (1)'));
-      await tester.pump(const Duration(milliseconds: 180));
-      expect(find.text('develop'), findsOneWidget);
+      final othersToggle = find.byKey(
+        const ValueKey('repository_branch_others_toggle'),
+      );
+      await _pumpUntilFound(tester, othersToggle);
+      await tester.tap(othersToggle);
+      await tester.pump();
 
       final developTile = find.byKey(
         const ValueKey('repository_branch_develop'),
       );
-      expect(developTile, findsOneWidget);
+      await _pumpUntilFound(tester, developTile);
       await tester.ensureVisible(developTile);
       await tester.pump(const Duration(milliseconds: 120));
       await tester.tap(developTile);
@@ -75,8 +77,8 @@ void main() {
     'dialogo de progresso pode ser minimizado mesmo com progresso indeterminado',
     (tester) async {
       final project = ZipProjectPreview(
-        path: '/tmp/repo-v2.0.94.zip',
-        name: 'repo-v2.0.94.zip',
+        path: '/tmp/repo-v2.0.95.zip',
+        name: 'repo-v2.0.95.zip',
         archiveBytes: 4,
         uncompressedBytes: 4,
         fileCount: 1,
@@ -87,8 +89,8 @@ void main() {
         projectName: 'Repo',
         packageName: 'repo',
         applicationId: 'com.example.repo',
-        version: '2.0.94',
-        versionCode: 200108,
+        version: '2.0.95',
+        versionCode: 200109,
         hasWorkflowFiles: false,
       );
 
@@ -179,6 +181,18 @@ void main() {
       await manager.dispose();
     },
   );
+}
+
+Future<void> _pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  int maxPumps = 40,
+}) async {
+  for (var attempt = 0; attempt < maxPumps; attempt++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (finder.evaluate().isNotEmpty) return;
+  }
+  fail('Widget esperado não apareceu após ${maxPumps * 50} ms.');
 }
 
 class _FakeRepositoryGitService extends RepositoryGitService {

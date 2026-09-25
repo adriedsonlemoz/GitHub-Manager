@@ -348,6 +348,7 @@ class _RepositoryBranchDialogState extends State<_RepositoryBranchDialog> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
+                    key: const ValueKey('repository_branch_others_toggle'),
                     onPressed: () => setState(() => _showOthers = !_showOthers),
                     icon: Icon(
                       _showOthers

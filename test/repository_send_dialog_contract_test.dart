@@ -78,12 +78,11 @@ void main() {
       'lib/features/repositories/presentation/repository_branch_selector.dart',
     ).readAsStringSync();
 
-    expect(
-      source,
-      contains(
-        'if (branches.isEmpty && widget.emptyBranchName?.trim().isNotEmpty == true)',
-      ),
+    final emptyRepositoryBranchPattern = RegExp(
+      r'if\s*\(\s*branches\.isEmpty\s*&&\s*'
+      r'widget\.emptyBranchName\?\.trim\(\)\.isNotEmpty\s*==\s*true\s*\)',
     );
+    expect(emptyRepositoryBranchPattern.hasMatch(source), isTrue);
     expect(source, contains('Repositório vazio • será criada no primeiro envio'));
     expect(source, contains("sha: ''"));
     expect(source, contains('repositoryIsEmpty ='));

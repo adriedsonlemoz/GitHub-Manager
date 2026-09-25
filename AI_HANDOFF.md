@@ -1,6 +1,15 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.94+200108`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.95+200109`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+
+
+## Alterações 2.0.95
+
+- Corrige as falhas residuais dos jobs CI #84 / Android APK #85 sem alterar a lógica funcional do envio.
+- O teste de repositório vazio usa regex tolerante a whitespace em vez de comparar uma linha exata que o formatter podia quebrar.
+- O seletor expõe `ValueKey('repository_branch_others_toggle')`; o teste aguarda esse estado com pumps limitados e só então expande/seleciona `develop`.
+- O workflow CI não modifica mais `lib/` e `test/` antes dos testes. A formatação é verificada com `--output=none` e gera apenas warning quando necessário.
+- Há teste de contrato para impedir que a CI volte a formatar/mutar os fontes antes da suíte.
 
 ## Alterações 2.0.94
 

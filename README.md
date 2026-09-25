@@ -1,4 +1,9 @@
-# GitHub Manager 2.0.94
+# GitHub Manager 2.0.95
+
+
+## Estabilidade de CI e seletor de branch 2.0.95
+
+Corrige as duas falhas restantes observadas nos jobs CI #84 e Android APK #85. O teste de repositório vazio deixa de depender da quebra de linha produzida pelo formatter, e o teste do seletor passa a aguardar o estado real da interface por uma chave estável em vez de presumir que a lista remota apareça em 400 ms. A CI também deixa de reformatar os fontes no runner antes dos testes: passa a verificar a formatação em modo somente leitura, garantindo que o código testado seja exatamente o código enviado.
 
 ## Correção de análise/compilação 2.0.94
 
@@ -242,7 +247,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.94+200108`;
+- versão: `2.0.95+200109`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;
