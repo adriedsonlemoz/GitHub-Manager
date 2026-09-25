@@ -239,7 +239,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.93',
+                      version: '2.0.94',
                       text: 'Abre projetos e seletor de branch sem tela vazia, usa cache em memória e adiciona timeout/retry nas consultas lentas.',
                     ),
                     _ChangeNote(

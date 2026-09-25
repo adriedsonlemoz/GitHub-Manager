@@ -1,6 +1,11 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.93+200107`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.94+200108`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+
+## Alterações 2.0.94
+
+- Corrige regressão de análise introduzida pelo overlay de preparação/carregamento: `ValueListenable<String>` agora tem o import explícito de `package:flutter/foundation.dart` na biblioteca de detalhe do repositório.
+- Mantém o carregamento progressivo da 2.0.93 sem bloquear o analyzer/CI.
 
 ## Alterações 2.0.93
 

@@ -1,3 +1,7 @@
+## 2.0.94+200108 — 2026-09-24
+- Corrige erro fatal do analyzer `Undefined class 'ValueListenable'` em `repository_detail_widgets.dart`, adicionando o import explícito de `package:flutter/foundation.dart` à biblioteca de detalhe do repositório.
+- Mantém as melhorias de carregamento progressivo e seletor compacto de branch introduzidas na 2.0.93.
+
 # Changelog
 
 ## 2.0.93+200107 — 2026-09-24

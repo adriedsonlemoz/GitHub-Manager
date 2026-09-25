@@ -1,4 +1,8 @@
-# GitHub Manager 2.0.93
+# GitHub Manager 2.0.94
+
+## Correção de análise/compilação 2.0.94
+
+Corrige a regressão da 2.0.93 em que o novo overlay de preparação usava `ValueListenable<String>` sem importar `package:flutter/foundation.dart`, fazendo `flutter analyze` interromper tanto o CI quanto o job Android APK. O comportamento de carregamento progressivo e do seletor compacto de branch é mantido.
 
 ## Carregamento responsivo de projeto e branches 2.0.93
 
@@ -238,7 +242,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.93+200107`;
+- versão: `2.0.94+200108`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

@@ -1,13 +1,15 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
+import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
@@ -30,7 +32,6 @@ import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 import 'package:github_manager/features/uploads/presentation/upload_progress_dialog.dart';
 import 'package:github_manager/features/uploads/presentation/upload_providers.dart';
-import 'package:go_router/go_router.dart';
 
 part 'repository_detail_widgets.dart';
 part 'repository_detail_screen_actions.dart';

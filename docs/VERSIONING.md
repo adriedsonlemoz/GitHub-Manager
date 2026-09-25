@@ -4,14 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.93+200107`
+`version: 2.0.94+200108`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.93+200107` reduz esperas percebidas no fluxo de envio e na abertura de projetos: branch selector compacto abre imediatamente, consultas lentas têm timeout/retry, o envio informa a etapa de preparação e a tela de projeto reaproveita cache em memória com atualização silenciosa.
+A versão `2.0.94+200108` corrige a regressão de análise da 2.0.93: o overlay de operação usa `ValueListenable<String>` e agora a biblioteca importa explicitamente `package:flutter/foundation.dart`. As melhorias de carregamento responsivo da 2.0.93 permanecem inalteradas.
 
 A versão `2.0.92+200106` corrige a única falha restante dos jobs CI #81 e Android APK #82: o seletor já retornava `develop`, mas o teste ainda exigia que o texto desaparecesse completamente após o fechamento da rota; essa expectativa frágil foi removida.
 
@@ -103,6 +103,10 @@ A 2.0.92 remove a última expectativa frágil do teste de seleção de branch. O
 
 A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada nos jobs CI #80 e Android APK #81. A branch `develop` já existia na UI, mas estava fora da área visível do `testWidgets`; o teste agora a traz para a viewport com `ensureVisible` antes de tocar.
 
+
+### 2.0.94
+
+A 2.0.94 corrige a regressão de análise da 2.0.93 causada pelo uso de `ValueListenable<String>` no overlay de operação sem importar `flutter/foundation.dart`. Não altera o comportamento funcional do fluxo; restaura a compilação/análise do projeto.
 
 ### 2.0.93
 
