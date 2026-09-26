@@ -53,13 +53,21 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
     return items.where((item) => _matchesSearch(item.name)).toList();
   }
 
-  List<ReleaseAsset> _visibleReleases(List<ReleaseAsset> releases) {
+  List<ReleaseAssetGroup> _visibleReleaseGroups(
+    List<ReleaseAssetGroup> groups,
+  ) {
     if (_selectionMode || _listFilter == _ArtifactListFilter.artifacts) {
-      return const <ReleaseAsset>[];
+      return const <ReleaseAssetGroup>[];
     }
-    return releases
-        .where((asset) => _matchesSearch('${asset.name} ${asset.tagName}'))
-        .toList();
+    return groups.where((group) {
+      final searchable = <String>[
+        group.version ?? '',
+        group.tagName,
+        group.releaseName,
+        ...group.assets.map((asset) => asset.name),
+      ].join(' ');
+      return _matchesSearch(searchable);
+    }).toList(growable: false);
   }
 
   String get _filterLabel => switch (_listFilter) {
@@ -249,7 +257,146 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
           assetId: asset.id,
           isApk: asset.isApk,
         );
-    showCenteredNotice(context, 'Download da Release iniciado. Acompanhe pela Central de Downloads.');
+    showCenteredNotice(
+      context,
+      'Download iniciado. Acompanhe pela Central de Downloads.',
+    );
+  }
+
+  Future<void> _downloadReleaseGroup(ReleaseAssetGroup group) async {
+    if (!group.hasMultipleAssets) {
+      _downloadRelease(group.preferredAsset);
+      return;
+    }
+
+    final selected = await showModalBottomSheet<ReleaseAsset>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                group.version == null
+                    ? 'Escolha o arquivo'
+                    : 'Versão ${group.version}',
+                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Escolha a variante para baixar. Universal funciona na maioria dos aparelhos.',
+                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: group.assets.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final asset = group.assets[index];
+                    final recommended = releaseAssetIsRecommended(asset);
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        child: Icon(
+                          asset.isApk
+                              ? Icons.android_rounded
+                              : Icons.insert_drive_file_outlined,
+                        ),
+                      ),
+                      title: Text(
+                        releaseAssetVariantLabel(asset),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        '${asset.name} • ${_RepositoryArtifactsScreenState._formatBytes(asset.sizeBytes)}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: recommended
+                          ? const Chip(label: Text('Recomendado'))
+                          : const Icon(Icons.chevron_right_rounded),
+                      onTap: () => Navigator.pop(sheetContext, asset),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      _downloadRelease(selected);
+    }
+  }
+
+  Future<void> _manageReleaseGroup(ReleaseAssetGroup group) async {
+    if (group.assets.length == 1) {
+      await _deleteReleaseAsset(group.assets.first);
+      return;
+    }
+
+    final selected = await showModalBottomSheet<ReleaseAsset>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Gerenciar arquivos',
+                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Escolha qual arquivo desta versão deseja excluir.',
+                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              ...group.assets.map(
+                (asset) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    asset.isApk
+                        ? Icons.android_rounded
+                        : Icons.insert_drive_file_outlined,
+                  ),
+                  title: Text(releaseAssetVariantLabel(asset)),
+                  subtitle: Text(
+                    asset.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.delete_outline_rounded),
+                  onTap: () => Navigator.pop(sheetContext, asset),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      await _deleteReleaseAsset(selected);
+    }
   }
 
   Future<void> _publishRelease(ActionArtifact artifact) async {

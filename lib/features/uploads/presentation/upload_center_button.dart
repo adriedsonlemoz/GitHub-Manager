@@ -68,33 +68,87 @@ class UploadFloatingStatusButton extends ConsumerWidget {
         final active = manager.items.where((item) => item.isActive).toList();
         if (active.isEmpty) return const SizedBox.shrink();
         final item = active.first;
-        return FloatingActionButton.extended(
-          heroTag: 'global_upload_status',
-          onPressed: onTap,
-          icon: SizedBox(
-            width: 20,
-            height: 20,
-            child: item.status == ManagedUploadStatus.queued
-                ? const Icon(Icons.schedule_rounded, size: 20)
-                : CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    value: item.progress,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+        final progress = item.progress;
+        final label = active.length > 1
+            ? '${active.length} envios em andamento'
+            : item.status == ManagedUploadStatus.queued
+                ? 'Envio na fila'
+                : item.status == ManagedUploadStatus.startingBuild
+                    ? 'Iniciando build'
+                    : progress == null
+                        ? 'Envio em andamento'
+                        : 'Envio ${(progress * 100).floor()}%';
+        final scheme = Theme.of(context).colorScheme;
+
+        return Tooltip(
+          message: label,
+          child: FloatingActionButton.small(
+            heroTag: 'global_upload_status',
+            onPressed: onTap,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: item.status == ManagedUploadStatus.queued
+                      ? Icon(
+                          Icons.schedule_rounded,
+                          size: 24,
+                          color: scheme.onPrimaryContainer,
+                        )
+                      : CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          value: progress,
+                          color: scheme.onPrimaryContainer,
+                        ),
+                ),
+                if (item.status != ManagedUploadStatus.queued)
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 16,
+                    color: scheme.onPrimaryContainer,
                   ),
-          ),
-          label: Text(
-            active.length > 1
-                ? '${active.length} envios ativos'
-                : item.status == ManagedUploadStatus.queued
-                    ? 'Envio na fila'
-                    : item.status == ManagedUploadStatus.startingBuild
-                        ? 'Iniciando build'
-                        : item.progress == null
-                            ? 'Enviando'
-                            : 'Enviando ${(item.progress! * 100).floor()}%',
+                if (active.length > 1)
+                  Positioned(
+                    right: -9,
+                    top: -9,
+                    child: _UploadCountBadge(count: active.length),
+                  ),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+class _UploadCountBadge extends StatelessWidget {
+  const _UploadCountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: scheme.error,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '$count',
+        style: TextStyle(
+          color: scheme.onError,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }

@@ -73,26 +73,76 @@ class DownloadFloatingStatusButton extends ConsumerWidget {
           return const SizedBox.shrink();
         }
         final item = active.first;
-        return FloatingActionButton.extended(
-          heroTag: 'global_download_status',
-          onPressed: onTap,
-          icon: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.2,
-              value: item.progress,
+        final progress = item.progress;
+        final label = active.length > 1
+            ? '${active.length} downloads em andamento'
+            : progress == null
+                ? 'Download em andamento'
+                : 'Download ${(progress * 100).floor()}%';
+        final scheme = Theme.of(context).colorScheme;
+
+        return Tooltip(
+          message: label,
+          child: FloatingActionButton.small(
+            heroTag: 'global_download_status',
+            onPressed: onTap,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    value: progress,
+                    color: scheme.onPrimaryContainer,
+                  ),
+                ),
+                Icon(
+                  Icons.download_rounded,
+                  size: 17,
+                  color: scheme.onPrimaryContainer,
+                ),
+                if (active.length > 1)
+                  Positioned(
+                    right: -9,
+                    top: -9,
+                    child: _TransferCountBadge(count: active.length),
+                  ),
+              ],
             ),
-          ),
-          label: Text(
-            active.length > 1
-                ? '${active.length} downloads ativos'
-                : item.progress == null
-                    ? 'Baixando'
-                    : 'Baixando ${(item.progress! * 100).floor()}%',
           ),
         );
       },
+    );
+  }
+}
+
+class _TransferCountBadge extends StatelessWidget {
+  const _TransferCountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: scheme.error,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '$count',
+        style: TextStyle(
+          color: scheme.onError,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }

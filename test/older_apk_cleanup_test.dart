@@ -82,6 +82,65 @@ void main() {
     expect(service.deletedReleaseAssetIds, [11]);
   });
 
+  test('cleanup handles many versions inside one fixed Release', () async {
+    final client = _NoopGitHubApiClient();
+    final published = DateTime(2026, 9, 12, 23, 6);
+    final service = _CleanupArtifactService(client)
+      ..releaseAssets = [
+        ReleaseAsset(
+          id: 31,
+          name: 'Explorador-XP-0.1.0-alpha.31-performance.apk',
+          sizeBytes: 20,
+          downloadUrl: '',
+          tagName: 'explorador-xp-dev',
+          publishedAt: published,
+          releaseId: 300,
+          releaseName: 'explorador-xp-dev',
+          targetCommitish: 'main',
+        ),
+        ReleaseAsset(
+          id: 74,
+          name: 'Explorador-XP-0.1.0-alpha.74-universal.apk',
+          sizeBytes: 20,
+          downloadUrl: '',
+          tagName: 'explorador-xp-dev',
+          publishedAt: published,
+          releaseId: 300,
+          releaseName: 'explorador-xp-dev',
+          targetCommitish: 'main',
+        ),
+        ReleaseAsset(
+          id: 75,
+          name: 'Explorador-XP-0.1.0-alpha.74-arm64-v8a.apk',
+          sizeBytes: 20,
+          downloadUrl: '',
+          tagName: 'explorador-xp-dev',
+          publishedAt: published,
+          releaseId: 300,
+          releaseName: 'explorador-xp-dev',
+          targetCommitish: 'main',
+        ),
+        ReleaseAsset(
+          id: 66,
+          name: 'Explorador-XP-0.1.0-alpha.66-performance.apk',
+          sizeBytes: 20,
+          downloadUrl: '',
+          tagName: 'explorador-xp-dev',
+          publishedAt: published,
+          releaseId: 300,
+          releaseName: 'explorador-xp-dev',
+          targetCommitish: 'main',
+        ),
+      ];
+
+    final result = await service.deleteOlderApkOutputs('owner/repo');
+
+    expect(result.releaseAssetsDeleted, 2);
+    expect(service.deletedReleaseAssetIds, containsAll(<int>[31, 66]));
+    expect(service.deletedReleaseAssetIds, isNot(contains(74)));
+    expect(service.deletedReleaseAssetIds, isNot(contains(75)));
+  });
+
   test('cleanup keeps newest active APK artifact even if newer record expired', () async {
     final client = _NoopGitHubApiClient();
     final service = _CleanupArtifactService(client)

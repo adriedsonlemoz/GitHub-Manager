@@ -5,6 +5,7 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
+import 'package:github_manager/features/builds/domain/release_asset_group.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -440,16 +441,14 @@ class ArtifactService {
       final releaseAssets = (await listReleaseAssets(repositoryFullName))
           .where((item) => item.isApk)
           .toList(growable: false);
-      if (releaseAssets.length > 1) {
-        // Releases são independentes de Actions. Mantemos todos os APKs da
-        // Release mais recente e removemos assets das anteriores, sem apagar
-        // a Release nem a tag.
-        final keep = releaseAssets.first;
-        final keepReleaseId = keep.releaseId;
+      final releaseGroups = groupReleaseAssets(releaseAssets);
+      if (releaseGroups.length > 1) {
+        // Mantém todas as variantes da versão mais recente. Isso também
+        // funciona em projetos que acumulam várias versões dentro de uma única
+        // Release/tag fixa, pois o agrupamento considera a versão do asset.
+        final keepIds = releaseGroups.first.assets.map((asset) => asset.id).toSet();
         for (final asset in releaseAssets.where(
-          (item) => keepReleaseId > 0
-              ? item.releaseId != keepReleaseId
-              : item.id != keep.id,
+          (item) => !keepIds.contains(item.id),
         )) {
           try {
             await deleteReleaseAsset(

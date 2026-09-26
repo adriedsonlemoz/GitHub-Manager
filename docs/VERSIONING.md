@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.95+200109`
+`version: 2.0.96+200110`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.96+200110` reorganiza a tela de APKs: grupos passam a ser ordenados pela versão detectada mesmo quando várias builds estão anexadas à mesma Release de tag fixa, variantes de ABI ficam agrupadas e o feedback global de ações deixa de cobrir o centro da tela.
 
 A versão `2.0.95+200109` corrige as duas falhas residuais de testes dos jobs CI #84 / Android APK #85 e elimina uma fonte de divergência do pipeline: a CI não reformata mais os fontes antes de executar análise e testes. Os contratos do seletor de branch agora são independentes de whitespace e de atrasos fixos de rede/UI.
 
@@ -104,6 +106,11 @@ A 2.0.92 remove a última expectativa frágil do teste de seleção de branch. O
 A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada nos jobs CI #80 e Android APK #81. A branch `develop` já existia na UI, mas estava fora da área visível do `testWidgets`; o teste agora a traz para a viewport com `ensureVisible` antes de tocar.
 
 
+
+
+### 2.0.96
+
+A 2.0.96 corrige a apresentação de APKs em repositórios que mantêm várias versões na mesma Release, agrupa Universal/ARM64/ARMv7 em um seletor único e reduz a interferência visual dos avisos e indicadores globais de transferência.
 
 ### 2.0.95
 

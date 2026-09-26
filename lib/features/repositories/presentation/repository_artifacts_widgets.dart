@@ -468,27 +468,32 @@ class _ArtifactsSectionHeader extends StatelessWidget {
   }
 }
 
-class _ReleaseAssetCard extends StatelessWidget {
-  const _ReleaseAssetCard({
-    required this.asset,
+class _ReleaseAssetGroupCard extends StatelessWidget {
+  const _ReleaseAssetGroupCard({
+    required this.group,
     required this.onDownload,
-    this.onDelete,
+    this.onManage,
   });
 
-  final ReleaseAsset asset;
+  final ReleaseAssetGroup group;
   final VoidCallback onDownload;
-  final VoidCallback? onDelete;
+  final VoidCallback? onManage;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final version = _RepositoryArtifactsScreenState._versionFromName(
-          asset.tagName,
-        ) ??
-        _RepositoryArtifactsScreenState._versionFromName(asset.name);
+    final preferred = group.preferredAsset;
+    final title = group.version == null
+        ? (group.releaseName.trim().isNotEmpty
+            ? group.releaseName.trim()
+            : preferred.name)
+        : 'Versão ${group.version}';
     final metadata = <String>[
-      _RepositoryArtifactsScreenState._formatBytes(asset.sizeBytes),
-      _RepositoryArtifactsScreenState._formatDate(asset.publishedAt),
+      if (group.hasMultipleAssets)
+        '${group.assets.length} opções'
+      else
+        _RepositoryArtifactsScreenState._formatBytes(preferred.sizeBytes),
+      _RepositoryArtifactsScreenState._formatDate(group.publishedAt),
     ];
 
     return Card(
@@ -512,7 +517,7 @@ class _ReleaseAssetCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
-                      asset.isApk
+                      group.hasApk
                           ? Icons.android_rounded
                           : Icons.insert_drive_file_outlined,
                       color: scheme.onPrimaryContainer,
@@ -525,7 +530,7 @@ class _ReleaseAssetCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          asset.name,
+                          title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -542,6 +547,15 @@ class _ReleaseAssetCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (onManage != null)
+                    IconButton(
+                      onPressed: onManage,
+                      tooltip: group.hasMultipleAssets
+                          ? 'Gerenciar arquivos'
+                          : 'Excluir arquivo',
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.more_vert_rounded),
+                    ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -555,19 +569,16 @@ class _ReleaseAssetCard extends StatelessWidget {
                     emphasized: true,
                   ),
                   _ArtifactBadge(
-                    label: asset.isApk ? 'APK' : 'Arquivo',
-                    icon: asset.isApk
+                    label: group.hasApk ? 'APK' : 'Arquivo',
+                    icon: group.hasApk
                         ? Icons.android_rounded
                         : Icons.insert_drive_file_outlined,
                   ),
-                  _ArtifactBadge(
-                    label: 'Direto',
-                    icon: Icons.bolt_rounded,
-                  ),
-                  _ArtifactBadge(
-                    label: version == null ? asset.tagName : 'v$version',
-                    icon: Icons.sell_outlined,
-                  ),
+                  if (group.hasMultipleAssets)
+                    _ArtifactBadge(
+                      label: '${group.assets.length} opções',
+                      icon: Icons.layers_outlined,
+                    ),
                 ],
               ),
               const SizedBox(height: 11),
@@ -575,7 +586,9 @@ class _ReleaseAssetCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Publicado em ${asset.tagName}',
+                      group.tagName.trim().isEmpty
+                          ? 'GitHub Release'
+                          : 'Release ${group.tagName}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -585,19 +598,10 @@ class _ReleaseAssetCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  if (onDelete != null) ...[
-                    IconButton(
-                      onPressed: onDelete,
-                      tooltip: 'Excluir arquivo da Release',
-                      icon: const Icon(Icons.delete_outline_rounded),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    const SizedBox(width: 4),
-                  ],
                   FilledButton.icon(
                     onPressed: onDownload,
                     icon: const Icon(Icons.download_rounded, size: 17),
-                    label: const Text('Baixar'),
+                    label: Text(group.hasMultipleAssets ? 'Escolher' : 'Baixar'),
                     style: const ButtonStyle(
                       minimumSize: WidgetStatePropertyAll(Size(96, 38)),
                       padding: WidgetStatePropertyAll(

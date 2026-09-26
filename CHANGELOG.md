@@ -1,3 +1,15 @@
+## 2.0.96+200110 — 2026-09-25
+
+- reorganiza a tela **APKs** para exibir um card por versão detectada, reduzindo informação duplicada;
+- corrige a ordem de projetos que acumulam várias versões dentro da mesma GitHub Release de tag fixa, usando a versão encontrada no nome do asset antes da data como critério;
+- agrupa variantes da mesma versão (Universal, ARM64, ARMv7, x86) e abre um seletor compacto ao baixar quando existem várias opções;
+- remove os badges redundantes `Direto` e da versão/arquivo no card de Release e move o gerenciamento/exclusão para uma ação discreta;
+- troca os avisos centrais globais por SnackBars flutuantes compactos no rodapé, sem cobrir o conteúdo principal;
+- reduz os indicadores globais de envio/download de botões extensos para botões pequenos com anel de progresso e badge de quantidade;
+- corrige também a limpeza de APKs antigos para preservar todas as variantes da versão mais nova mesmo quando várias versões usam a mesma Release fixa;
+- adiciona testes de regressão para ordenação do Explorador XP, agrupamento por versão, limpeza e prioridade da variante Universal;
+- sincroniza versão/documentação para `2.0.96+200110`.
+
 ## 2.0.95+200109 — 2026-09-24
 - corrige as duas falhas restantes dos jobs GitHub Manager CI #84 e Android APK #85;
 - torna o contrato de repositório vazio independente de formatação/whitespace, evitando falso negativo quando o Dart formatter quebra a condição em várias linhas;

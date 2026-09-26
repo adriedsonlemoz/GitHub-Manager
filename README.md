@@ -1,5 +1,10 @@
-# GitHub Manager 2.0.95
+# GitHub Manager 2.0.96
 
+
+
+## APKs mais limpos e ordenação por versão 2.0.96
+
+A tela **APKs** agora agrupa os arquivos de uma mesma versão, inclusive quando um projeto publica muitas versões dentro de uma única GitHub Release de tag fixa. A ordenação prioriza a versão detectada no nome do APK, corrigindo casos como o Explorador XP em que `alpha.74` aparecia abaixo de versões antigas. Variantes Universal, ARM64 e ARMv7 ficam reunidas em um único card e são escolhidas ao tocar em **Escolher**. Os cards removem badges redundantes e ações destrutivas deixam de ocupar a linha principal. Avisos de ações passam a usar feedback flutuante compacto no rodapé, enquanto os indicadores globais de download/envio viram botões pequenos de progresso. A limpeza de APKs antigos também passa a manter apenas a versão mais recente (com todas as suas variantes), mesmo dentro de uma Release de tag fixa.
 
 ## Estabilidade de CI e seletor de branch 2.0.95
 
@@ -247,7 +252,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.95+200109`;
+- versão: `2.0.96+200110`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

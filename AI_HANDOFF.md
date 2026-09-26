@@ -1,7 +1,18 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.95+200109`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.96+200110`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
+
+
+## Alterações 2.0.96
+
+- A tela APKs agrupa assets por Release + versão detectada no nome do arquivo; isso é intencional porque alguns projetos, como o Explorador XP, usam uma única tag fixa (`explorador-xp-dev`) para armazenar várias versões.
+- A ordenação dos grupos prioriza a versão detectada (incluindo `alpha.N`, `beta.N`, `rc.N`) e só usa `publishedAt` como fallback, evitando que versões novas apareçam no fim quando todos os assets compartilham a mesma data da Release.
+- Variantes Universal/ARM64/ARMv7 da mesma versão aparecem em um único card. O botão abre um bottom sheet e Universal fica primeiro/recomendado quando disponível.
+- Cards de Release foram simplificados: sem badge `Direto`, sem badge duplicado de versão/nome bruto e com gerenciamento no menu de três pontos.
+- `showCenteredNotice` mantém a API antiga, mas agora renderiza SnackBar flutuante compacto no rodapé; não voltar a avisos grandes no centro.
+- Indicadores globais de upload/download são FABs pequenos com progresso, para não cobrir cards e botões.
+- Cobertura: `test/release_asset_group_test.dart` protege ordenação e agrupamento.
 
 ## Alterações 2.0.95
 

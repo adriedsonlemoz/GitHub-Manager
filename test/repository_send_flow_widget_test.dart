@@ -77,8 +77,8 @@ void main() {
     'dialogo de progresso pode ser minimizado mesmo com progresso indeterminado',
     (tester) async {
       final project = ZipProjectPreview(
-        path: '/tmp/repo-v2.0.95.zip',
-        name: 'repo-v2.0.95.zip',
+        path: '/tmp/repo-v2.0.96.zip',
+        name: 'repo-v2.0.96.zip',
         archiveBytes: 4,
         uncompressedBytes: 4,
         fileCount: 1,
@@ -89,8 +89,8 @@ void main() {
         projectName: 'Repo',
         packageName: 'repo',
         applicationId: 'com.example.repo',
-        version: '2.0.95',
-        versionCode: 200109,
+        version: '2.0.96',
+        versionCode: 200110,
         hasWorkflowFiles: false,
       );
 

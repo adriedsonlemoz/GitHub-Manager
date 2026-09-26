@@ -5,6 +5,7 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
+import 'package:github_manager/features/builds/domain/release_asset_group.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
@@ -196,8 +197,9 @@ class _RepositoryArtifactsScreenState
               builder: (context, releaseSnapshot) {
                 final releases =
                     releaseSnapshot.data ?? const <ReleaseAsset>[];
+                final releaseGroups = groupReleaseAssets(releases);
                 final visibleArtifacts = _visibleArtifacts(artifacts);
-                final visibleReleases = _visibleReleases(releases);
+                final visibleReleases = _visibleReleaseGroups(releaseGroups);
                 final releaseLoading =
                     releaseSnapshot.connectionState == ConnectionState.waiting;
                 final noResults = !releaseLoading &&
@@ -232,7 +234,7 @@ class _RepositoryArtifactsScreenState
                     ],
                     if (!_selectionMode)
                       _ArtifactsOverview(
-                        releases: releases.length,
+                        releases: releaseGroups.length,
                         artifacts: artifacts.length,
                         filterLabel: _filterLabel,
                       ),
@@ -258,12 +260,12 @@ class _RepositoryArtifactsScreenState
                       ),
                       const SizedBox(height: 8),
                       ...visibleReleases.map(
-                        (asset) => _ReleaseAssetCard(
-                          asset: asset,
-                          onDownload: () => _downloadRelease(asset),
-                          onDelete: widget.readOnly
+                        (group) => _ReleaseAssetGroupCard(
+                          group: group,
+                          onDownload: () => _downloadReleaseGroup(group),
+                          onManage: widget.readOnly
                               ? null
-                              : () => _deleteReleaseAsset(asset),
+                              : () => _manageReleaseGroup(group),
                         ),
                       ),
                     ],
