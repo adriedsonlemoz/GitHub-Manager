@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.101';
+  static const releaseNotesVersion = '2.0.102';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -67,31 +67,31 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.crop_square_rounded,
-                      title: 'Visual mais compacto e consistente',
+                      icon: Icons.view_agenda_outlined,
+                      title: 'APKs com visual unificado',
                       description:
-                          'Cards, campos, botões, diálogos e outros retângulos agora usam o mesmo raio discreto da Home, evitando cantos excessivamente arredondados.',
+                          'Releases e Artifacts agora usam a mesma hierarquia de card: versão, tamanho/data, origem, formato e ações no mesmo lugar.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.monitor_heart_outlined,
-                      title: 'Erros e telemetria local',
+                      icon: Icons.cleaning_services_outlined,
+                      title: 'Artifacts mais limpos',
                       description:
-                          'Configurações ganhou uma central para registrar falhas do Flutter/Dart, importar o último crash nativo do Android, revisar eventos e exportar um relatório.',
+                          'O nome bruto e a classificação técnica redundante deixam de dominar o card. Variante, estado e origem aparecem somente como indicadores compactos.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.privacy_tip_outlined,
-                      title: 'Captura privada e controlável',
+                      icon: Icons.cloud_done_outlined,
+                      title: 'Versões já publicadas reconhecidas',
                       description:
-                          'Os registros ficam somente no aparelho, limitados a um histórico curto, com ocultação de tokens e segredos conhecidos. Nada é enviado automaticamente.',
+                          'Quando um Artifact corresponde a uma Release já publicada, ele é marcado como Publicado e a ação Publicar é removida para evitar duplicação.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.new_releases_outlined,
-                      title: 'Novidades mais confiáveis',
+                      icon: Icons.download_done_rounded,
+                      title: 'Download da variante correta',
                       description:
-                          'A versão só passa a ser considerada vista depois de tocar em Continuar. Fechar o app antes disso faz a tela reaparecer no próximo acesso.',
+                          'Ao encontrar a mesma versão em Release, o GitHub Manager prioriza também a variante equivalente, como Universal, ARM64 ou ARMv7.',
                     ),
                   ],
                 ),

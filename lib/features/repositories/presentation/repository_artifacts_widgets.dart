@@ -3,6 +3,7 @@ part of 'repository_artifacts_screen.dart';
 class _ArtifactCard extends StatelessWidget {
   const _ArtifactCard({
     required this.artifact,
+    required this.publishedRelease,
     required this.readOnly,
     required this.selectionMode,
     required this.selected,
@@ -13,6 +14,7 @@ class _ArtifactCard extends StatelessWidget {
   });
 
   final ActionArtifact artifact;
+  final ReleaseAsset? publishedRelease;
   final bool readOnly;
   final bool selectionMode;
   final bool selected;
@@ -73,15 +75,37 @@ class _ArtifactCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          artifact.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
+                        if (descriptor.version != null)
+                          Wrap(
+                            spacing: 7,
+                            runSpacing: 5,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                'Versão',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w900),
                               ),
-                        ),
-                        const SizedBox(height: 4),
+                              _ArtifactBadge(
+                                label: descriptor.version!,
+                                icon: Icons.sell_outlined,
+                                emphasized: true,
+                              ),
+                            ],
+                          )
+                        else
+                          Text(
+                            artifact.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                        const SizedBox(height: 5),
                         Text(
                           metadata.join(' • '),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -91,15 +115,9 @@ class _ArtifactCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (artifact.expired)
-                    const _ArtifactBadge(
-                      label: 'Expirado',
-                      icon: Icons.history_toggle_off_rounded,
-                      danger: true,
-                    ),
                 ],
               ),
-              const SizedBox(height: 11),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -107,32 +125,33 @@ class _ArtifactCard extends StatelessWidget {
                   const _ArtifactBadge(
                     label: 'Artifact',
                     icon: Icons.inventory_2_outlined,
+                    emphasized: true,
                   ),
-                  _ArtifactBadge(label: descriptor.format, icon: descriptor.formatIcon),
-                  _ArtifactBadge(label: descriptor.buildType, icon: Icons.build_circle_outlined),
                   _ArtifactBadge(
-                    label: descriptor.stability,
-                    icon: descriptor.stabilityIcon,
-                    emphasized: descriptor.isStable,
+                    label: descriptor.format,
+                    icon: descriptor.formatIcon,
                   ),
-                  if (descriptor.version != null)
+                  if (descriptor.variant != null)
                     _ArtifactBadge(
-                      label: 'v${descriptor.version}',
-                      icon: Icons.sell_outlined,
+                      label: descriptor.variant!,
+                      icon: Icons.memory_rounded,
+                    ),
+                  if (descriptor.status != null)
+                    _ArtifactBadge(
+                      label: descriptor.status!,
+                      icon: descriptor.statusIcon,
+                      danger: artifact.expired,
+                    ),
+                  if (publishedRelease != null)
+                    const _ArtifactBadge(
+                      label: 'Publicado',
+                      icon: Icons.cloud_done_outlined,
+                      emphasized: true,
                     ),
                 ],
               ),
-              if (descriptor.note != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  descriptor.note!,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                ),
-              ],
               if (!selectionMode) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 11),
                 Row(
                   children: [
                     Expanded(
@@ -276,33 +295,30 @@ class _ArtifactDescriptor {
   const _ArtifactDescriptor({
     required this.format,
     required this.formatIcon,
-    required this.buildType,
-    required this.stability,
-    required this.stabilityIcon,
-    required this.isStable,
     required this.icon,
+    required this.statusIcon,
     this.version,
-    this.note,
+    this.variant,
+    this.status,
   });
 
   final String format;
   final IconData formatIcon;
-  final String buildType;
-  final String stability;
-  final IconData stabilityIcon;
-  final bool isStable;
   final IconData icon;
+  final IconData statusIcon;
   final String? version;
-  final String? note;
+  final String? variant;
+  final String? status;
 
   factory _ArtifactDescriptor.fromArtifact(ActionArtifact artifact) {
     final lower = artifact.name.toLowerCase();
-    final version = RegExp(r'(\d+\.\d+(?:\.\d+){0,3})')
-        .firstMatch(artifact.name)
-        ?.group(1);
+    final version = _RepositoryArtifactsScreenState._versionFromName(
+      artifact.name,
+    );
     final isBundle = lower.contains('.aab') ||
         lower.contains('appbundle') ||
         lower.contains('bundle');
+    final isApk = artifact.likelyContainsApk || lower.contains('.apk');
     final isDebug = lower.contains('debug');
     final isProfile = lower.contains('profile');
     final isPreview = lower.contains('beta') ||
@@ -310,40 +326,42 @@ class _ArtifactDescriptor {
         RegExp(r'(^|[-_.])rc\d*($|[-_.])').hasMatch(lower) ||
         lower.contains('prerelease') ||
         lower.contains('preview');
-    final isApk = artifact.likelyContainsApk || lower.contains('.apk');
 
-    String buildType;
-    String stability;
-    IconData stabilityIcon;
-    bool stable;
-    String? note;
+    String? variant;
+    if (lower.contains('universal') ||
+        lower.contains('fat-apk') ||
+        lower.contains('-all.')) {
+      variant = 'Universal';
+    } else if (lower.contains('arm64-v8a') ||
+        lower.contains('arm64') ||
+        lower.contains('aarch64')) {
+      variant = 'ARM64';
+    } else if (lower.contains('armeabi-v7a') ||
+        lower.contains('armv7') ||
+        lower.contains('v7a')) {
+      variant = 'ARMv7';
+    } else if (lower.contains('x86_64')) {
+      variant = 'x86_64';
+    } else if (RegExp(r'(^|[-_.])x86($|[-_.])').hasMatch(lower)) {
+      variant = 'x86';
+    } else if (lower.contains('performance')) {
+      variant = 'Performance';
+    }
 
-    if (isDebug) {
-      buildType = 'Debug';
-      stability = 'Teste';
-      stabilityIcon = Icons.bug_report_outlined;
-      stable = false;
+    String? status;
+    IconData statusIcon = Icons.info_outline_rounded;
+    if (artifact.expired) {
+      status = 'Expirado';
+      statusIcon = Icons.history_toggle_off_rounded;
+    } else if (isDebug) {
+      status = 'Debug';
+      statusIcon = Icons.bug_report_outlined;
     } else if (isProfile) {
-      buildType = 'Profile';
-      stability = 'Teste';
-      stabilityIcon = Icons.speed_outlined;
-      stable = false;
+      status = 'Profile';
+      statusIcon = Icons.speed_outlined;
     } else if (isPreview) {
-      buildType = 'Release';
-      stability = 'Prévia';
-      stabilityIcon = Icons.science_outlined;
-      stable = false;
-    } else if (isApk || isBundle) {
-      buildType = 'Release';
-      stability = 'Estável provável';
-      stabilityIcon = Icons.verified_outlined;
-      stable = true;
-      note = 'Classificação inferida pelo nome do artifact; o GitHub não informa o buildType diretamente.';
-    } else {
-      buildType = 'Artifact';
-      stability = 'Auxiliar';
-      stabilityIcon = Icons.inventory_2_outlined;
-      stable = false;
+      status = 'Prévia';
+      statusIcon = Icons.science_outlined;
     }
 
     return _ArtifactDescriptor(
@@ -353,21 +371,18 @@ class _ArtifactDescriptor {
           : isApk
               ? Icons.android_rounded
               : Icons.archive_outlined,
-      buildType: buildType,
-      stability: stability,
-      stabilityIcon: stabilityIcon,
-      isStable: stable,
       icon: isBundle
           ? Icons.shop_outlined
           : isApk
               ? Icons.android_rounded
               : Icons.inventory_2_outlined,
       version: version,
-      note: note,
+      variant: variant,
+      status: status,
+      statusIcon: statusIcon,
     );
   }
 }
-
 
 class _ArtifactsOverview extends StatelessWidget {
   const _ArtifactsOverview({
@@ -509,8 +524,8 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       color: scheme.primaryContainer.withValues(alpha: .72),
                       borderRadius: BorderRadius.circular(4),
@@ -520,7 +535,7 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                           ? Icons.android_rounded
                           : Icons.insert_drive_file_outlined,
                       color: scheme.onPrimaryContainer,
-                      size: 23,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 11),
@@ -536,9 +551,10 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                             children: [
                               Text(
                                 'Versão',
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w900,
-                                    ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w900),
                               ),
                               _ArtifactBadge(
                                 label: version!,
@@ -552,9 +568,10 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                             fallbackTitle,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w900,
-                                ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w900),
                           ),
                         const SizedBox(height: 5),
                         Text(
@@ -566,7 +583,6 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                       ],
                     ),
                   ),
-
                 ],
               ),
               const SizedBox(height: 10),
@@ -593,42 +609,27 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 11),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Wrap(
-                  spacing: 7,
-                  runSpacing: 7,
-                  alignment: WrapAlignment.end,
-                  children: [
-                    if (onManage != null)
-                      OutlinedButton.icon(
-                        onPressed: onManage,
-                        icon: const Icon(Icons.delete_outline_rounded, size: 17),
-                        label: const Text('Excluir'),
-                        style: const ButtonStyle(
-                          minimumSize: WidgetStatePropertyAll(Size(92, 38)),
-                          padding: WidgetStatePropertyAll(
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                    FilledButton.icon(
+              Row(
+                children: [
+                  Expanded(
+                    child: _CompactArtifactButton(
                       onPressed: onDownload,
-                      icon: const Icon(Icons.download_rounded, size: 17),
-                      label: Text(group.hasMultipleAssets ? 'Escolher' : 'Baixar'),
-                      style: const ButtonStyle(
-                        minimumSize: WidgetStatePropertyAll(Size(96, 38)),
-                        padding: WidgetStatePropertyAll(
-                          EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-                        ),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
+                      icon: Icons.download_rounded,
+                      label: group.hasMultipleAssets ? 'Escolher' : 'Baixar',
+                      primary: true,
+                    ),
+                  ),
+                  if (onManage != null) ...[
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: _CompactArtifactButton(
+                        onPressed: onManage,
+                        icon: Icons.delete_outline_rounded,
+                        label: 'Excluir',
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
             ],
           ),

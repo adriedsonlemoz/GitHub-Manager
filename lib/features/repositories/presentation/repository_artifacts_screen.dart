@@ -279,9 +279,12 @@ class _RepositoryArtifactsScreenState
                         subtitle: 'Arquivos temporários do GitHub Actions',
                       ),
                       const SizedBox(height: 8),
-                      ...visibleArtifacts.map(
-                        (artifact) => _ArtifactCard(
+                      ...visibleArtifacts.map((artifact) {
+                        final publishedRelease =
+                            _matchingRelease(artifact, releases);
+                        return _ArtifactCard(
                           artifact: artifact,
+                          publishedRelease: publishedRelease,
                           readOnly: widget.readOnly,
                           selectionMode: _selectionMode,
                           selected: _selectedArtifactIds.contains(artifact.id),
@@ -290,14 +293,15 @@ class _RepositoryArtifactsScreenState
                               artifact.expired ? null : () => _download(artifact),
                           onPublish: !widget.readOnly &&
                                   artifact.likelyContainsApk &&
-                                  !artifact.expired
+                                  !artifact.expired &&
+                                  publishedRelease == null
                               ? () => _publishRelease(artifact)
                               : null,
                           onDelete: widget.readOnly
                               ? null
                               : () => _deleteArtifact(artifact),
-                        ),
-                      ),
+                        );
+                      }),
                     ],
                     if (noResults)
                       _ArtifactsEmptyState(
@@ -314,9 +318,14 @@ class _RepositoryArtifactsScreenState
     );
   }
 
-  static String? _versionFromName(String value) => RegExp(
-        r'(\d+\.\d+(?:\.\d+){0,3}(?:[-+][A-Za-z0-9._-]+)?)',
-      ).firstMatch(value)?.group(1);
+  static String? _versionFromName(String value) {
+    final match = RegExp(
+      r'(\d+\.\d+\.\d+(?:-(?:alpha|beta|preview|pre|rc|dev)(?:[._-]?\d+)?)?)',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (match != null) return match.group(1);
+    return RegExp(r'(\d+\.\d+)').firstMatch(value)?.group(1);
+  }
 
   static String _formatBytes(int bytes) {
     if (bytes >= 1024 * 1024) {

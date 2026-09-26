@@ -4,14 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.101+200115`
+`version: 2.0.102+200116`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.101+200115` padroniza os cantos visuais, adiciona telemetria local de erros/crashes e torna a tela de novidades confiável ao marcar a versão como vista somente depois de **Continuar**.
+A versão `2.0.102+200116` unifica visualmente Releases e Artifacts na tela APKs, reconhece versões já publicadas e evita publicar novamente o mesmo APK.
 
 A versão `2.0.99+200113` reduz o arredondamento dos cards da Home e adiciona uma tela de novidades exibida uma única vez no primeiro acesso de cada atualização.
 
@@ -115,6 +115,11 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+
+### 2.0.102
+
+A 2.0.102 padroniza os cards de Release e Artifact na mesma tela. Artifacts passam a exibir versão amigável e variante compacta, sem a frase de classificação inferida. Quando uma Release da mesma versão já existe, o card recebe **Publicado**, a ação **Publicar** desaparece e o download prioriza uma variante equivalente. O parser visual de versão deixa de incorporar versionCode e sufixos de nome de arquivo.
 
 ### 2.0.101
 

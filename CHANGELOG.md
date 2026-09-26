@@ -1,3 +1,15 @@
+## 2.0.102+200116 — 2026-09-26
+
+- unifica visualmente os cards de GitHub Releases e GitHub Actions Artifacts na tela **APKs**;
+- ambos passam a usar a mesma hierarquia: versão, metadados, origem/formato e ações na mesma posição;
+- Artifacts deixam de destacar o nome bruto do arquivo e removem o texto técnico redundante de classificação inferida da listagem principal;
+- adiciona indicador compacto de variante (`Universal`, `ARM64`, `ARMv7`, `x86`, `Performance`) quando detectável pelo nome do artifact;
+- reconhece Artifact cuja versão já exista em Release, mostra **Publicado** e remove a ação **Publicar** para evitar duplicação;
+- ao redirecionar download de Artifact para Release, prioriza a mesma variante quando ela existir;
+- corrige a extração visual de versão para não incorporar `versionCode`/sufixos como `universal-release.apk`;
+- padroniza a ordem das ações: **Baixar/Escolher**, **Publicar** quando aplicável e **Excluir**;
+- atualiza a tela **Novidades da atualização**, Configurações, README, AI_HANDOFF, RELEASE, VALIDATION e versionamento para `2.0.102+200116`.
+
 ## 2.0.101+200115 — 2026-09-26
 
 - faz varredura visual completa e padroniza retângulos para raio de 4 px, alinhando cards, campos, botões, diálogos, snackbars e indicador da navegação ao padrão da Home;

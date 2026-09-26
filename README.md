@@ -1,4 +1,15 @@
-# GitHub Manager 2.0.101
+# GitHub Manager 2.0.102
+
+
+## APKs unificados 2.0.102
+
+- Releases e Artifacts usam o mesmo desenho de card: versão no topo, tamanho/data, origem e formato em indicadores compactos e ações alinhadas na mesma posição;
+- o nome bruto do Artifact e a mensagem de classificação inferida deixam a listagem principal, reduzindo ruído visual;
+- variantes reconhecíveis, como Universal, ARM64, ARMv7, x86 e Performance, aparecem em indicador compacto;
+- quando a mesma versão já existe em uma Release, o Artifact é marcado como **Publicado** e deixa de oferecer **Publicar** novamente;
+- downloads redirecionados para uma Release tentam preservar também a variante correspondente;
+- a extração de versão ignora `versionCode` e sufixos de arquivo para exibir, por exemplo, `2.0.100` em vez de `2.0.100-200114-universal-release.apk`;
+- a tela **Novidades da atualização** foi atualizada para esta versão e continua sendo exibida uma única vez após a atualização.
 
 
 ## Consistência visual, telemetria e novidades confiáveis 2.0.101
@@ -291,7 +302,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.101+200115`;
+- versão: `2.0.102+200116`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

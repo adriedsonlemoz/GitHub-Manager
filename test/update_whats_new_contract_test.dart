@@ -43,7 +43,7 @@ void main() {
     expect(screen, contains("'Novidades da atualização'"));
     expect(screen, contains("ValueKey('whats_new_continue')"));
     expect(screen, contains("label: const Text('Continuar')"));
-    expect(screen, contains("title: 'Erros e telemetria local'"));
-    expect(screen, contains("title: 'Novidades mais confiáveis'"));
+    expect(screen, contains("title: 'APKs com visual unificado'"));
+    expect(screen, contains("title: 'Versões já publicadas reconhecidas'"));
   });
 }

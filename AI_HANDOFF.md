@@ -1,10 +1,21 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.101+200115`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.102+200116`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 
 
+
+## Alterações 2.0.102
+
+- Tela **APKs** usa a mesma estrutura visual para Release e Artifact.
+- Artifact mostra versão amigável no título quando detectável; nome bruto deixa de dominar o card.
+- Foram removidos da listagem principal o rótulo redundante de buildType e a frase de classificação inferida.
+- Variante de Artifact é detectada quando possível (`Universal`, `ARM64`, `ARMv7`, `x86`, `Performance`).
+- Se existir APK de Release da mesma versão, o Artifact recebe **Publicado**, não oferece **Publicar** e o download direto tenta selecionar a mesma variante.
+- `_versionFromName` foi restringido para não interpretar versionCode/sufixos do filename como parte da versão.
+- Ações seguem a mesma ordem visual nos cards: baixar/escolher, publicar quando cabível e excluir.
+- Novidades/configurações/documentação sincronizadas em `2.0.102+200116`.
 
 ## Alterações 2.0.101
 

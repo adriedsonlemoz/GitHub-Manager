@@ -115,36 +115,42 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
     await Future.wait([future, releases]);
   }
 
-  static bool _artifactLooksStable(ActionArtifact artifact) {
-    final lower = artifact.name.toLowerCase();
-    return !lower.contains('debug') &&
-        !lower.contains('profile') &&
-        !lower.contains('test') &&
-        !lower.contains('alpha') &&
-        !lower.contains('beta') &&
-        !lower.contains('preview') &&
-        !RegExp(r'(^|[-_.])rc\d*($|[-_.])').hasMatch(lower);
-  }
-
   ReleaseAsset? _matchingRelease(
     ActionArtifact artifact,
     List<ReleaseAsset> releases,
   ) {
-    if (!artifact.likelyContainsApk || !_artifactLooksStable(artifact)) {
+    if (!artifact.likelyContainsApk) return null;
+
+    final lower = artifact.name.toLowerCase();
+    if (lower.contains('debug') ||
+        lower.contains('profile') ||
+        lower.contains('test')) {
       return null;
     }
-    final version = _RepositoryArtifactsScreenState._versionFromName(artifact.name);
+
+    final version =
+        _RepositoryArtifactsScreenState._versionFromName(artifact.name);
     if (version == null) return null;
     final normalized = version.toLowerCase();
-    for (final asset in releases) {
-      if (!asset.isApk) continue;
+    final matches = releases.where((asset) {
+      if (!asset.isApk) return false;
       final tag = asset.tagName.toLowerCase().replaceFirst(RegExp(r'^v'), '');
-      final assetVersion = _RepositoryArtifactsScreenState._versionFromName(asset.name)?.toLowerCase();
-      if (tag == normalized || assetVersion == normalized) {
-        return asset;
+      final assetVersion = _RepositoryArtifactsScreenState
+          ._versionFromName(asset.name)
+          ?.toLowerCase();
+      return tag == normalized || assetVersion == normalized;
+    }).toList(growable: false);
+    if (matches.isEmpty) return null;
+
+    final artifactVariant = _ArtifactDescriptor.fromArtifact(artifact).variant;
+    if (artifactVariant != null) {
+      for (final asset in matches) {
+        if (releaseAssetVariantLabel(asset) == artifactVariant) {
+          return asset;
+        }
       }
     }
-    return null;
+    return matches.first;
   }
 
   Future<void> _download(ActionArtifact artifact) async {

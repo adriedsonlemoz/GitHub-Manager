@@ -41,7 +41,7 @@ void main() {
       'lib/features/repositories/presentation/repository_artifacts_widgets.dart',
     ).readAsStringSync();
 
-    expect(source, contains("label: const Text('Excluir')"));
+    expect(source, contains("label: 'Excluir'"));
     expect(source, contains('Icons.delete_outline_rounded'));
     expect(source, contains("label: version!"));
     expect(source, isNot(contains("'Release \${group.tagName}'")));
