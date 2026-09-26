@@ -1,3 +1,13 @@
+## 2.0.100+200114 — 2026-09-26
+
+- corrige a criação/retenção de duas janelas do GitHub Manager em **Aplicativos recentes** após atualização, instalação de APK ou retorno por notificação;
+- `MainActivity` passa de `singleTop` para `singleTask` e volta a usar a afinidade padrão do pacote, com `documentLaunchMode="never"`;
+- ao criar ou receber um novo Intent, a Activity remove tarefas antigas duplicadas do próprio app em `ActivityManager.appTasks`, limpando também cartões remanescentes de versões anteriores;
+- remove `FLAG_ACTIVITY_NEW_TASK` dos fluxos iniciados pela própria `MainActivity` para abrir URI e instalar APK;
+- notificações de upload/download passam a reabrir explicitamente `MainActivity` com `ACTION_MAIN`, `CATEGORY_LAUNCHER`, `CLEAR_TOP` e `SINGLE_TOP`;
+- adiciona teste de contrato para impedir regressões na configuração de task/Recentes;
+- sincroniza identidade, tela de novidades e documentação para `2.0.100+200114`.
+
 ## 2.0.99+200113 — 2026-09-26
 
 - reduz somente os cantos dos cards da lista **Meus repositórios** para raio de 6 px, preservando o restante do tema;

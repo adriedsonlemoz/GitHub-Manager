@@ -1,8 +1,18 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.99+200113`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.100+200114`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
+
+
+## Alterações 2.0.100
+
+- Corrige duplicação do GitHub Manager em **Aplicativos recentes** no Android: `MainActivity` usa `singleTask`, afinidade padrão do pacote e `documentLaunchMode="never"`.
+- `cleanupDuplicateRecentTasks()` roda em `onCreate()` e `onNewIntent()` e remove de `ActivityManager.appTasks` qualquer tarefa antiga do próprio app cujo id seja diferente da task atual; isso limpa resíduos de versões anteriores.
+- Não reintroduzir `android:taskAffinity=""`; a afinidade vazia separava a Activity da tarefa normal do aplicativo e podia favorecer uma segunda entrada após atualização/reabertura.
+- `openUri()` e `installApk()` não usam mais `FLAG_ACTIVITY_NEW_TASK` quando partem da `MainActivity`.
+- Notificações de upload/download usam Intent explícito para `MainActivity` com `ACTION_MAIN` + `CATEGORY_LAUNCHER`, `CLEAR_TOP` e `SINGLE_TOP`, para trazer a tarefa existente à frente.
+- `test/android_recents_task_contract_test.dart` protege esse contrato.
 
 
 ## Alterações 2.0.99

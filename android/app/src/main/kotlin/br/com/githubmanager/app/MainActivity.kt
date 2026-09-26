@@ -1,6 +1,7 @@
 package br.com.githubmanager.app
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -8,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.Bundle
 import android.provider.MediaStore
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
@@ -23,6 +25,25 @@ import java.io.FileOutputStream
 
 class MainActivity : FlutterActivity() {
     private var pendingStoragePermissionResult: MethodChannel.Result? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        cleanupDuplicateRecentTasks()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        cleanupDuplicateRecentTasks()
+    }
+
+    private fun cleanupDuplicateRecentTasks() {
+        runCatching {
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            activityManager.appTasks
+                .filter { appTask -> appTask.taskInfo.id != taskId }
+                .forEach { appTask -> appTask.finishAndRemoveTask() }
+        }
+    }
 
     override fun provideFlutterEngine(context: Context): FlutterEngine? =
         FlutterEngineCache.getInstance().get(MAIN_ENGINE_ID)
@@ -146,7 +167,6 @@ class MainActivity : FlutterActivity() {
                     setDataAndType(uri, mimeType)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
             result.success(null)
@@ -213,7 +233,6 @@ class MainActivity : FlutterActivity() {
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
             result.success("launched")

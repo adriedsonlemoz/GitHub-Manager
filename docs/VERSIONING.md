@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.99+200113`
+`version: 2.0.100+200114`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.100+200114` corrige a duplicação da janela do GitHub Manager em Aplicativos recentes após atualização, instalação de APK e retorno por notificações, consolidando a abertura na mesma task do Android.
 
 A versão `2.0.99+200113` reduz o arredondamento dos cards da Home e adiciona uma tela de novidades exibida uma única vez no primeiro acesso de cada atualização.
 
@@ -112,6 +114,10 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+### 2.0.100
+
+A 2.0.100 corrige o ciclo de task/Recentes no Android. `MainActivity` usa `singleTask`, afinidade padrão e `documentLaunchMode="never"`; no startup e em novos Intents, tarefas antigas duplicadas do próprio pacote são removidas; intents externos iniciados pela Activity deixam de forçar `NEW_TASK`; notificações de transferência voltam para a Activity principal existente. O objetivo é manter uma única entrada do GitHub Manager nos Recentes.
 
 ### 2.0.99
 

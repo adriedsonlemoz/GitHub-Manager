@@ -65,24 +65,24 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.view_agenda_outlined,
-                      title: 'Projetos mais compactos',
+                      icon: Icons.view_carousel_outlined,
+                      title: 'Uma única janela nos Recentes',
                       description:
-                          'Os cards da tela Meus repositórios agora usam cantos quase retos, reduzindo o aspecto de blocos muito arredondados.',
+                          'A abertura do aplicativo, das notificações e o retorno após instalar uma atualização agora reutilizam a mesma tarefa do Android, evitando cartões duplicados em Aplicativos recentes.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.auto_awesome_outlined,
-                      title: 'Novidades após atualizar',
+                      icon: Icons.install_mobile_outlined,
+                      title: 'Retorno após instalar APK',
                       description:
-                          'Ao instalar uma nova versão, o aplicativo mostra automaticamente o resumo das mudanças uma única vez.',
+                          'A instalação e a abertura de arquivos não forçam mais uma nova tarefa quando já existe uma Activity ativa do GitHub Manager.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.description_outlined,
-                      title: 'Documentação sincronizada',
+                      icon: Icons.notifications_active_outlined,
+                      title: 'Notificações mais seguras',
                       description:
-                          'Versão, changelog, notas de release e documentação técnica foram atualizados para acompanhar esta entrega.',
+                          'Uploads e downloads reabrem explicitamente a tela principal existente, preservando a pilha e a entrada única do aplicativo nos Recentes.',
                     ),
                   ],
                 ),

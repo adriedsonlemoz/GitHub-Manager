@@ -239,16 +239,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.100',
+                      text: 'Corrige cartões duplicados do GitHub Manager em Aplicativos recentes após atualização, instalação de APK ou retorno por notificação.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.99',
                       text: 'Deixa os cards de projetos quase retos e adiciona a tela de novidades exibida uma única vez após cada atualização.',
                     ),
                     _ChangeNote(
                       version: '2.0.98',
                       text: 'Compacta os atalhos dentro do projeto, reorganiza os menus, simplifica Releases e deixa a escolha de branch mais clara com Continuar.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.97',
-                      text: 'Adiciona progresso real ao apagar builds, corrige exclusão física de downloads, compacta a busca da Home e acelera READMEs grandes.',
                     ),
                   ],
                 ),

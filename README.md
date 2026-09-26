@@ -1,4 +1,14 @@
-# GitHub Manager 2.0.99
+# GitHub Manager 2.0.100
+
+
+## Correção de janelas duplicadas nos Recentes 2.0.100
+
+- `MainActivity` passa de `singleTop` para `singleTask`, com afinidade padrão do aplicativo e `documentLaunchMode="never"`, fazendo as reaberturas convergirem para a mesma tarefa do Android;
+- no startup e em novos Intents, tarefas duplicadas antigas do próprio GitHub Manager são removidas de `ActivityManager.appTasks`, inclusive resíduos criados antes desta correção;
+- remove `FLAG_ACTIVITY_NEW_TASK` dos fluxos de abrir URI e instalar APK quando iniciados pela própria Activity, evitando criar uma nova tarefa desnecessária;
+- notificações de upload/download agora usam `Intent` explícito para `MainActivity`, com `ACTION_MAIN`, categoria `LAUNCHER`, `CLEAR_TOP` e `SINGLE_TOP`;
+- o objetivo é impedir dois cartões do GitHub Manager em **Aplicativos recentes** depois de atualizar, instalar APK ou tocar em uma notificação;
+- inclui teste de contrato para proteger essa configuração nas próximas versões.
 
 
 ## Home mais reta e novidades da atualização 2.0.99
@@ -269,7 +279,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.99+200113`;
+- versão: `2.0.100+200114`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

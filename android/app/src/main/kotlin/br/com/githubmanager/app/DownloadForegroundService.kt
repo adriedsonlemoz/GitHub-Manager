@@ -169,9 +169,11 @@ class DownloadForegroundService : Service() {
         }
 
         private fun openAppPendingIntent(context: Context): PendingIntent {
-            val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                ?: Intent(context, MainActivity::class.java)
-            launch.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            val launch = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
             return PendingIntent.getActivity(context, 9202, launch, flags)
