@@ -34,13 +34,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
         builder: (context, snapshot) {
           final jobs =
               snapshot.data ?? _currentJobs ?? const <RepositoryWorkflowJob>[];
-          RepositoryWorkflowJob? failedJob;
-          for (final job in jobs) {
-            if (job.failed) {
-              failedJob = job;
-              break;
-            }
-          }
+          final failedJobs = jobs.where((job) => job.failed).toList(growable: false);
 
           final scheme = Theme.of(context).colorScheme;
           final statusColor = _run.conclusion == 'failure'
@@ -178,10 +172,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
                         icon: Icons.android_rounded,
                         label: 'APK',
                         filled: true,
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          widget.onOpenArtifacts();
-                        },
+                        onPressed: _working ? null : _openRunApks,
                       ),
                     ),
                     if (!widget.readOnly) ...[
@@ -197,12 +188,12 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
                   ],
                 ],
               ),
-              if (failedJob != null) ...[
+              if (failedJobs.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 _FailureSummaryCard(
                   repositoryFullName: widget.repositoryFullName,
                   run: _run,
-                  job: failedJob,
+                  jobs: failedJobs,
                 ),
               ],
               const SizedBox(height: 8),

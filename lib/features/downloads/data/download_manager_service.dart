@@ -10,6 +10,7 @@ import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/core/notifications/app_notification_service.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
+import 'package:github_manager/features/builds/domain/apk_variant.dart';
 import 'package:github_manager/features/downloads/domain/managed_download.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -109,6 +110,8 @@ class DownloadManagerService {
   ManagedDownload startArtifactApk({
     required String repositoryFullName,
     required ActionArtifact artifact,
+    String? preferredAbi,
+    List<String>? supportedAbis,
   }) {
     final endpoint =
         '/repos/$repositoryFullName/actions/artifacts/${artifact.id}/zip';
@@ -119,8 +122,19 @@ class DownloadManagerService {
       repositoryFullName: repositoryFullName,
       sourceEndpoint: endpoint,
       artifactId: artifact.id,
+      preferredAbi: preferredAbi,
+      preferredAbis: supportedAbis ??
+          (preferredAbi?.trim().isNotEmpty == true
+              ? <String>[preferredAbi!.trim()]
+              : const <String>[]),
     );
-    unawaited(_runArtifactApk(item, endpoint));
+    unawaited(
+      _runArtifactApk(
+        item,
+        endpoint,
+        preferredAbis: item.preferredAbis,
+      ),
+    );
     return item;
   }
 
@@ -205,7 +219,17 @@ class DownloadManagerService {
     if (endpoint.startsWith('https://') || endpoint.startsWith('http://')) {
       unawaited(_runDirectUrl(item, endpoint));
     } else if (item.isApk && item.artifactId != null) {
-      unawaited(_runArtifactApk(item, endpoint));
+      unawaited(
+        _runArtifactApk(
+          item,
+          endpoint,
+          preferredAbis: item.preferredAbis.isNotEmpty
+              ? item.preferredAbis
+              : (item.preferredAbi?.trim().isNotEmpty == true
+                  ? <String>[item.preferredAbi!.trim()]
+                  : const <String>[]),
+        ),
+      );
     } else {
       unawaited(_runRedirected(item, endpoint));
     }
@@ -294,6 +318,8 @@ class DownloadManagerService {
     String? repositoryFullName,
     String? sourceEndpoint,
     int? artifactId,
+    String? preferredAbi,
+    List<String> preferredAbis = const <String>[],
   }) {
     final item = ManagedDownload(
       id: '${DateTime.now().microsecondsSinceEpoch}-${_sequence++}',
@@ -305,6 +331,8 @@ class DownloadManagerService {
       repositoryFullName: repositoryFullName,
       sourceEndpoint: sourceEndpoint,
       artifactId: artifactId,
+      preferredAbi: preferredAbi,
+      preferredAbis: preferredAbis,
     );
     _items.insert(0, item);
     _emit();
@@ -482,8 +510,9 @@ class DownloadManagerService {
 
   Future<void> _runArtifactApk(
     ManagedDownload item,
-    String endpoint,
-  ) async {
+    String endpoint, {
+    List<String> preferredAbis = const <String>[],
+  }) async {
     final cancelToken = CancelToken();
     _cancelTokens[item.id] = cancelToken;
     File? downloadedFile;
@@ -544,16 +573,14 @@ class DownloadManagerService {
             )
             .toList(growable: false);
         if (apks.isNotEmpty) {
-          selectedApk = apks.firstWhere(
-            (entry) {
-              final lower = entry.name.toLowerCase();
-              return lower.contains('universal') ||
-                  (!lower.contains('arm64') &&
-                      !lower.contains('armeabi') &&
-                      !lower.contains('x86'));
-            },
-            orElse: () => apks.reduce((a, b) => a.size >= b.size ? a : b),
-          );
+          final supported = preferredAbis;
+          final sorted = [...apks]..sort((left, right) {
+            final leftRank = apkRecommendationRank(left.name, supported);
+            final rightRank = apkRecommendationRank(right.name, supported);
+            if (leftRank != rightRank) return leftRank.compareTo(rightRank);
+            return right.size.compareTo(left.size);
+          });
+          selectedApk = sorted.first;
         } else {
           final names = archive
               .where((entry) => entry.isFile)

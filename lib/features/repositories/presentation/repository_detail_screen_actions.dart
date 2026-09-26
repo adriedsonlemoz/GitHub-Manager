@@ -782,16 +782,6 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     );
   }
 
-  void _downloadLatestApk(
-    GitHubRepository repository,
-    ActionArtifact artifact,
-  ) {
-    ref.read(downloadManagerProvider).startArtifactApk(
-          repositoryFullName: repository.fullName,
-          artifact: artifact,
-        );
-    showCenteredNotice(context, 'Download do APK iniciado. Acompanhe pelo botão de Downloads.');
-  }
 
   void _downloadProjectZip(
     GitHubRepository repository,

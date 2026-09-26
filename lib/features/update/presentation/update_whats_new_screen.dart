@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.105';
+  static const releaseNotesVersion = '2.0.106';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,24 +69,24 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.dashboard_customize_outlined,
-                      title: 'Builds mais fáceis de ler',
+                      icon: Icons.manage_search_rounded,
+                      title: 'Erros de build mais fáceis de entender',
                       description:
-                          'Os detalhes da execução agora começam por um resumo em blocos, separando evento, branch, duração e andamento das etapas.',
+                          'A execução mostra só um resumo curto. Ver erros abre uma janela própria com o que aconteceu, onde ocorreu, causa identificada ou possível causa e como corrigir.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.error_outline_rounded,
-                      title: 'Falhas com prioridade visual',
+                      icon: Icons.android_rounded,
+                      title: 'APK certo para esta execução',
                       description:
-                          'Quando um build falha, o motivo aparece antes dos dados técnicos e o diagnóstico completo fica recolhido para não poluir a tela.',
+                          'O botão APK agora procura arquivos ligados à build selecionada e, quando existem várias opções, mostra versão, arquitetura, tamanho e origem antes do download.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.tune_rounded,
-                      title: 'Detalhes técnicos sob demanda',
+                      icon: Icons.phone_android_rounded,
+                      title: 'Arquitetura detectada automaticamente',
                       description:
-                          'Commit, horários, número da execução e workflow continuam disponíveis, mas agora ficam em uma seção expansível.',
+                          'O Android informa as ABIs suportadas sem permissão especial. O GitHub Manager recomenda a variante compatível e avisa antes de baixar um APK de arquitetura diferente.',
                     ),
                   ],
                 ),

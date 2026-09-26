@@ -50,6 +50,28 @@ void main() {
     expect(restored.errorCode, 'DOWNLOAD_APP_INTERRUPTED');
   });
 
+  test('artifact APK keeps ABI preference across persistence and retry', () {
+    final item = ManagedDownload(
+      id: 'abi-1',
+      title: 'APK ARM',
+      fileName: 'app-arm64-v8a.apk',
+      type: ManagedDownloadType.apk,
+      status: ManagedDownloadStatus.interrupted,
+      createdAt: DateTime.utc(2026, 9, 26),
+      repositoryFullName: 'owner/repo',
+      sourceEndpoint: '/repos/owner/repo/actions/artifacts/11/zip',
+      artifactId: 11,
+      preferredAbi: 'arm64-v8a',
+      preferredAbis: const ['arm64-v8a', 'armeabi-v7a'],
+    );
+
+    final restored = ManagedDownload.fromJson(item.toJson());
+
+    expect(restored.preferredAbi, 'arm64-v8a');
+    expect(restored.preferredAbis, ['arm64-v8a', 'armeabi-v7a']);
+    expect(restored.technicalLog, contains('ABI preferida: arm64-v8a'));
+  });
+
   test('partial download persists working path and can resume', () {
     final item = ManagedDownload(
       id: '3',

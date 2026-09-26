@@ -150,7 +150,7 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
         }
       }
     }
-    return matches.first;
+    return matches.length == 1 ? matches.first : null;
   }
 
   Future<void> _download(ActionArtifact artifact) async {
@@ -165,10 +165,21 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
     final manager = ref.read(downloadManagerProvider);
 
     if (artifact.likelyContainsApk) {
+      final deviceInfo = await _deviceInfoOrNull();
+      if (deviceInfo != null &&
+          !apkNameIsCompatible(artifact.name, deviceInfo.supportedAbis) &&
+          !await _confirmApkCompatibility(artifact.name, deviceInfo)) {
+        return;
+      }
       try {
         final releases = await _releaseFuture;
         final release = _matchingRelease(artifact, releases);
         if (release != null) {
+          if (deviceInfo != null &&
+              !apkNameIsCompatible(release.name, deviceInfo.supportedAbis) &&
+              !await _confirmApkCompatibility(release.name, deviceInfo)) {
+            return;
+          }
           manager.startReleaseAsset(
             title: '${release.tagName} | ${release.name}',
             fileName: release.name,
@@ -193,6 +204,8 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
       manager.startArtifactApk(
         repositoryFullName: widget.repositoryFullName,
         artifact: artifact,
+        preferredAbi: deviceInfo?.primaryAbi,
+        supportedAbis: deviceInfo?.supportedAbis,
       );
     } else {
       manager.startArtifactZip(
@@ -255,7 +268,7 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
         ),
       );
 
-  void _downloadRelease(ReleaseAsset asset) {
+  void _startReleaseDownload(ReleaseAsset asset) {
     ref.read(downloadManagerProvider).startReleaseAsset(
           title: '${asset.tagName} • ${asset.name}',
           fileName: asset.name,
@@ -269,11 +282,65 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
     );
   }
 
+  Future<AndroidDeviceInfo?> _deviceInfoOrNull() async {
+    try {
+      return await PlatformActions.getAndroidDeviceInfo();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> _confirmApkCompatibility(
+    String fileName,
+    AndroidDeviceInfo deviceInfo,
+  ) async {
+    final variant = ApkVariantInfo.fromName(fileName);
+    if (variant.isCompatibleWith(deviceInfo.supportedAbis)) return true;
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('APK possivelmente incompatível'),
+            content: Text(
+              'Este APK é ${variant.label}, mas este aparelho usa ${deviceInfo.primaryAbi} como arquitetura principal e suporta ${deviceInfo.supportedAbis.join(', ')}. Ele provavelmente não poderá ser instalado.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Baixar mesmo assim'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   Future<void> _downloadReleaseGroup(ReleaseAssetGroup group) async {
+    final deviceInfo = await _deviceInfoOrNull();
+    if (!mounted) return;
+
     if (!group.hasMultipleAssets) {
-      _downloadRelease(group.preferredAsset);
+      final asset = group.preferredAsset;
+      if (deviceInfo != null &&
+          !await _confirmApkCompatibility(asset.name, deviceInfo)) {
+        return;
+      }
+      _startReleaseDownload(asset);
       return;
     }
+
+    final supportedAbis = deviceInfo?.supportedAbis ?? const <String>[];
+    final assets = [...group.assets]..sort((left, right) {
+        final leftRank = apkRecommendationRank(left.name, supportedAbis);
+        final rightRank = apkRecommendationRank(right.name, supportedAbis);
+        if (leftRank != rightRank) return leftRank.compareTo(rightRank);
+        return left.name.toLowerCase().compareTo(right.name.toLowerCase());
+      });
+    final bestRank = apkRecommendationRank(assets.first.name, supportedAbis);
+    final recommendedId = bestRank < 100 ? assets.first.id : null;
 
     final selected = await showModalBottomSheet<ReleaseAsset>(
       context: context,
@@ -288,45 +355,50 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
             children: [
               Text(
                 group.version == null
-                    ? 'Escolha o arquivo'
-                    : 'Versão ${group.version}',
+                    ? 'Escolha o APK'
+                    : 'APKs da versão ${group.version}',
                 style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Escolha a variante para baixar. Universal funciona na maioria dos aparelhos.',
+                deviceInfo == null
+                    ? 'Escolha a arquitetura desejada. Universal funciona em várias arquiteturas e normalmente é maior.'
+                    : 'Seu aparelho usa ${deviceInfo.primaryAbi}. O APK específico compatível é recomendado quando disponível; Universal continua útil para compartilhar.',
                 style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
                       color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
                     ),
               ),
               const SizedBox(height: 12),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 420),
+                constraints: const BoxConstraints(maxHeight: 460),
                 child: ListView.separated(
                   shrinkWrap: true,
-                  itemCount: group.assets.length,
+                  itemCount: assets.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, index) {
-                    final asset = group.assets[index];
-                    final recommended = releaseAssetIsRecommended(asset);
+                    final asset = assets[index];
+                    final variant = ApkVariantInfo.fromName(asset.name);
+                    final recommended = asset.id == recommendedId;
+                    final compatible = deviceInfo == null ||
+                        variant.isCompatibleWith(deviceInfo.supportedAbis);
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(
                         child: Icon(
-                          asset.isApk
+                          compatible
                               ? Icons.android_rounded
-                              : Icons.insert_drive_file_outlined,
+                              : Icons.warning_amber_rounded,
                         ),
                       ),
                       title: Text(
-                        releaseAssetVariantLabel(asset),
+                        variant.label,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       subtitle: Text(
-                        '${asset.name} • ${_RepositoryArtifactsScreenState._formatBytes(asset.sizeBytes)}',
-                        maxLines: 2,
+                        '${variant.description}\n${asset.name} • ${_RepositoryArtifactsScreenState._formatBytes(asset.sizeBytes)}',
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                       trailing: recommended
@@ -343,7 +415,11 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
       ),
     );
     if (selected != null && mounted) {
-      _downloadRelease(selected);
+      if (deviceInfo != null &&
+          !await _confirmApkCompatibility(selected.name, deviceInfo)) {
+        return;
+      }
+      _startReleaseDownload(selected);
     }
   }
 

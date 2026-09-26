@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.105+200119`
+`version: 2.0.106+200120`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.106+200120` separa erros de build em uma janela própria, relaciona APKs à execução correta e recomenda a variante compatível com as ABIs informadas pelo Android.
 
 A versão `2.0.105+200119` reorganiza os detalhes dos Builds em uma hierarquia mais limpa: resumo primeiro, falha priorizada e metadados técnicos recolhidos.
 
@@ -119,6 +121,11 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+
+### 2.0.106
+
+A 2.0.106 torna o fluxo de Builds mais seguro e compreensível: falhas saem do bloco expansível da execução e ganham uma janela dedicada com explicação leiga e detalhes técnicos sob demanda; o botão APK passa a buscar arquivos vinculados à execução/commit; e a escolha de variante usa as ABIs reais reportadas pelo Android, com recomendação do APK específico compatível e aviso para arquitetura incompatível.
 
 
 ### 2.0.105

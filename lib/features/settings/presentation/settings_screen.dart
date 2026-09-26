@@ -6,6 +6,7 @@ import 'package:github_manager/app/theme/app_theme_controller.dart';
 import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
+import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/core/widgets/installed_version_banner.dart';
@@ -172,6 +173,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ),
           ),
           const SizedBox(height: 18),
+          const _SectionTitle('Informações do aparelho'),
+          const _DeviceInformationCard(),
+          const SizedBox(height: 18),
           const _SectionTitle('Ajuda e segurança'),
           Card(
             child: Column(
@@ -258,16 +262,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.106',
+                      text: 'Separa erros de build em uma janela explicativa e recomenda o APK correto pela arquitetura real do aparelho.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.105',
                       text: 'Reorganiza os detalhes dos builds com resumo visual, diagnóstico compacto e metadados técnicos recolhidos.',
                     ),
                     _ChangeNote(
                       version: '2.0.104',
                       text: 'Move Novidades para uma rota opaca após startup estável e impede sua abertura automática durante reanexo do FlutterEngine.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.103',
-                      text: 'Melhora a reabertura com FlutterEngine em cache, ajusta a splash ao tema escuro e registra reanexos do engine na telemetria local.',
                     ),
                   ],
                 ),

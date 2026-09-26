@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
+import 'package:github_manager/features/builds/domain/apk_variant.dart';
+import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/builds/domain/global_build_entry.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
@@ -84,67 +87,155 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
   Future<void> _downloadApk(GlobalBuildEntry entry) async {
     try {
       final artifactService = ref.read(artifactServiceProvider);
-      final artifacts = await artifactService.listArtifactsForRun(
+      final artifactsFuture = artifactService.listArtifactsForRun(
         repositoryFullName: entry.repository.fullName,
         runId: entry.run.id,
       );
-      ActionArtifact? apkArtifact;
-      for (final artifact in artifacts) {
-        if (!artifact.expired && artifact.likelyContainsApk) {
-          apkArtifact = artifact;
-          break;
-        }
-      }
-      if (!mounted) return;
-      if (apkArtifact != null) {
-        ref.read(downloadManagerProvider).startArtifactApk(
-              repositoryFullName: entry.repository.fullName,
-              artifact: apkArtifact,
-            );
-        showCenteredNotice(
-          context,
-          'Download do APK iniciado. Acompanhe pela Central de Downloads.',
-          kind: CenteredNoticeKind.success,
-        );
-        return;
-      }
-
-      final releaseApks = await artifactService.findReleaseApksForBuild(
+      final releasesFuture = artifactService.findReleaseApksForBuild(
         repositoryFullName: entry.repository.fullName,
         run: entry.run,
       );
+
+      AndroidDeviceInfo? deviceInfo;
+      try {
+        deviceInfo = await PlatformActions.getAndroidDeviceInfo();
+      } catch (_) {
+        deviceInfo = null;
+      }
+
+      final artifacts = (await artifactsFuture)
+          .where((artifact) => !artifact.expired && artifact.likelyContainsApk)
+          .toList(growable: false);
+      final releases = (await releasesFuture)
+          .where((asset) => asset.isApk)
+          .toList(growable: false);
+
+      final candidates = <_GlobalApkCandidate>[
+        ...releases.map(_GlobalApkCandidate.fromRelease),
+      ];
+      final releaseVariants = releases
+          .map((asset) => ApkVariantInfo.fromName(asset.name).shortLabel)
+          .toSet();
+      for (final artifact in artifacts) {
+        final variant = ApkVariantInfo.fromName(artifact.name).shortLabel;
+        if (!releaseVariants.contains(variant)) {
+          candidates.add(_GlobalApkCandidate.fromArtifact(artifact));
+        }
+      }
+
       if (!mounted) return;
-      if (releaseApks.isNotEmpty) {
-        final release = releaseApks.first;
-        ref.read(downloadManagerProvider).startReleaseAsset(
-              title: '${release.tagName} | ${release.name}',
-              fileName: release.name,
-              repositoryFullName: entry.repository.fullName,
-              assetId: release.id,
-              isApk: true,
-            );
+      if (candidates.isEmpty) {
         showCenteredNotice(
           context,
-          'APK da Release encontrado. Download iniciado.',
-          kind: CenteredNoticeKind.success,
+          entry.run.isRunning
+              ? 'O APK ainda não está disponível. A build continua em execução.'
+              : 'Nenhum APK disponível foi encontrado para esta build.',
         );
         return;
       }
 
-      showCenteredNotice(
-        context,
-        entry.run.isRunning
-            ? 'O APK ainda não está disponível. A build continua em execução.'
-            : 'Nenhum APK disponível foi encontrado para esta build.',
-      );
+      final supportedAbis = deviceInfo?.supportedAbis ?? const <String>[];
+      candidates.sort((left, right) {
+        final leftRank = apkRecommendationRank(left.name, supportedAbis);
+        final rightRank = apkRecommendationRank(right.name, supportedAbis);
+        if (leftRank != rightRank) return leftRank.compareTo(rightRank);
+        if (left.release != null && right.release == null) return -1;
+        if (left.release == null && right.release != null) return 1;
+        return left.name.toLowerCase().compareTo(right.name.toLowerCase());
+      });
+
+      _GlobalApkCandidate? selected;
+      if (candidates.length == 1) {
+        selected = candidates.first;
+      } else {
+        final bestRank = apkRecommendationRank(candidates.first.name, supportedAbis);
+        final recommendedName = bestRank < 100 ? candidates.first.name : null;
+        selected = await showModalBottomSheet<_GlobalApkCandidate>(
+          context: context,
+          showDragHandle: true,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (sheetContext) => _GlobalApkPickerSheet(
+            entry: entry,
+            candidates: candidates,
+            deviceInfo: deviceInfo,
+            recommendedName: recommendedName,
+          ),
+        );
+      }
+      if (selected == null || !mounted) return;
+      if (!await _confirmGlobalApkCompatibility(selected, deviceInfo)) return;
+      _startGlobalApkDownload(entry, selected, deviceInfo);
     } catch (_) {
       if (mounted) {
         showCenteredNotice(
           context,
-          'Não foi possível localizar o APK desta build agora.',
+          'Não foi possível localizar os APKs desta build agora.',
         );
       }
     }
+  }
+
+  Future<bool> _confirmGlobalApkCompatibility(
+    _GlobalApkCandidate candidate,
+    AndroidDeviceInfo? deviceInfo,
+  ) async {
+    if (deviceInfo == null ||
+        apkNameIsCompatible(candidate.name, deviceInfo.supportedAbis)) {
+      return true;
+    }
+    final variant = ApkVariantInfo.fromName(candidate.name);
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('APK possivelmente incompatível'),
+            content: Text(
+              'Este APK é ${variant.label}, mas este aparelho usa ${deviceInfo.primaryAbi} como arquitetura principal e suporta ${deviceInfo.supportedAbis.join(', ')}. Ele provavelmente não poderá ser instalado.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Baixar mesmo assim'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  void _startGlobalApkDownload(
+    GlobalBuildEntry entry,
+    _GlobalApkCandidate candidate,
+    AndroidDeviceInfo? deviceInfo,
+  ) {
+    final manager = ref.read(downloadManagerProvider);
+    final release = candidate.release;
+    final artifact = candidate.artifact;
+    if (release != null) {
+      manager.startReleaseAsset(
+        title: '${release.tagName} • ${release.name}',
+        fileName: release.name,
+        repositoryFullName: entry.repository.fullName,
+        assetId: release.id,
+        isApk: true,
+      );
+    } else if (artifact != null) {
+      manager.startArtifactApk(
+        repositoryFullName: entry.repository.fullName,
+        artifact: artifact,
+        preferredAbi: deviceInfo?.primaryAbi,
+        supportedAbis: deviceInfo?.supportedAbis,
+      );
+    }
+    showCenteredNotice(
+      context,
+      'Download de ${candidate.variant.label} iniciado. Acompanhe pela Central de Downloads.',
+      kind: CenteredNoticeKind.success,
+    );
   }
 
   void _openRun(GlobalBuildEntry entry, {BuildContext? sheetContext}) {
@@ -466,6 +557,135 @@ class _GlobalRepositoryBuildCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _GlobalApkCandidate {
+  const _GlobalApkCandidate._({this.release, this.artifact});
+
+  factory _GlobalApkCandidate.fromRelease(ReleaseAsset asset) =>
+      _GlobalApkCandidate._(release: asset);
+
+  factory _GlobalApkCandidate.fromArtifact(ActionArtifact artifact) =>
+      _GlobalApkCandidate._(artifact: artifact);
+
+  final ReleaseAsset? release;
+  final ActionArtifact? artifact;
+
+  String get name => release?.name ?? artifact!.name;
+  int get sizeBytes => release?.sizeBytes ?? artifact!.sizeBytes;
+  ApkVariantInfo get variant => ApkVariantInfo.fromName(name);
+
+  String originLabel(int runNumber) => release != null
+      ? 'Release ${release!.tagName}'
+      : 'Artifact da execução #$runNumber';
+}
+
+class _GlobalApkPickerSheet extends StatelessWidget {
+  const _GlobalApkPickerSheet({
+    required this.entry,
+    required this.candidates,
+    required this.deviceInfo,
+    required this.recommendedName,
+  });
+
+  final GlobalBuildEntry entry;
+  final List<_GlobalApkCandidate> candidates;
+  final AndroidDeviceInfo? deviceInfo;
+  final String? recommendedName;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final version = entry.run.detectedVersion;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'APKs disponíveis',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${version == null ? '' : 'v$version • '}execução #${entry.run.runNumber}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+          ),
+          if (deviceInfo != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Seu aparelho: ${deviceInfo!.primaryAbi} • ${deviceInfo!.supports64Bit ? 'suporta 64 bits' : '32 bits'}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 520),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: candidates.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final candidate = candidates[index];
+                final recommended = candidate.name == recommendedName;
+                final compatible = deviceInfo == null ||
+                    apkNameIsCompatible(
+                      candidate.name,
+                      deviceInfo!.supportedAbis,
+                    );
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    compatible
+                        ? Icons.android_rounded
+                        : Icons.warning_amber_rounded,
+                    color: compatible ? scheme.primary : scheme.error,
+                  ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          candidate.variant.label,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      if (recommended)
+                        const Chip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text('Recomendado'),
+                        ),
+                    ],
+                  ),
+                  subtitle: Text(
+                    '${candidate.variant.description}\n${candidate.name} • ${_globalApkBytes(candidate.sizeBytes)} • ${candidate.originLabel(entry.run.runNumber)}',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.pop(context, candidate),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _globalApkBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  final kb = bytes / 1024;
+  if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+  return '${(kb / 1024).toStringAsFixed(1)} MB';
 }
 
 class _RepositoryBuildRunCard extends StatelessWidget {

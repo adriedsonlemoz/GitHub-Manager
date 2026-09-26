@@ -194,6 +194,18 @@ class MainActivity : FlutterActivity() {
                         GitHubManagerApplication.consumePendingEngineLifecycle(applicationContext),
                     )
                 }
+                "getDeviceInfo" -> {
+                    result.success(
+                        mapOf(
+                            "manufacturer" to Build.MANUFACTURER.orEmpty(),
+                            "model" to Build.MODEL.orEmpty(),
+                            "androidRelease" to Build.VERSION.RELEASE.orEmpty(),
+                            "sdkInt" to Build.VERSION.SDK_INT,
+                            "supportedAbis" to Build.SUPPORTED_ABIS.toList(),
+                            "supported64BitAbis" to Build.SUPPORTED_64_BIT_ABIS.toList(),
+                        ),
+                    )
+                }
                 "getActivityLaunchState" -> {
                     result.success(
                         mapOf(

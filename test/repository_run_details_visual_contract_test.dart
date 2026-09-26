@@ -19,7 +19,7 @@ void main() {
     expect(widgets, isNot(contains("'Informações da execução'")));
   });
 
-  test('resultado de APK e diagnóstico de falha usam hierarquia compacta', () {
+  test('falha fica compacta e abre explicação em janela dedicada', () {
     final widgets = File(
       'lib/features/repositories/presentation/repository_run_details_widgets.dart',
     ).readAsStringSync();
@@ -27,15 +27,41 @@ void main() {
       'lib/features/repositories/presentation/repository_run_details.dart',
     ).readAsStringSync();
 
-    expect(widgets, contains("'APK não gerado'"));
-    expect(widgets, contains("'Falha identificada'"));
-    expect(widgets, contains("'Detalhes do diagnóstico'"));
-    expect(widgets, contains("'Job, horários e contexto do log'"));
+    expect(widgets, contains("'Ver erros'"));
+    expect(widgets, contains('class _FailureDetailsDialog'));
+    expect(widgets, contains("'O que aconteceu'"));
+    expect(widgets, contains("'Onde aconteceu'"));
+    expect(widgets, contains("'Causa identificada'"));
+    expect(widgets, contains("'Possível causa'"));
+    expect(widgets, contains("'Como corrigir'"));
+    expect(widgets, contains("'Copiar erro'"));
+    expect(widgets, contains("'Copiar diagnóstico'"));
+    expect(widgets, contains("'Logs completos'"));
+    expect(widgets, isNot(contains("'Detalhes do diagnóstico'")));
     expect(sheet, isNot(contains('_run.commitMessage.split')));
 
     final failureIndex = sheet.indexOf('_FailureSummaryCard(');
     final summaryIndex = sheet.indexOf('_RunInformationCard(run: _run, jobs: jobs)');
     expect(failureIndex, greaterThanOrEqualTo(0));
     expect(summaryIndex, greaterThan(failureIndex));
+  });
+
+  test('botão APK usa seletor vinculado à execução', () {
+    final sheet = File(
+      'lib/features/repositories/presentation/repository_run_details.dart',
+    ).readAsStringSync();
+    final controller = File(
+      'lib/features/repositories/presentation/repository_run_details_controller.dart',
+    ).readAsStringSync();
+    final widgets = File(
+      'lib/features/repositories/presentation/repository_run_details_widgets.dart',
+    ).readAsStringSync();
+
+    expect(sheet, contains('onPressed: _working ? null : _openRunApks'));
+    expect(controller, contains('listArtifactsForRun'));
+    expect(controller, contains('findReleaseApksForBuild'));
+    expect(controller, contains('apkRecommendationRank'));
+    expect(widgets, contains("'APKs disponíveis'"));
+    expect(widgets, contains("'Recomendado'"));
   });
 }

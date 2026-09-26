@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:github_manager/features/builds/domain/apk_variant.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
 
 /// Grupo visual de arquivos que pertencem à mesma versão publicada.
@@ -80,24 +81,9 @@ String? releaseAssetVersion(ReleaseAsset asset) {
 }
 
 String releaseAssetVariantLabel(ReleaseAsset asset) {
+  final info = ApkVariantInfo.fromName(asset.name);
+  if (info.architecture != ApkArchitecture.unknown) return info.shortLabel;
   final lower = asset.name.toLowerCase();
-  if (lower.contains('universal') ||
-      lower.contains('fat-apk') ||
-      lower.contains('-all.')) {
-    return 'Universal';
-  }
-  if (lower.contains('arm64-v8a') ||
-      lower.contains('arm64') ||
-      lower.contains('aarch64')) {
-    return 'ARM64';
-  }
-  if (lower.contains('armeabi-v7a') ||
-      lower.contains('armv7') ||
-      lower.contains('v7a')) {
-    return 'ARMv7';
-  }
-  if (lower.contains('x86_64')) return 'x86_64';
-  if (RegExp(r'(^|[-_.])x86($|[-_.])').hasMatch(lower)) return 'x86';
   if (lower.contains('performance')) return 'Performance';
   if (lower.contains('profile')) return 'Profile';
   if (lower.contains('debug')) return 'Debug';

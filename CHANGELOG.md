@@ -1,3 +1,17 @@
+## 2.0.106+200120 — 2026-09-26
+
+- substitui o diagnóstico longo embutido nos detalhes da execução por um resumo compacto com **Ver erros**;
+- adiciona janela dedicada de erros com navegação entre falhas, explicação leiga, causa identificada/possível causa, orientação de correção e detalhes técnicos recolhidos;
+- só usa o rótulo **Causa identificada** quando a leitura do log comprova uma assinatura técnica forte;
+- adiciona ações **Copiar erro**, **Copiar diagnóstico** e **Logs completos** na janela de falhas;
+- faz o botão **APK** consultar os arquivos ligados à execução/commit em vez de abrir silenciosamente uma lista genérica;
+- corrige também a tela global **Builds**, que antes podia escolher o primeiro artifact/APK encontrado, e faz o atalho APK do repositório abrir a lista explícita em vez de baixar uma opção silenciosamente;
+- adiciona seletor de APK por arquitetura com versão, execução, tamanho, origem e recomendação baseada em `Build.SUPPORTED_ABIS`;
+- prioriza APK específico compatível com a ABI principal do aparelho antes do Universal e alerta antes de baixar variantes incompatíveis;
+- adiciona informações do aparelho nas Configurações: modelo, Android/API, ABI principal, ABIs suportadas e suporte a 64 bits;
+- preserva a preferência de ABI ao extrair APKs de Artifacts e nas tentativas de download;
+- atualiza versão, Novidades, Configurações, README, AI_HANDOFF, VERSIONING, RELEASE e VALIDATION para `2.0.106+200120`.
+
 ## 2.0.105+200119 — 2026-09-26
 
 - reorganiza o bottom sheet de detalhes dos Builds para reduzir densidade e repetição de informações;

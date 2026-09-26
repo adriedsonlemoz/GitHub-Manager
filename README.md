@@ -1,4 +1,18 @@
-# GitHub Manager 2.0.105
+# GitHub Manager 2.0.106
+
+## Builds explicados e APK certo para o aparelho 2.0.106
+
+- falhas de build deixam de crescer dentro dos detalhes da execução e passam a usar o resumo compacto **erro(s) encontrado(s) — Ver erros**;
+- **Ver erros** abre uma janela dedicada com navegação entre falhas e blocos em linguagem simples: O que aconteceu, Onde aconteceu, Causa identificada/Possível causa e Como corrigir;
+- **Causa identificada** só é usada quando a leitura automática do log encontrou uma assinatura técnica forte; nos demais casos o aplicativo apresenta **Possível causa**;
+- mensagem original e contexto do GitHub ficam recolhidos em **Detalhes técnicos**, com ações para copiar erro, copiar diagnóstico e baixar logs completos;
+- o botão **APK** de uma execução consulta apenas artifacts e Releases realmente vinculados àquela build antes de oferecer download;
+- a tela global **Builds** usa a mesma seleção segura e o atalho APK do repositório abre a lista explícita, eliminando caminhos que escolhiam o primeiro arquivo silenciosamente;
+- quando existem várias variantes, o seletor mostra versão, execução, arquitetura, tamanho e origem e recomenda a ABI específica compatível com `Build.SUPPORTED_ABIS`;
+- APK incompatível com as ABIs do aparelho gera um aviso antes do download; Universal continua disponível como opção para compartilhamento;
+- Configurações passa a mostrar modelo, Android, arquitetura principal, ABIs suportadas e suporte a 64 bits, sem permissão especial;
+- ao extrair APKs de um Artifact, a preferência de ABI também é preservada na Central de Downloads e em tentativas de retomada.
+
 
 
 ## Detalhes de builds mais claros 2.0.105
@@ -334,7 +348,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.105+200119`;
+- versão: `2.0.106+200120`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

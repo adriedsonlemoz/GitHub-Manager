@@ -438,294 +438,715 @@ class _InfoLine extends StatelessWidget {
   }
 }
 
-class _FailureSummaryCard extends ConsumerStatefulWidget {
+class _FailureSummaryCard extends StatelessWidget {
   const _FailureSummaryCard({
     required this.repositoryFullName,
     required this.run,
-    required this.job,
+    required this.jobs,
   });
 
   final String repositoryFullName;
   final RepositoryWorkflowRun run;
-  final RepositoryWorkflowJob job;
-
-  @override
-  ConsumerState<_FailureSummaryCard> createState() =>
-      _FailureSummaryCardState();
-}
-
-class _FailureSummaryCardState extends ConsumerState<_FailureSummaryCard> {
-  late Future<RepositoryWorkflowFailure?> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = _load();
-  }
-
-  @override
-  void didUpdateWidget(covariant _FailureSummaryCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.run.id != widget.run.id || oldWidget.job.id != widget.job.id) {
-      _future = _load();
-    }
-  }
-
-  Future<RepositoryWorkflowFailure?> _load() =>
-      ref.read(repositoryGitServiceProvider).loadWorkflowFailure(
-            repositoryFullName: widget.repositoryFullName,
-            runId: widget.run.id,
-            job: widget.job,
-          );
+  final List<RepositoryWorkflowJob> jobs;
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<RepositoryWorkflowFailure?>(
-      future: _future,
-      builder: (context, snapshot) {
-        final failure = snapshot.data;
-        RepositoryWorkflowStep? failedStepModel;
-        for (final step in widget.job.steps) {
-          if (step.failed) {
-            failedStepModel = step;
-            break;
-          }
-        }
-        final jobName = failure?.jobName ?? widget.job.name;
-        final stepName = failure?.stepName ??
-            failedStepModel?.name ??
-            'etapa não identificada';
-        final stepTiming = failedStepModel == null
-            ? ''
-            : '\nInício da etapa: ${_RepositoryActionsScreenState._formatDate(failedStepModel.startedAt)}'
-                '\nFim da etapa: ${_RepositoryActionsScreenState._formatDate(failedStepModel.completedAt)}'
-                '\nDuração: ${_RepositoryActionsScreenState._formatSpan(failedStepModel.startedAt, failedStepModel.completedAt)}';
-        final laterNotRun = failedStepModel == null
-            ? 0
-            : widget.job.steps
-                .where(
-                  (step) =>
-                      step.number > failedStepModel!.number &&
-                      (step.conclusion == 'skipped' ||
-                          step.conclusion == 'cancelled' ||
-                          step.status != 'completed'),
-                )
-                .length;
-        final whatHappened = laterNotRun > 0
-            ? 'A execução falhou no job “$jobName”, durante a etapa “$stepName”. Depois dessa falha, $laterNotRun etapa(s) posterior(es) não foram concluída(s).'
-            : 'A execução terminou com falha no job “$jobName”, durante a etapa “$stepName”.';
-        final scheme = Theme.of(context).colorScheme;
-
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(11),
-          decoration: BoxDecoration(
-            color: scheme.errorContainer.withValues(alpha: .42),
-            borderRadius: BorderRadius.circular(4),
+    final scheme = Theme.of(context).colorScheme;
+    final count = jobs.length;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(11, 10, 9, 10),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer.withValues(alpha: .42),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline_rounded, color: scheme.error, size: 21),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$count ${count == 1 ? 'erro encontrado' : 'erros encontrados'}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: scheme.error,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  count == 1
+                      ? 'Veja o que aconteceu, a possível causa e como corrigir.'
+                      : 'Abra a análise e navegue por cada falha separadamente.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(width: 8),
+          FilledButton.tonalIcon(
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => _FailureDetailsDialog(
+                repositoryFullName: repositoryFullName,
+                run: run,
+                jobs: jobs,
+              ),
+            ),
+            icon: const Icon(Icons.manage_search_rounded, size: 18),
+            label: const Text('Ver erros'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FailureDetailsDialog extends ConsumerStatefulWidget {
+  const _FailureDetailsDialog({
+    required this.repositoryFullName,
+    required this.run,
+    required this.jobs,
+  });
+
+  final String repositoryFullName;
+  final RepositoryWorkflowRun run;
+  final List<RepositoryWorkflowJob> jobs;
+
+  @override
+  ConsumerState<_FailureDetailsDialog> createState() => _FailureDetailsDialogState();
+}
+
+class _FailureDetailsDialogState extends ConsumerState<_FailureDetailsDialog> {
+  final Map<int, Future<RepositoryWorkflowFailure?>> _futures = {};
+  int _index = 0;
+
+  Future<RepositoryWorkflowFailure?> _futureFor(RepositoryWorkflowJob job) =>
+      _futures.putIfAbsent(
+        job.id,
+        () => ref.read(repositoryGitServiceProvider).loadWorkflowFailure(
+              repositoryFullName: widget.repositoryFullName,
+              runId: widget.run.id,
+              job: job,
+            ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final job = widget.jobs[_index];
+    final total = widget.jobs.length;
+    final scheme = Theme.of(context).colorScheme;
+    final media = MediaQuery.sizeOf(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 720,
+          maxHeight: media.height * .88,
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
+              child: Row(
                 children: [
-                  Icon(
-                    Icons.error_outline_rounded,
-                    color: scheme.error,
-                    size: 21,
-                  ),
+                  Icon(Icons.error_outline_rounded, color: scheme.error),
                   const SizedBox(width: 9),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Falha identificada',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                color: scheme.error,
+                          'Erros do Build',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w900,
                               ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          stepName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          'Erro ${_index + 1} de $total • ${widget.run.name} #${widget.run.runNumber}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
                         ),
                       ],
                     ),
                   ),
-                  if (snapshot.connectionState == ConnectionState.waiting)
-                    const SizedBox(
-                      width: 17,
-                      height: 17,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Fechar',
+                    icon: const Icon(Icons.close_rounded),
+                  ),
                 ],
               ),
-              const SizedBox(height: 9),
-              Text(
-                whatHappened,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: scheme.surface.withValues(alpha: .35),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  failure?.annotationMessage ??
-                      (snapshot.connectionState == ConnectionState.waiting
-                          ? 'Consultando o diagnóstico publicado pelo GitHub...'
-                          : 'O GitHub não publicou uma mensagem detalhada para esta falha.'),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Theme(
-                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.manage_search_rounded, size: 20),
-                  title: Text(
-                    'Detalhes do diagnóstico',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                  subtitle: const Text('Job, horários e contexto do log'),
-                  children: [
-                    _DiagnosticSection(
-                      title: 'Onde aconteceu',
-                      text: 'Job: $jobName\n'
-                          'Etapa: $stepName\n'
-                          'Tentativa: ${widget.run.runAttempt}$stepTiming',
-                    ),
-                    if (failure?.logHeadline != null) ...[
-                      const SizedBox(height: 7),
-                      _DiagnosticSection(
-                        title: 'Leitura do GitHub Manager',
-                        text:
-                            'Linha mais relevante localizada automaticamente no log: ${failure!.logHeadline}',
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: FutureBuilder<RepositoryWorkflowFailure?>(
+                future: _futureFor(job),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final failure = snapshot.data;
+                  final explanation = _BuildFailureExplanation.fromFailure(
+                    failure,
+                    job: job,
+                  );
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                    children: [
+                      _ErrorExplanationSection(
+                        title: 'O que aconteceu',
+                        icon: Icons.info_outline_rounded,
+                        text: explanation.whatHappened,
                       ),
-                    ],
-                    if (failure?.logContext.isNotEmpty == true) ...[
-                      const SizedBox(height: 7),
-                      Text(
-                        'Contexto do log',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
-                            ),
+                      const SizedBox(height: 12),
+                      _ErrorExplanationSection(
+                        title: 'Onde aconteceu',
+                        icon: Icons.location_on_outlined,
+                        text: explanation.whereHappened,
                       ),
-                      const SizedBox(height: 4),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: scheme.surface.withValues(alpha: .52),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: SelectableText(
-                          failure!.logContext.join('\n'),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                fontFamily: 'monospace',
-                                height: 1.3,
+                      const SizedBox(height: 12),
+                      _ErrorExplanationSection(
+                        title: explanation.causeIdentified
+                            ? 'Causa identificada'
+                            : 'Possível causa',
+                        icon: explanation.causeIdentified
+                            ? Icons.verified_outlined
+                            : Icons.help_outline_rounded,
+                        text: explanation.cause,
+                        emphasized: explanation.causeIdentified,
+                      ),
+                      const SizedBox(height: 12),
+                      _ErrorExplanationSection(
+                        title: 'Como corrigir',
+                        icon: Icons.build_outlined,
+                        text: explanation.fix,
+                      ),
+                      const SizedBox(height: 10),
+                      Theme(
+                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          childrenPadding: const EdgeInsets.only(bottom: 8),
+                          leading: const Icon(Icons.code_rounded, size: 20),
+                          title: const Text(
+                            'Detalhes técnicos',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          subtitle: const Text('Mensagem original e contexto do log'),
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerLow,
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                        ),
-                      ),
-                    ] else if (failure?.logUnavailableReason != null) ...[
-                      const SizedBox(height: 7),
-                      Text(
-                        'Leitura automática do log indisponível: ${failure!.logUnavailableReason}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onErrorContainer,
+                              child: SelectableText(
+                                explanation.technicalDetails,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontFamily: 'monospace',
+                                      height: 1.35,
+                                    ),
+                              ),
                             ),
-                      ),
-                    ],
-                    if (failure != null) ...[
-                      const SizedBox(height: 6),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: () => _copyDiagnostic(failure, stepName),
-                          icon: const Icon(Icons.copy_all_outlined, size: 18),
-                          label: const Text('Copiar diagnóstico'),
+                          ],
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 7,
+                        runSpacing: 7,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => _copyError(explanation),
+                            icon: const Icon(Icons.copy_rounded, size: 18),
+                            label: const Text('Copiar erro'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _copyDiagnostic(explanation),
+                            icon: const Icon(Icons.copy_all_outlined, size: 18),
+                            label: const Text('Copiar diagnóstico'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _downloadLogs,
+                            icon: const Icon(Icons.download_for_offline_outlined, size: 18),
+                            label: const Text('Logs completos'),
+                          ),
+                        ],
+                      ),
                     ],
+                  );
+                },
+              ),
+            ),
+            if (total > 1) ...[
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 7, 10, 9),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: _index == 0
+                            ? null
+                            : () => setState(() => _index--),
+                        icon: const Icon(Icons.chevron_left_rounded),
+                        label: const Text('Anterior'),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        '${_index + 1}/$total',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: _index >= total - 1
+                            ? null
+                            : () => setState(() => _index++),
+                        icon: const Icon(Icons.chevron_right_rounded),
+                        label: const Text('Próximo'),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
-  Future<void> _copyDiagnostic(
-    RepositoryWorkflowFailure failure,
-    String stepName,
-  ) async {
+  Future<void> _copyError(_BuildFailureExplanation explanation) async {
+    await Clipboard.setData(ClipboardData(text: explanation.rawError));
+    if (mounted) showCenteredNotice(context, 'Erro copiado.');
+  }
+
+  Future<void> _copyDiagnostic(_BuildFailureExplanation explanation) async {
     final run = widget.run;
-    final lines = <String>[
+    final text = <String>[
       'GitHub Manager — diagnóstico de build',
       'Repositório: ${widget.repositoryFullName}',
       'Execução: ${run.name} #${run.runNumber}',
-      'Status: ${_RepositoryActionsScreenState._statusLabel(run)}',
       if (run.detectedVersion != null) 'Versão: ${run.detectedVersion}',
-      'Evento: ${run.event.isEmpty ? '-' : run.event}',
       'Branch: ${run.branch}',
-      'Commit: ${run.shortSha.isEmpty ? '-' : run.shortSha}',
-      'Tentativa: ${run.runAttempt}',
-      'Criada: ${_RepositoryActionsScreenState._formatDate(run.createdAt)}',
-      'Iniciada: ${_RepositoryActionsScreenState._formatDate(run.startedAt)}',
-      'Finalizada: ${_RepositoryActionsScreenState._formatDate(run.updatedAt)}',
-      'Job: ${failure.jobName}',
-      'Etapa: $stepName',
-      'GitHub informou: ${failure.annotationMessage ?? 'sem annotation detalhada'}',
-      if (failure.logHeadline != null)
-        'Linha relevante do log: ${failure.logHeadline}',
-      if (failure.logContext.isNotEmpty) ...[
-        'Contexto do log:',
-        ...failure.logContext,
-      ],
-    ];
-    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
-    if (mounted) {
-      showCenteredNotice(context, 'Diagnóstico copiado.');
-    }
+      'Commit: ${run.shortSha}',
+      '',
+      'O que aconteceu: ${explanation.whatHappened}',
+      'Onde aconteceu: ${explanation.whereHappened}',
+      '${explanation.causeIdentified ? 'Causa identificada' : 'Possível causa'}: ${explanation.cause}',
+      'Como corrigir: ${explanation.fix}',
+      '',
+      'Detalhes técnicos:',
+      explanation.technicalDetails,
+    ].join('\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) showCenteredNotice(context, 'Diagnóstico copiado.');
+  }
+
+  void _downloadLogs() {
+    ref.read(downloadManagerProvider).startWorkflowLogs(
+          repositoryFullName: widget.repositoryFullName,
+          runId: widget.run.id,
+          runTitle: '${widget.run.name}-${widget.run.runNumber}',
+        );
+    showCenteredNotice(
+      context,
+      'Download dos logs completos iniciado. Acompanhe pela Central de Downloads.',
+    );
   }
 }
 
-class _DiagnosticSection extends StatelessWidget {
-  const _DiagnosticSection({required this.title, required this.text});
+class _ErrorExplanationSection extends StatelessWidget {
+  const _ErrorExplanationSection({
+    required this.title,
+    required this.icon,
+    required this.text,
+    this.emphasized = false,
+  });
 
   final String title;
+  final IconData icon;
   final String text;
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 2),
-        Text(text, style: Theme.of(context).textTheme.bodySmall),
-      ],
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: emphasized
+            ? scheme.primaryContainer.withValues(alpha: .38)
+            : scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 19, color: emphasized ? scheme.primary : scheme.onSurfaceVariant),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 3),
+                Text(text),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
+
+class _BuildFailureExplanation {
+  const _BuildFailureExplanation({
+    required this.whatHappened,
+    required this.whereHappened,
+    required this.cause,
+    required this.fix,
+    required this.causeIdentified,
+    required this.technicalDetails,
+    required this.rawError,
+  });
+
+  final String whatHappened;
+  final String whereHappened;
+  final String cause;
+  final String fix;
+  final bool causeIdentified;
+  final String technicalDetails;
+  final String rawError;
+
+  factory _BuildFailureExplanation.fromFailure(
+    RepositoryWorkflowFailure? failure, {
+    required RepositoryWorkflowJob job,
+  }) {
+    RepositoryWorkflowStep? failedStep;
+    for (final step in job.steps) {
+      if (step.failed) {
+        failedStep = step;
+        break;
+      }
+    }
+    final stepName = failure?.stepName ?? failedStep?.name ?? 'Etapa não identificada';
+    final message = failure?.message.trim().isNotEmpty == true
+        ? failure!.message.trim()
+        : 'O GitHub marcou esta etapa como falha, mas não publicou uma mensagem detalhada.';
+    final technical = <String>[
+      'Job: ${failure?.jobName ?? job.name}',
+      'Etapa: $stepName',
+      if (failure?.annotationMessage?.trim().isNotEmpty == true)
+        'GitHub: ${failure!.annotationMessage!.trim()}',
+      if (failure?.logHeadline?.trim().isNotEmpty == true)
+        'Linha relevante: ${failure!.logHeadline!.trim()}',
+      if (failure?.logContext.isNotEmpty == true) ...[
+        '',
+        'Contexto do log:',
+        ...failure!.logContext,
+      ],
+      if (failure?.logUnavailableReason?.trim().isNotEmpty == true)
+        'Leitura automática do log indisponível: ${failure!.logUnavailableReason}',
+    ].join('\n');
+    final corpus = <String>[
+      message,
+      failure?.annotationMessage ?? '',
+      failure?.logHeadline ?? '',
+      ...?failure?.logContext,
+    ].join('\n').toLowerCase();
+    final logCorpus = <String>[
+      failure?.logHeadline ?? '',
+      ...?failure?.logContext,
+    ].join('\n').toLowerCase();
+    final provenByLog = failure?.logsInspected == true &&
+        failure?.logHeadline?.trim().isNotEmpty == true;
+
+    String cause;
+    String fix;
+    var strongSignature = false;
+    if (corpus.contains('no space left on device')) {
+      strongSignature = true;
+      cause = 'O ambiente de build ficou sem espaço em disco durante a execução.';
+      fix = 'Reduza arquivos gerados/cache do workflow ou libere espaço antes de compilar novamente.';
+    } else if (corpus.contains('keystore') &&
+        (corpus.contains('not found') ||
+            corpus.contains('does not exist') ||
+            corpus.contains('failed to read key') ||
+            corpus.contains('password was incorrect'))) {
+      strongSignature = true;
+      cause = 'A assinatura Android não conseguiu acessar corretamente o keystore ou suas credenciais.';
+      fix = 'Confira o arquivo de keystore, alias e secrets de senha usados no workflow. Verifique também se o arquivo é criado no caminho esperado antes do Gradle.';
+    } else if (corpus.contains('manifest merger failed')) {
+      strongSignature = true;
+      cause = 'O Android não conseguiu combinar os manifests do aplicativo e das dependências.';
+      fix = 'Abra as linhas logo abaixo de “Manifest merger failed” e ajuste o atributo, permissão ou componente que entrou em conflito.';
+    } else if (corpus.contains('requires compilesdk') ||
+        (corpus.contains('compilesdk') && corpus.contains('at least'))) {
+      strongSignature = true;
+      cause = 'Uma dependência exige um compileSdk mais novo do que o configurado no projeto.';
+      fix = 'Aumente o compileSdk para a versão mínima indicada no log e confirme a compatibilidade do Android Gradle Plugin/Gradle.';
+    } else if (corpus.contains('uses-sdk:minsdkversion') ||
+        corpus.contains('minsdkversion') && corpus.contains('cannot be smaller')) {
+      strongSignature = true;
+      cause = 'Uma dependência exige uma versão mínima do Android maior do que o minSdk atual.';
+      fix = 'Ajuste o minSdk se isso for aceitável ou use uma versão da dependência compatível com o minSdk do projeto.';
+    } else if (corpus.contains('could not resolve') ||
+        corpus.contains('failed to resolve') ||
+        corpus.contains('could not find ')) {
+      strongSignature = true;
+      cause = 'O sistema de build não conseguiu localizar ou baixar uma dependência necessária.';
+      fix = 'Confira o nome/versão da dependência, os repositórios configurados e se a execução tem acesso à internet ou a credenciais privadas necessárias.';
+    } else if (corpus.contains('unresolved reference') ||
+        corpus.contains('cannot find symbol') ||
+        corpus.contains("isn't defined") ||
+        corpus.contains('undefined name')) {
+      strongSignature = true;
+      cause = 'O compilador encontrou uma referência de código que não existe ou não está acessível.';
+      fix = 'Abra o arquivo e a linha indicados no log e corrija o nome, import, classe, método ou variável ausente.';
+    } else if ((corpus.contains('aapt2') && corpus.contains('error')) ||
+        corpus.contains('resource linking failed') ||
+        corpus.contains('resource not found')) {
+      strongSignature = true;
+      cause = 'A etapa de recursos Android falhou ao compilar ou localizar um recurso.';
+      fix = 'Confira o recurso citado no log, incluindo XML, drawable, string, tema ou referência inexistente, e execute o build novamente.';
+    } else if (corpus.contains('permission denied')) {
+      strongSignature = true;
+      cause = 'Uma etapa tentou acessar ou executar um arquivo sem permissão suficiente.';
+      fix = 'Confira permissões do arquivo/script e, no workflow, garanta chmod adequado antes de executá-lo.';
+    } else {
+      cause = message;
+      fix = 'Use os detalhes técnicos para localizar a primeira mensagem específica de erro. Se ela apontar um arquivo ou etapa, corrija esse ponto e execute o workflow novamente.';
+    }
+
+    final identified = provenByLog &&
+        strongSignature &&
+        _containsStrongFailureSignature(logCorpus);
+    return _BuildFailureExplanation(
+      whatHappened: 'A execução falhou no job “${failure?.jobName ?? job.name}”, durante a etapa “$stepName”.',
+      whereHappened: 'Job: ${failure?.jobName ?? job.name}\nEtapa: $stepName${failedStep == null ? '' : '\nDuração: ${_RepositoryActionsScreenState._formatSpan(failedStep.startedAt, failedStep.completedAt)}'}',
+      cause: cause,
+      fix: fix,
+      causeIdentified: identified,
+      technicalDetails: technical,
+      rawError: message,
+    );
+  }
+
+  static bool _containsStrongFailureSignature(String corpus) {
+    if (corpus.contains('no space left on device')) return true;
+    if (corpus.contains('keystore') &&
+        (corpus.contains('not found') ||
+            corpus.contains('does not exist') ||
+            corpus.contains('failed to read key') ||
+            corpus.contains('password was incorrect'))) {
+      return true;
+    }
+    if (corpus.contains('manifest merger failed')) return true;
+    if (corpus.contains('requires compilesdk') ||
+        (corpus.contains('compilesdk') && corpus.contains('at least'))) {
+      return true;
+    }
+    if (corpus.contains('uses-sdk:minsdkversion') ||
+        (corpus.contains('minsdkversion') &&
+            corpus.contains('cannot be smaller'))) {
+      return true;
+    }
+    if (corpus.contains('could not resolve') ||
+        corpus.contains('failed to resolve') ||
+        corpus.contains('could not find ')) {
+      return true;
+    }
+    if (corpus.contains('unresolved reference') ||
+        corpus.contains('cannot find symbol') ||
+        corpus.contains("isn't defined") ||
+        corpus.contains('undefined name')) {
+      return true;
+    }
+    if ((corpus.contains('aapt2') && corpus.contains('error')) ||
+        corpus.contains('resource linking failed') ||
+        corpus.contains('resource not found')) {
+      return true;
+    }
+    return corpus.contains('permission denied');
+  }
+}
+
+class _RunApkCandidate {
+  const _RunApkCandidate._({this.release, this.artifact});
+
+  factory _RunApkCandidate.fromRelease(ReleaseAsset asset) =>
+      _RunApkCandidate._(release: asset);
+  factory _RunApkCandidate.fromArtifact(ActionArtifact artifact) =>
+      _RunApkCandidate._(artifact: artifact);
+
+  final ReleaseAsset? release;
+  final ActionArtifact? artifact;
+
+  String get name => release?.name ?? artifact!.name;
+  int get sizeBytes => release?.sizeBytes ?? artifact!.sizeBytes;
+  ApkVariantInfo get variant => ApkVariantInfo.fromName(name);
+  String originLabel(int runNumber) => release != null
+      ? 'Release ${release!.tagName}'
+      : 'Artifact da execução #$runNumber';
+}
+
+class _RunApkPickerSheet extends StatelessWidget {
+  const _RunApkPickerSheet({
+    required this.run,
+    required this.candidates,
+    required this.deviceInfo,
+    required this.recommendedName,
+  });
+
+  final RepositoryWorkflowRun run;
+  final List<_RunApkCandidate> candidates;
+  final AndroidDeviceInfo? deviceInfo;
+  final String? recommendedName;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final version = run.detectedVersion;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'APKs disponíveis',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${version == null ? '' : 'v$version • '}execução #${run.runNumber}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          if (deviceInfo != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: .35),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'Seu aparelho: ${deviceInfo!.primaryAbi} • ${deviceInfo!.supports64Bit ? 'suporta 64 bits' : '32 bits'}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 520),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: candidates.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 7),
+              itemBuilder: (context, index) {
+                final candidate = candidates[index];
+                final recommended = candidate.name == recommendedName;
+                final compatible = deviceInfo == null ||
+                    apkNameIsCompatible(candidate.name, deviceInfo!.supportedAbis);
+                return Material(
+                  color: recommended
+                      ? scheme.primaryContainer.withValues(alpha: .30)
+                      : scheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(4),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(4),
+                    onTap: () => Navigator.pop(context, candidate),
+                    child: Padding(
+                      padding: const EdgeInsets.all(11),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            compatible ? Icons.android_rounded : Icons.warning_amber_rounded,
+                            color: compatible ? scheme.primary : scheme.error,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        candidate.variant.label,
+                                        style: const TextStyle(fontWeight: FontWeight.w900),
+                                      ),
+                                    ),
+                                    if (recommended)
+                                      const Chip(
+                                        visualDensity: VisualDensity.compact,
+                                        label: Text('Recomendado'),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  candidate.variant.description,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${candidate.name} • ${_formatApkBytes(candidate.sizeBytes)} • ${candidate.originLabel(run.runNumber)}',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                if (!compatible) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Não corresponde às arquiteturas informadas por este aparelho.',
+                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                          color: scheme.error,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.chevron_right_rounded),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatApkBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  final kb = bytes / 1024;
+  if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+  final mb = kb / 1024;
+  return '${mb.toStringAsFixed(1)} MB';
 }
 
 class _RunStatusIcon extends StatelessWidget {

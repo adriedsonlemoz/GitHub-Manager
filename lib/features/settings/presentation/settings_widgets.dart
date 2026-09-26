@@ -182,3 +182,107 @@ class _IntegrationLoadingCard extends StatelessWidget {
         ),
       );
 }
+
+class _DeviceInformationCard extends StatefulWidget {
+  const _DeviceInformationCard();
+
+  @override
+  State<_DeviceInformationCard> createState() => _DeviceInformationCardState();
+}
+
+class _DeviceInformationCardState extends State<_DeviceInformationCard> {
+  late final Future<AndroidDeviceInfo> _future = PlatformActions.getAndroidDeviceInfo();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: FutureBuilder<AndroidDeviceInfo>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: 12),
+                  Text('Lendo informações do Android…'),
+                ],
+              ),
+            );
+          }
+          if (snapshot.hasError || !snapshot.hasData) {
+            return const ListTile(
+              leading: Icon(Icons.phone_android_outlined),
+              title: Text('Informações do aparelho indisponíveis'),
+              subtitle: Text('Não foi possível consultar a arquitetura neste momento.'),
+            );
+          }
+          final info = snapshot.data!;
+          final maker = info.manufacturer.trim();
+          final model = info.model.trim();
+          final deviceName = maker.isEmpty || model.toLowerCase().startsWith(maker.toLowerCase())
+              ? model
+              : '$maker $model';
+          final primary = info.primaryAbi;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.phone_android_rounded, color: scheme.primary),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        deviceName.isEmpty ? 'Aparelho Android' : deviceName,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _DeviceInfoLine(label: 'Android', value: '${info.androidRelease} (API ${info.sdkInt})'),
+                _DeviceInfoLine(label: 'Arquitetura principal', value: primary),
+                _DeviceInfoLine(
+                  label: 'Arquiteturas suportadas',
+                  value: info.supportedAbis.isEmpty ? 'Não informado' : info.supportedAbis.join(', '),
+                ),
+                _DeviceInfoLine(label: 'Suporte a 64 bits', value: info.supports64Bit ? 'Sim' : 'Não'),
+                const SizedBox(height: 7),
+                Text(
+                  'Esses dados vêm do próprio Android e são usados apenas para recomendar o APK compatível. Nenhuma permissão especial é necessária.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DeviceInfoLine extends StatelessWidget {
+  const _DeviceInfoLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 5),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 138,
+              child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            Expanded(child: Text(value)),
+          ],
+        ),
+      );
+}

@@ -1,10 +1,19 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.105+200119`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.106+200120`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
+## Alterações 2.0.106
 
-
+- detalhes de Builds mostram apenas um resumo compacto de falhas; **Ver erros** abre `_FailureDetailsDialog` com uma falha por vez;
+- `_BuildFailureExplanation` usa regras determinísticas sobre logs/annotations e só marca **Causa identificada** quando `logsInspected` e uma assinatura forte confirmam a causa;
+- o botão APK usa `ArtifactService.listArtifactsForRun` + `findReleaseApksForBuild` para limitar opções à execução/commit atual; a tela global **Builds** segue a mesma regra e não pode voltar a selecionar `first` silenciosamente;
+- `PlatformActions.getAndroidDeviceInfo()` e `MainActivity.getDeviceInfo` expõem `Build.SUPPORTED_ABIS`, `SUPPORTED_64_BIT_ABIS`, modelo e versão do Android sem permissão;
+- `ApkVariantInfo` centraliza detecção de arm64-v8a, armeabi-v7a, x86_64, x86, Universal e compatibilidade;
+- APK específico da ABI principal é recomendado antes do Universal; seleção incompatível exige confirmação;
+- `DownloadManagerService` persiste ABI principal/lista de ABIs no download para selecionar o APK correto quando um Artifact contém várias variantes e manter isso em retry;
+- Configurações mostra as informações de arquitetura do aparelho;
+- preservar o fallback **Ver todos os APKs** quando nenhuma associação segura com a execução for encontrada.
 
 ## Alterações 2.0.105
 

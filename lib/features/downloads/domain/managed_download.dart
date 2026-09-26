@@ -20,6 +20,8 @@ class ManagedDownload {
     this.repositoryFullName,
     this.sourceEndpoint,
     this.artifactId,
+    this.preferredAbi,
+    this.preferredAbis = const <String>[],
     this.localPath,
     this.workingPath,
     this.startedAt,
@@ -45,6 +47,8 @@ class ManagedDownload {
   final String? repositoryFullName;
   String? sourceEndpoint;
   int? artifactId;
+  String? preferredAbi;
+  final List<String> preferredAbis;
   String? localPath;
   String? workingPath;
   DateTime? startedAt;
@@ -128,6 +132,8 @@ class ManagedDownload {
       'Tipo: $typeLabel',
       'Status: $statusLabel',
       if (repositoryFullName != null) 'Repositório: $repositoryFullName',
+      if (preferredAbi?.isNotEmpty == true) 'ABI preferida: $preferredAbi',
+      if (preferredAbis.isNotEmpty) 'ABIs compatíveis: ${preferredAbis.join(', ')}',
       if (sourceEndpoint != null) 'Endpoint: $sourceEndpoint',
       if (workingPath != null) 'Arquivo parcial: preservado para retomada',
       if (httpStatus != null) 'HTTP: $httpStatus',
@@ -180,6 +186,8 @@ class ManagedDownload {
         'repositoryFullName': repositoryFullName,
         'sourceEndpoint': sourceEndpoint,
         'artifactId': artifactId,
+        'preferredAbi': preferredAbi,
+        'preferredAbis': preferredAbis,
         'localPath': localPath,
         'workingPath': workingPath,
         'startedAt': startedAt?.toIso8601String(),
@@ -216,6 +224,12 @@ class ManagedDownload {
       repositoryFullName: json['repositoryFullName']?.toString(),
       sourceEndpoint: json['sourceEndpoint']?.toString(),
       artifactId: (json['artifactId'] as num?)?.toInt(),
+      preferredAbi: json['preferredAbi']?.toString(),
+      preferredAbis: (json['preferredAbis'] as List?)
+              ?.map((value) => value.toString())
+              .where((value) => value.isNotEmpty)
+              .toList(growable: false) ??
+          const <String>[],
       localPath: json['localPath']?.toString(),
       workingPath: json['workingPath']?.toString(),
       startedAt: DateTime.tryParse(json['startedAt']?.toString() ?? ''),

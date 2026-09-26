@@ -195,7 +195,9 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                                     )
                                 : latestApk == null
                                     ? null
-                                    : () => _downloadLatestApk(repository, latestApk),
+                                    : () => context.push(
+                                          '/repositories/${repository.fullName}/artifacts',
+                                        ),
                           ),
                         ),
                       ],

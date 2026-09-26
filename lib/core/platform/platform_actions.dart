@@ -1,5 +1,44 @@
 import 'package:flutter/services.dart';
 
+
+class AndroidDeviceInfo {
+  const AndroidDeviceInfo({
+    required this.manufacturer,
+    required this.model,
+    required this.androidRelease,
+    required this.sdkInt,
+    required this.supportedAbis,
+    required this.supported64BitAbis,
+  });
+
+  final String manufacturer;
+  final String model;
+  final String androidRelease;
+  final int sdkInt;
+  final List<String> supportedAbis;
+  final List<String> supported64BitAbis;
+
+  String get primaryAbi => supportedAbis.isEmpty ? 'desconhecida' : supportedAbis.first;
+  bool get supports64Bit => supported64BitAbis.isNotEmpty;
+
+  factory AndroidDeviceInfo.fromMap(Map<String, Object?> map) => AndroidDeviceInfo(
+        manufacturer: map['manufacturer']?.toString() ?? '',
+        model: map['model']?.toString() ?? 'Android',
+        androidRelease: map['androidRelease']?.toString() ?? '-',
+        sdkInt: (map['sdkInt'] as num?)?.toInt() ?? 0,
+        supportedAbis: (map['supportedAbis'] as List?)
+                ?.map((value) => value.toString())
+                .where((value) => value.isNotEmpty)
+                .toList(growable: false) ??
+            const <String>[],
+        supported64BitAbis: (map['supported64BitAbis'] as List?)
+                ?.map((value) => value.toString())
+                .where((value) => value.isNotEmpty)
+                .toList(growable: false) ??
+            const <String>[],
+      );
+}
+
 class ActivityLaunchState {
   const ActivityLaunchState({
     required this.cachedEngineReattach,
@@ -149,6 +188,17 @@ abstract final class PlatformActions {
 
   static Future<String?> consumeNativeEngineLifecycleReport() =>
       _channel.invokeMethod<String>('consumeNativeEngineLifecycleReport');
+
+  static Future<AndroidDeviceInfo> getAndroidDeviceInfo() async {
+    final raw = await _channel.invokeMapMethod<String, Object?>('getDeviceInfo');
+    if (raw == null) {
+      throw PlatformException(
+        code: 'DEVICE_INFO_UNAVAILABLE',
+        message: 'O Android não retornou as informações do aparelho.',
+      );
+    }
+    return AndroidDeviceInfo.fromMap(raw);
+  }
 
   static Future<ActivityLaunchState> getActivityLaunchState() async {
     final raw = await _channel.invokeMapMethod<String, Object?>(
