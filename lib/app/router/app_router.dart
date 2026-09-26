@@ -19,10 +19,10 @@ import 'package:github_manager/features/setup/presentation/setup_wizard_screen.d
 import 'package:github_manager/features/uploads/presentation/uploads_screen.dart';
 import 'package:go_router/go_router.dart';
 
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/',
   routes: [
     GoRoute(

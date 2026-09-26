@@ -25,10 +25,15 @@ import java.io.FileOutputStream
 
 class MainActivity : FlutterActivity() {
     private var pendingStoragePermissionResult: MethodChannel.Result? = null
+    private var reattachingCachedEngineOnCreate = false
+    private var restoredActivityStateOnCreate = false
+    private var flutterUiDisplayed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val reattachingCachedEngine = cachedRunningEngine() != null
-        if (reattachingCachedEngine) {
+        reattachingCachedEngineOnCreate = cachedRunningEngine() != null
+        restoredActivityStateOnCreate = savedInstanceState != null
+        flutterUiDisplayed = false
+        if (reattachingCachedEngineOnCreate) {
             // O engine já desenhou o primeiro frame em uma Activity anterior.
             // Troca o LaunchTheme antes do attach para não manter a splash nativa
             // aguardando um "primeiro frame" que já aconteceu nesse isolate.
@@ -37,12 +42,12 @@ class MainActivity : FlutterActivity() {
 
         super.onCreate(savedInstanceState)
 
-        if (reattachingCachedEngine) {
+        if (reattachingCachedEngineOnCreate) {
             window.setBackgroundDrawableResource(android.R.color.transparent)
             GitHubManagerApplication.recordCachedEngineReattach(
                 context = applicationContext,
                 taskId = taskId,
-                restoredActivityState = savedInstanceState != null,
+                restoredActivityState = restoredActivityStateOnCreate,
             )
         }
         cleanupDuplicateRecentTasks()
@@ -55,6 +60,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onFlutterUiDisplayed() {
         super.onFlutterUiDisplayed()
+        flutterUiDisplayed = true
         // Garante que nenhum background do LaunchTheme sobreviva ao momento em
         // que a FlutterView já está efetivamente renderizando pixels.
         setTheme(R.style.NormalTheme)
@@ -186,6 +192,16 @@ class MainActivity : FlutterActivity() {
                 "consumeNativeEngineLifecycleReport" -> {
                     result.success(
                         GitHubManagerApplication.consumePendingEngineLifecycle(applicationContext),
+                    )
+                }
+                "getActivityLaunchState" -> {
+                    result.success(
+                        mapOf(
+                            "cachedEngineReattach" to reattachingCachedEngineOnCreate,
+                            "flutterUiDisplayed" to flutterUiDisplayed,
+                            "taskId" to taskId,
+                            "restoredActivityState" to restoredActivityStateOnCreate,
+                        ),
                     )
                 }
                 else -> result.notImplemented()

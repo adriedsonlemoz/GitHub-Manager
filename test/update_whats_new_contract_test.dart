@@ -14,20 +14,58 @@ void main() {
     expect(theme, isNot(contains('BorderRadius.circular(22)')));
   });
 
-  test('novidades são controladas por versão e só marcam após continuar', () {
-    final gate = File(
-      'lib/features/update/presentation/startup_update_gate.dart',
+  test('novidades automáticas usam rota opaca fora do MaterialApp.builder', () {
+    final coordinator = File(
+      'lib/features/update/application/startup_update_coordinator.dart',
     ).readAsStringSync();
     final app = File('lib/app/github_manager_app.dart').readAsStringSync();
+    final main = File('lib/main.dart').readAsStringSync();
 
-    expect(gate, contains("'app.whats_new.last_seen_version'"));
-    expect(gate, contains('InstalledVersionBanner.versionLabel'));
-    expect(gate, contains('.readJson(_lastSeenVersionKey)'));
-    expect(gate, contains('.putJson(_lastSeenVersionKey, version)'));
-    expect(gate, contains('await _markVersionAsSeen(version)'));
-    expect(gate, isNot(contains('unawaited(_markVersionAsSeen(version))')));
-    expect(gate, contains('addPostFrameCallback'));
-    expect(app, contains('StartupUpdateGate('));
+    expect(app, isNot(contains('StartupUpdateGate')));
+    expect(app, isNot(contains('startup_update_gate.dart')));
+    expect(coordinator, contains("'app.whats_new.last_seen_version'"));
+    expect(coordinator, contains('MaterialPageRoute<bool>'));
+    expect(coordinator, contains("RouteSettings(name: 'startup-whats-new')"));
+    expect(coordinator, contains('requireConfirmation: true'));
+    expect(coordinator, contains('await WidgetsBinding.instance.endOfFrame'));
+    expect(coordinator, contains('AppLifecycleState.resumed'));
+    expect(main, contains('StartupUpdateCoordinator.instance.start()'));
+  });
+
+  test('reattach de engine nunca dispara novidades automáticas', () {
+    final coordinator = File(
+      'lib/features/update/application/startup_update_coordinator.dart',
+    ).readAsStringSync();
+    final platform = File(
+      'lib/core/platform/platform_actions.dart',
+    ).readAsStringSync();
+    final activity = File(
+      'android/app/src/main/kotlin/br/com/githubmanager/app/MainActivity.kt',
+    ).readAsStringSync();
+
+    expect(coordinator, contains('launchState.cachedEngineReattach'));
+    expect(coordinator, contains("source: 'startup.whats_new_skipped_reattach'"));
+    expect(coordinator, contains('launchState.flutterUiDisplayed'));
+    expect(platform, contains('getActivityLaunchState'));
+    expect(activity, contains('"getActivityLaunchState"'));
+    expect(activity, contains('"cachedEngineReattach" to reattachingCachedEngineOnCreate'));
+    expect(activity, contains('"flutterUiDisplayed" to flutterUiDisplayed'));
+  });
+
+  test('novidades só marcam versão após Continuar e registram os marcos', () {
+    final coordinator = File(
+      'lib/features/update/application/startup_update_coordinator.dart',
+    ).readAsStringSync();
+
+    expect(coordinator, contains('.readJson(_lastSeenVersionKey)'));
+    expect(coordinator, contains('.putJson(_lastSeenVersionKey, version)'));
+    expect(coordinator, contains('final confirmed = await routeResult'));
+    expect(coordinator, contains('if (confirmed == true)'));
+    expect(coordinator, contains("source: 'startup.whats_new_check_started'"));
+    expect(coordinator, contains("source: 'startup.whats_new_needed'"));
+    expect(coordinator, contains("source: 'startup.whats_new_route_opened'"));
+    expect(coordinator, contains("source: 'startup.whats_new_first_frame'"));
+    expect(coordinator, contains("source: 'startup.whats_new_continue'"));
   });
 
   test('tela de novidades possui confirmação explícita e mudanças atuais', () {
@@ -43,7 +81,7 @@ void main() {
     expect(screen, contains("'Novidades da atualização'"));
     expect(screen, contains("ValueKey('whats_new_continue')"));
     expect(screen, contains("label: const Text('Continuar')"));
-    expect(screen, contains("title: 'Retorno imediato ao aplicativo'"));
-    expect(screen, contains("title: 'Diagnóstico de reabertura'"));
+    expect(screen, contains("title: 'Novidades fora da camada principal'"));
+    expect(screen, contains("title: 'Proteção durante reanexo do engine'"));
   });
 }

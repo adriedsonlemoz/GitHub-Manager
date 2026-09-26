@@ -9,6 +9,7 @@ import 'package:github_manager/app/theme/app_theme_controller.dart';
 import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/persistence/local_database.dart';
 import 'package:github_manager/core/telemetry/app_telemetry_service.dart';
+import 'package:github_manager/features/update/application/startup_update_coordinator.dart';
 
 void main() {
   runZonedGuarded(
@@ -89,6 +90,18 @@ class _NativeEngineLifecycleObserver extends WidgetsBindingObserver {
 }
 
 Future<void> _initializeAfterFirstFrame() async {
+  // Resolve primeiro o tema. As novidades automáticas só podem abrir depois
+  // dessa possível reconstrução visual e fora do MaterialApp.builder.
+  try {
+    await AppThemeController.instance.initialize().timeout(
+          const Duration(seconds: 3),
+        );
+  } catch (error, stackTrace) {
+    _recordNonFatal('startup.theme', error, stackTrace);
+  }
+
+  StartupUpdateCoordinator.instance.start();
+
   try {
     await AppTelemetryService.instance.importPendingNativeEngineLifecycle().timeout(
           const Duration(seconds: 3),
@@ -109,14 +122,6 @@ Future<void> _initializeAfterFirstFrame() async {
     await LocalDatabase.shared.clearLegacyRemoteGitHubData();
   } catch (error, stackTrace) {
     _recordNonFatal('startup.local_database_cleanup', error, stackTrace);
-  }
-
-  try {
-    await AppThemeController.instance.initialize().timeout(
-          const Duration(seconds: 3),
-        );
-  } catch (error, stackTrace) {
-    _recordNonFatal('startup.theme', error, stackTrace);
   }
 
   try {

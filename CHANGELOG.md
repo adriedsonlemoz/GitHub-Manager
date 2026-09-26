@@ -1,3 +1,14 @@
+## 2.0.104+200118 — 2026-09-26
+
+- remove `StartupUpdateGate` do `MaterialApp.builder`, eliminando a camada de novidades que podia permanecer sobre a Home durante o ciclo de inicialização;
+- substitui a sobreposição por uma `MaterialPageRoute` opaca aberta pelo `StartupUpdateCoordinator` somente depois de `AppLifecycleState.resumed`, dois frames concluídos e uma janela curta de estabilização;
+- adiciona consulta nativa `getActivityLaunchState`, incluindo `cachedEngineReattach`, `flutterUiDisplayed`, task e restauração da Activity;
+- impede a abertura automática de **Novidades** durante `cached_engine_reattach`; a tela continua acessível manualmente em Configurações;
+- exige confirmação em **Continuar** na rota automática e só então persiste `app.whats_new.last_seen_version`;
+- adiciona telemetria local para `startup.whats_new_check_started`, `needed`, `route_opened`, `first_frame`, `continue` e casos de adiamento/reattach;
+- mantém a correção nativa da 2.0.103 para engine em cache e splash escura, sem interromper uploads/downloads ativos;
+- atualiza testes de contrato, README, AI_HANDOFF, VERSIONING, RELEASE e VALIDATION para `2.0.104+200118`.
+
 ## 2.0.103+200117 — 2026-09-26
 
 - trata reabertura da `MainActivity` com `FlutterEngine` preservado usando `getCachedEngineId()` somente quando o engine está executando Dart;

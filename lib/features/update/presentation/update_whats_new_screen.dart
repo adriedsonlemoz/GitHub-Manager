@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.103';
+  static const releaseNotesVersion = '2.0.104';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
     required this.onContinue,
+    this.requireConfirmation = false,
     super.key,
   });
 
   final String versionLabel;
   final Future<void> Function() onContinue;
+  final bool requireConfirmation;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
+    final content = Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
@@ -67,24 +69,24 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.bolt_rounded,
-                      title: 'Retorno imediato ao aplicativo',
+                      icon: Icons.layers_clear_rounded,
+                      title: 'Novidades fora da camada principal',
                       description:
-                          'Ao reabrir o GitHub Manager enquanto uma transferência mantém o FlutterEngine ativo, a Activity agora se reconecta ao engine já em execução sem reapresentar a tela nativa de abertura.',
+                          'A abertura automática deixou de ficar sobreposta ao MaterialApp.builder e agora usa uma rota Flutter opaca e independente da Home.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.dark_mode_outlined,
-                      title: 'Abertura consistente com o tema',
+                      icon: Icons.motion_photos_paused_outlined,
+                      title: 'Abertura somente após a interface estabilizar',
                       description:
-                          'O tema nativo de inicialização passa a respeitar o modo escuro, usando o mesmo fundo base da interface e ícones de sistema adequados.',
+                          'A verificação espera o app estar em primeiro plano, confirma que a FlutterView já desenhou e aguarda frames estáveis antes de abrir as novidades.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.monitor_heart_outlined,
-                      title: 'Diagnóstico de reabertura',
+                      icon: Icons.sync_disabled_rounded,
+                      title: 'Proteção durante reanexo do engine',
                       description:
-                          'A telemetria local registra reanexos do engine em cache com versão, Android e contador de ocorrências para facilitar a validação desse ciclo.',
+                          'Quando o Android está apenas reanexando um FlutterEngine preservado por uma transferência, a tela automática não é aberta nesse ciclo.',
                     ),
                   ],
                 ),
@@ -103,6 +105,12 @@ class UpdateWhatsNewScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+
+    if (!requireConfirmation) return content;
+    return BackButtonListener(
+      onBackButtonPressed: () async => true,
+      child: content,
     );
   }
 }

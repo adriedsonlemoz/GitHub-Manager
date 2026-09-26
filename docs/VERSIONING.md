@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.103+200117`
+`version: 2.0.104+200118`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.104+200118` desacopla a tela automática de novidades do `MaterialApp.builder`, só a abre após a UI nativa/Flutter estar estável e bloqueia essa abertura durante reattach de engine preservado.
 
 A versão `2.0.103+200117` estabiliza a reabertura da Activity com FlutterEngine preservado, alinha a splash ao tema escuro e registra reanexos do engine na telemetria local.
 
@@ -116,6 +118,10 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+### 2.0.104
+
+A 2.0.104 remove `StartupUpdateGate` da árvore do `MaterialApp.builder`. A verificação automática passa para `StartupUpdateCoordinator`, que só abre uma rota Flutter opaca depois de `resumed`, frames estáveis e confirmação nativa de `onFlutterUiDisplayed()`. `MainActivity.getActivityLaunchState` informa quando a Activity está reanexando o engine em cache; nesse caso a abertura automática é pulada para não interferir com splash/superfície nativa. A versão só é marcada como vista após **Continuar**.
 
 ### 2.0.103
 

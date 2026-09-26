@@ -19,6 +19,9 @@ void main() {
     expect(activity, contains('dartExecutor.isExecutingDart'));
     expect(activity, contains('setTheme(R.style.NormalTheme)'));
     expect(activity, contains('override fun onFlutterUiDisplayed()'));
+    expect(activity, contains('flutterUiDisplayed = true'));
+    expect(activity, contains('reattachingCachedEngineOnCreate'));
+    expect(activity, contains('\"getActivityLaunchState\"'));
     expect(activity, contains('shouldDestroyEngineWithHost(): Boolean = false'));
     expect(activity, isNot(contains('override fun provideFlutterEngine')));
     expect(nightStyles, contains('Theme.Material.NoActionBar'));

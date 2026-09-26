@@ -1,5 +1,35 @@
 import 'package:flutter/services.dart';
 
+class ActivityLaunchState {
+  const ActivityLaunchState({
+    required this.cachedEngineReattach,
+    required this.flutterUiDisplayed,
+    required this.taskId,
+    required this.restoredActivityState,
+  });
+
+  final bool cachedEngineReattach;
+  final bool flutterUiDisplayed;
+  final int? taskId;
+  final bool restoredActivityState;
+
+  factory ActivityLaunchState.fromMap(Map<String, Object?> map) {
+    return ActivityLaunchState(
+      cachedEngineReattach: map['cachedEngineReattach'] == true,
+      flutterUiDisplayed: map['flutterUiDisplayed'] == true,
+      taskId: (map['taskId'] as num?)?.toInt(),
+      restoredActivityState: map['restoredActivityState'] == true,
+    );
+  }
+
+  Map<String, Object?> toTelemetryContext() => {
+        'cachedEngineReattach': cachedEngineReattach,
+        'flutterUiDisplayed': flutterUiDisplayed,
+        if (taskId != null) 'taskId': taskId,
+        'restoredActivityState': restoredActivityState,
+      };
+}
+
 abstract final class PlatformActions {
   static const _channel = MethodChannel('br.com.githubmanager.app/platform');
 
@@ -119,4 +149,17 @@ abstract final class PlatformActions {
 
   static Future<String?> consumeNativeEngineLifecycleReport() =>
       _channel.invokeMethod<String>('consumeNativeEngineLifecycleReport');
+
+  static Future<ActivityLaunchState> getActivityLaunchState() async {
+    final raw = await _channel.invokeMapMethod<String, Object?>(
+      'getActivityLaunchState',
+    );
+    if (raw == null) {
+      throw PlatformException(
+        code: 'ACTIVITY_STATE_UNAVAILABLE',
+        message: 'O Android não retornou o estado atual da Activity.',
+      );
+    }
+    return ActivityLaunchState.fromMap(raw);
+  }
 }

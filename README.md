@@ -1,4 +1,15 @@
-# GitHub Manager 2.0.103
+# GitHub Manager 2.0.104
+
+
+## Novidades desacopladas do startup 2.0.104
+
+- a abertura automática de **Novidades da atualização** não participa mais do `MaterialApp.builder` e não sobrepõe a árvore principal da Home;
+- o novo `StartupUpdateCoordinator` aguarda o app estar em `resumed`, dois frames completos, uma pequena janela de estabilização e a confirmação nativa de `onFlutterUiDisplayed()`;
+- a `MainActivity` expõe o estado da Activity ao Flutter para diferenciar cold start de `cached_engine_reattach`;
+- em reattach de um engine preservado por upload/download, a tela automática é ignorada naquele ciclo, evitando disputar a superfície do Android durante a reconexão;
+- quando necessária, Novidades abre como `MaterialPageRoute` opaca e só grava a versão como vista depois de **Continuar**;
+- a tela manual em **Configurações > Novidades desta versão** continua disponível normalmente;
+- a telemetria local registra os marcos da verificação e da primeira renderização da rota para facilitar confirmação em aparelho real.
 
 
 ## Reabertura estável com engine em cache 2.0.103
@@ -312,7 +323,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.103+200117`;
+- versão: `2.0.104+200118`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

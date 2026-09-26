@@ -1,10 +1,20 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.103+200117`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.104+200118`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 
 
+
+## Alterações 2.0.104
+
+- `StartupUpdateGate` foi removido: **Novidades** não pode voltar a envolver/recobrir a Home pelo `MaterialApp.builder`.
+- `StartupUpdateCoordinator` aguarda `AppLifecycleState.resumed`, dois frames, estabilização e `flutterUiDisplayed=true` antes de consultar/abrir a tela automática.
+- `MainActivity` expõe `getActivityLaunchState` no channel `br.com.githubmanager.app/platform`, incluindo `cachedEngineReattach`, `flutterUiDisplayed`, `taskId` e `restoredActivityState`.
+- Se `cachedEngineReattach=true`, a abertura automática é ignorada naquele ciclo; não remover essa proteção enquanto o engine permanecer preservado para transferências.
+- A abertura automática usa `MaterialPageRoute` opaca e `requireConfirmation=true`; `app.whats_new.last_seen_version` só é persistida depois de **Continuar**.
+- Telemetria de startup usa os eventos `startup.whats_new_check_started`, `startup.whats_new_needed`, `startup.whats_new_route_opened`, `startup.whats_new_first_frame`, `startup.whats_new_continue` e eventos de skip/retry.
+- A visualização manual em Configurações continua usando `UpdateWhatsNewScreen` sem bloquear o botão Voltar.
 
 ## Alterações 2.0.103
 
@@ -35,7 +45,7 @@ Estado atual: `2.0.103+200117`. Dados remotos do GitHub não usam mais cache per
 - `main.dart` instala handlers para `FlutterError.onError`, `PlatformDispatcher.onError` e `runZonedGuarded`;
 - `GitHubManagerApplication` captura o último crash nativo via `UncaughtExceptionHandler` e `MainActivity` expõe `consumeNativeCrashReport` ao Flutter;
 - relatórios sanitizam padrões conhecidos de tokens/senhas/segredos e nunca são enviados automaticamente;
-- `StartupUpdateGate` só persiste `app.whats_new.last_seen_version` depois de **Continuar**; fechar antes mantém a tela pendente para o próximo acesso;
+- Na 2.0.101 o antigo `StartupUpdateGate` passou a persistir `app.whats_new.last_seen_version` depois de **Continuar**; na 2.0.104 ele foi removido e essa responsabilidade passou ao `StartupUpdateCoordinator`;
 - Configurações permite rever manualmente a tela **Novidades desta versão**.
 
 ## Alterações 2.0.100
@@ -51,7 +61,7 @@ Estado atual: `2.0.103+200117`. Dados remotos do GitHub não usam mais cache per
 ## Alterações 2.0.99
 
 - Cards da Home usam raio de 4 px exclusivamente na lista de projetos, mantendo o restante do tema inalterado.
-- `StartupUpdateGate` consulta a versão instalada depois do primeiro frame e compara com `app.whats_new.last_seen_version` no SQLite.
+- Histórico 2.0.99: o antigo `StartupUpdateGate` consultava a versão depois do primeiro frame; desde 2.0.104 ele não existe mais.
 - `UpdateWhatsNewScreen` cobre a interface como uma tela completa; a versão é marcada como apresentada assim que a tela aparece e **Continuar** fecha o resumo.
 - A checagem de novidades possui timeout/falha controlada e nunca bloqueia o primeiro frame nem o uso do aplicativo.
 
