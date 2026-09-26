@@ -1,9 +1,16 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.98+200112`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.99+200113`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 
+
+## Alterações 2.0.99
+
+- Cards da Home usam raio de 4 px exclusivamente na lista de projetos, mantendo o restante do tema inalterado.
+- `StartupUpdateGate` consulta a versão instalada depois do primeiro frame e compara com `app.whats_new.last_seen_version` no SQLite.
+- `UpdateWhatsNewScreen` cobre a interface como uma tela completa; a versão é marcada como apresentada assim que a tela aparece e **Continuar** fecha o resumo.
+- A checagem de novidades possui timeout/falha controlada e nunca bloqueia o primeiro frame nem o uso do aplicativo.
 
 ## Alterações 2.0.98
 

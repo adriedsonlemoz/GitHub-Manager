@@ -1,3 +1,12 @@
+## 2.0.99+200113 — 2026-09-26
+
+- reduz somente os cantos dos cards da lista **Meus repositórios** para raio de 6 px, preservando o restante do tema;
+- adiciona tela completa **Novidades da atualização** no primeiro acesso após cada nova versão;
+- persiste localmente a última versão já apresentada para evitar repetição na mesma atualização;
+- mantém a verificação de novidades fora do primeiro frame, com timeout e falha controlada para não atrasar a abertura do app;
+- atualiza a seção **Últimas 3 mudanças** nas Configurações;
+- sincroniza identidade e documentação para `2.0.99+200113`.
+
 ## 2.0.98+200112 — 2026-09-26
 
 - compacta a tela interna do projeto movendo APKs/artifacts, Commits, Diagnóstico do token e Issues/Bugs para atalhos no cabeçalho;

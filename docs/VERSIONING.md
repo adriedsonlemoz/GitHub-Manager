@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.98+200112`
+`version: 2.0.99+200113`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.99+200113` reduz o arredondamento dos cards da Home e adiciona uma tela de novidades exibida uma única vez no primeiro acesso de cada atualização.
 
 A versão `2.0.98+200112` compacta a navegação interna do projeto, torna exclusão de Releases e confirmação de branch mais explícitas e reduz informação redundante nos cards de APKs.
 
@@ -110,6 +112,10 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+### 2.0.99
+
+A 2.0.99 deixa os cards de projetos quase retos com raio de 4 px e introduz `StartupUpdateGate`/`UpdateWhatsNewScreen`. A versão instalada é lida do manifesto canônico e comparada com a última versão apresentada no banco local; a versão é marcada como apresentada quando a tela aparece, portanto o aviso não se repete até uma nova atualização.
 
 ### 2.0.98
 

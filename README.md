@@ -1,7 +1,13 @@
-# GitHub Manager 2.0.98
+# GitHub Manager 2.0.99
 
 
+## Home mais reta e novidades da atualização 2.0.99
 
+- os cards de **Meus repositórios** passam de cantos muito arredondados para raio de 4 px, deixando a listagem mais reta e compacta sem alterar os demais cards do aplicativo;
+- uma nova tela **Novidades da atualização** abre automaticamente depois do primeiro frame ao detectar uma versão ainda não vista;
+- a versão exibida é lida do manifesto `github-manager.json` e a última versão já mostrada é guardada localmente em `app.whats_new.last_seen_version`;
+- a versão é marcada como apresentada assim que a tela aparece; **Continuar** apenas fecha o resumo, garantindo que ele não se repita no próximo acesso da mesma versão;
+- falhas no armazenamento local ou leitura de versão são tratadas como recurso auxiliar e nunca bloqueiam a inicialização.
 
 ## Navegação compacta e ações mais claras 2.0.98
 
@@ -263,7 +269,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.98+200112`;
+- versão: `2.0.99+200113`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

@@ -39,8 +39,17 @@ class RepositoryCard extends ConsumerWidget {
       orElse: () => null,
     );
 
+    final inheritedShape = Theme.of(context).cardTheme.shape;
+    final inheritedSide = inheritedShape is RoundedRectangleBorder
+        ? inheritedShape.side
+        : BorderSide(color: scheme.outlineVariant);
+
     return Card(
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(4),
+        side: inheritedSide,
+      ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
