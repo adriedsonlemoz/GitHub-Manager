@@ -16,7 +16,7 @@ import 'package:go_router/go_router.dart';
 
 void main() {
   testWidgets(
-    'seletor de branch retorna a branch tocada sem depender do fluxo completo de envio',
+    'seletor de branch exige Continuar depois de escolher a branch',
     (tester) async {
       final gitService = _FakeRepositoryGitService();
       RepositoryBranch? selected;
@@ -67,6 +67,14 @@ void main() {
       await tester.ensureVisible(developTile);
       await tester.pump(const Duration(milliseconds: 120));
       await tester.tap(developTile);
+      await tester.pump(const Duration(milliseconds: 220));
+
+      expect(selected, isNull);
+      final continueButton = find.byKey(
+        const ValueKey('repository_branch_continue'),
+      );
+      await _pumpUntilFound(tester, continueButton);
+      await tester.tap(continueButton);
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(selected?.name, 'develop');
@@ -77,8 +85,8 @@ void main() {
     'dialogo de progresso pode ser minimizado mesmo com progresso indeterminado',
     (tester) async {
       final project = ZipProjectPreview(
-        path: '/tmp/repo-v2.0.97.zip',
-        name: 'repo-v2.0.97.zip',
+        path: '/tmp/repo-v2.0.98.zip',
+        name: 'repo-v2.0.98.zip',
         archiveBytes: 4,
         uncompressedBytes: 4,
         fileCount: 1,
@@ -89,8 +97,8 @@ void main() {
         projectName: 'Repo',
         packageName: 'repo',
         applicationId: 'com.example.repo',
-        version: '2.0.97',
-        versionCode: 200111,
+        version: '2.0.98',
+        versionCode: 200112,
         hasWorkflowFiles: false,
       );
 

@@ -316,8 +316,21 @@ class _RepositoryBranchDialogState extends State<_RepositoryBranchDialog> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.check_circle_rounded),
-                  onTap: current == null ? null : () => Navigator.pop(context, current),
+                      : current == null
+                          ? null
+                          : FilledButton(
+                              key: const ValueKey('repository_branch_continue'),
+                              onPressed: () => Navigator.pop(context, current),
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 13,
+                                  vertical: 9,
+                                ),
+                              ),
+                              child: const Text('Continuar'),
+                            ),
+                  onTap: null,
                 ),
               ),
               if (_error != null) ...[
@@ -393,8 +406,11 @@ class _RepositoryBranchDialogState extends State<_RepositoryBranchDialog> {
                                 if (branch.isProtected) 'protegida',
                               ].join(' • '))
                             : null,
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () => Navigator.pop(context, branch),
+                        trailing: const Icon(Icons.touch_app_outlined),
+                        onTap: () => setState(() {
+                          _current = branch;
+                          _showOthers = false;
+                        }),
                       );
                     },
                   ),

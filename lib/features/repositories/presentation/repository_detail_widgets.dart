@@ -157,11 +157,40 @@ class _RepositoryHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
+              _RepositoryHeaderShortcut(
+                tooltip: 'APKs e artifacts',
+                icon: Icons.android_rounded,
+                onPressed: () => context.push(
+                  '/repositories/${repository.fullName}/artifacts?readOnly=${readOnly ? '1' : '0'}',
+                ),
+              ),
+              _RepositoryHeaderShortcut(
+                tooltip: 'Commits',
+                icon: Icons.commit_rounded,
+                onPressed: () => context.push(
+                  '/repositories/${repository.fullName}/commits?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}&readOnly=${readOnly ? '1' : '0'}',
+                ),
+              ),
+              if (!readOnly)
+                _RepositoryHeaderShortcut(
+                  tooltip: 'Diagnóstico do token',
+                  icon: Icons.verified_user_outlined,
+                  onPressed: () => context.push(
+                    '/repositories/${repository.fullName}/permissions',
+                  ),
+                ),
+              if (!readOnly)
+                _RepositoryHeaderShortcut(
+                  tooltip: 'Issues / Bugs',
+                  icon: Icons.bug_report_outlined,
+                  onPressed: () => context.push(
+                    '/repositories/${repository.fullName}/bugs',
+                  ),
+                ),
+              _RepositoryHeaderShortcut(
                 tooltip: 'Informações do projeto',
+                icon: Icons.help_outline_rounded,
                 onPressed: () => _showProjectInfo(context),
-                icon: const Icon(Icons.help_outline_rounded, size: 21),
               ),
             ],
           ),
@@ -195,6 +224,28 @@ class _RepositoryHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RepositoryHeaderShortcut extends StatelessWidget {
+  const _RepositoryHeaderShortcut({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        onPressed: onPressed,
+        tooltip: tooltip,
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.all(5),
+        constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+        icon: Icon(icon, size: 20),
+      );
 }
 
 class _ProjectInfoLine extends StatelessWidget {

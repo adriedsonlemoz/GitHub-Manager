@@ -1,3 +1,12 @@
+## 2.0.98+200112 — 2026-09-26
+
+- compacta a tela interna do projeto movendo APKs/artifacts, Commits, Diagnóstico do token e Issues/Bugs para atalhos no cabeçalho;
+- reorganiza os menus restantes do projeto em ordem alfabética;
+- simplifica cards de Release: versão em destaque, remoção da tag redundante e ação Excluir explícita ao lado de Baixar/Escolher;
+- substitui o ícone ambíguo de confirmação da branch por um botão **Continuar** e torna a escolha de outra branch uma etapa explícita;
+- adiciona testes de contrato para navegação compacta, cards de Release e seleção de branch;
+- sincroniza identidade e documentação para `2.0.98+200112`.
+
 ## 2.0.97+200111 — 2026-09-26
 
 - exclusão em lote de Builds passa a exibir etapa, item atual e percentual determinado de 0 a 100%;

@@ -1,9 +1,15 @@
-# GitHub Manager 2.0.97
+# GitHub Manager 2.0.98
 
 
 
 
-## Limpeza, Downloads e README mais rápidos 2.0.97
+## Navegação compacta e ações mais claras 2.0.98
+
+- atalhos de APKs, Commits, Diagnóstico do token e Issues/Bugs foram movidos para ícones compactos no cabeçalho do projeto;
+- lista do projeto agora fica em ordem alfabética e sem atalhos duplicados;
+- cards de Releases destacam a versão em badge, removem a tag redundante e usam botões explícitos Excluir/Baixar;
+- seletor de branch agora exige a ação clara **Continuar** após a escolha.
+
 
 A exclusão em lote de Builds agora mostra etapa, item atual e porcentagem real em vez de um indicador infinito. **Excluir APKs anteriores** usa exatamente os APKs/artifacts carregados na tela, evitando o falso “não havia APKs anteriores” quando a lista visível contém versões antigas. Na Central de Downloads, **Excluir do aparelho** só remove o registro após o Android confirmar a exclusão física do arquivo. A Home ficou mais compacta: descrições saíram dos cards e a pesquisa virou uma lupa no topo que abre o campo somente quando necessário. O leitor de README ganhou cache em memória, decodificação de arquivos grandes fora da thread principal e renderização Markdown lazy para reduzir travamentos.
 
@@ -257,7 +263,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.97+200111`;
+- versão: `2.0.98+200112`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

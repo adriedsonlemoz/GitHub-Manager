@@ -1,9 +1,15 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.97+200111`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.98+200112`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 
+
+## Alterações 2.0.98
+
+- Cabeçalho do projeto ganhou atalhos compactos para APKs/artifacts, Commits, Diagnóstico do token e Issues/Bugs; a lista principal restante está em ordem alfabética.
+- Releases mostram a versão em badge e ações explícitas Excluir/Baixar, sem tag de release redundante.
+- Seletor de branch não usa mais o check ambíguo: escolha uma branch e confirme em **Continuar**.
 
 ## Alterações 2.0.97
 

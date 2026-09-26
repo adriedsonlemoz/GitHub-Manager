@@ -220,15 +220,6 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                   sliver: SliverList.list(
                     children: [
                       _WorkspaceTile(
-                        icon: Icons.menu_book_outlined,
-                        title: 'README',
-                        subtitle: 'Ler a apresentação e documentação do projeto',
-                        onTap: () => context.push(
-                          '/repositories/${repository.fullName}/readme?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      _WorkspaceTile(
                         icon: Icons.folder_open_rounded,
                         title: 'Arquivos',
                         subtitle: widget.readOnly
@@ -247,65 +238,32 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                           '/repositories/${repository.fullName}/builds?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}&readOnly=${widget.readOnly ? '1' : '0'}',
                         ),
                       ),
-                      const SizedBox(height: 7),
                       if (!widget.readOnly) ...[
+                        const SizedBox(height: 7),
                         _WorkspaceTile(
                           icon: Icons.cloud_upload_outlined,
                           title: 'Central de envios',
                           subtitle: 'Acompanhar sincronizações, fila, falhas e builds iniciadas',
                           onTap: () => context.push('/uploads'),
                         ),
-                        const SizedBox(height: 7),
                       ],
-                      if (!widget.readOnly) ...[
-                        _WorkspaceTile(
-                          icon: Icons.verified_user_outlined,
-                          title: 'Diagnóstico do token',
-                          subtitle: 'Verificar Contents, Actions, Secrets e administração sem alterar dados',
-                          onTap: () => context.push(
-                            '/repositories/${repository.fullName}/permissions',
-                          ),
+                      const SizedBox(height: 7),
+                      _WorkspaceTile(
+                        icon: Icons.menu_book_outlined,
+                        title: 'README',
+                        subtitle: 'Ler a apresentação e documentação do projeto',
+                        onTap: () => context.push(
+                          '/repositories/${repository.fullName}/readme?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}',
                         ),
-                        const SizedBox(height: 7),
-                      ],
+                      ),
                       if (!widget.readOnly) ...[
+                        const SizedBox(height: 7),
                         _WorkspaceTile(
                           icon: Icons.key_rounded,
                           title: 'Secrets',
                           subtitle: 'Adicionar, importar, substituir e excluir Secrets',
                           onTap: () => context.push(
                             '/repositories/${repository.fullName}/secrets',
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                      ],
-                      _WorkspaceTile(
-                        icon: Icons.android_rounded,
-                        title: 'APKs e artifacts',
-                        subtitle: widget.readOnly
-                            ? 'Baixar arquivos públicos disponíveis no GitHub'
-                            : 'Baixar ou excluir APKs e artifacts',
-                        onTap: () => context.push(
-                          '/repositories/${repository.fullName}/artifacts?readOnly=${widget.readOnly ? '1' : '0'}',
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      _WorkspaceTile(
-                        icon: Icons.commit_rounded,
-                        title: 'Commits',
-                        subtitle: 'Histórico, autores, datas e SHA por branch',
-                        onTap: () => context.push(
-                          '/repositories/${repository.fullName}/commits?branch=${Uri.encodeQueryComponent(repository.defaultBranch)}&readOnly=${widget.readOnly ? '1' : '0'}',
-                        ),
-                      ),
-                      if (!widget.readOnly) ...[
-                        const SizedBox(height: 7),
-                        _WorkspaceTile(
-                          icon: Icons.bug_report_outlined,
-                          title: 'Issues / Bugs',
-                          subtitle: 'Criar, acompanhar, editar, fechar e reabrir problemas',
-                          onTap: () => context.push(
-                            '/repositories/${repository.fullName}/bugs',
                           ),
                         ),
                       ],

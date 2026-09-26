@@ -483,11 +483,10 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final preferred = group.preferredAsset;
-    final title = group.version == null
-        ? (group.releaseName.trim().isNotEmpty
-            ? group.releaseName.trim()
-            : preferred.name)
-        : 'Versão ${group.version}';
+    final fallbackTitle = group.releaseName.trim().isNotEmpty
+        ? group.releaseName.trim()
+        : preferred.name;
+    final version = group.version?.trim();
     final metadata = <String>[
       if (group.hasMultipleAssets)
         '${group.assets.length} opções'
@@ -529,14 +528,34 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w900,
+                        if (version?.isNotEmpty == true)
+                          Wrap(
+                            spacing: 7,
+                            runSpacing: 5,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                'Versão',
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                    ),
                               ),
-                        ),
+                              _ArtifactBadge(
+                                label: version!,
+                                icon: Icons.sell_outlined,
+                                emphasized: true,
+                              ),
+                            ],
+                          )
+                        else
+                          Text(
+                            fallbackTitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
                         const SizedBox(height: 5),
                         Text(
                           metadata.join(' • '),
@@ -547,15 +566,7 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (onManage != null)
-                    IconButton(
-                      onPressed: onManage,
-                      tooltip: group.hasMultipleAssets
-                          ? 'Gerenciar arquivos'
-                          : 'Excluir arquivo',
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.more_vert_rounded),
-                    ),
+
                 ],
               ),
               const SizedBox(height: 10),
@@ -582,36 +593,42 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 11),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      group.tagName.trim().isEmpty
-                          ? 'GitHub Release'
-                          : 'Release ${group.tagName}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    if (onManage != null)
+                      OutlinedButton.icon(
+                        onPressed: onManage,
+                        icon: const Icon(Icons.delete_outline_rounded, size: 17),
+                        label: const Text('Excluir'),
+                        style: const ButtonStyle(
+                          minimumSize: WidgetStatePropertyAll(Size(92, 38)),
+                          padding: WidgetStatePropertyAll(
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  FilledButton.icon(
-                    onPressed: onDownload,
-                    icon: const Icon(Icons.download_rounded, size: 17),
-                    label: Text(group.hasMultipleAssets ? 'Escolher' : 'Baixar'),
-                    style: const ButtonStyle(
-                      minimumSize: WidgetStatePropertyAll(Size(96, 38)),
-                      padding: WidgetStatePropertyAll(
-                        EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
                       ),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
+                    FilledButton.icon(
+                      onPressed: onDownload,
+                      icon: const Icon(Icons.download_rounded, size: 17),
+                      label: Text(group.hasMultipleAssets ? 'Escolher' : 'Baixar'),
+                      style: const ButtonStyle(
+                        minimumSize: WidgetStatePropertyAll(Size(96, 38)),
+                        padding: WidgetStatePropertyAll(
+                          EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
