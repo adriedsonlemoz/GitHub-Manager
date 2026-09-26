@@ -239,16 +239,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.97',
+                      text: 'Adiciona progresso real ao apagar builds, corrige exclusão física de downloads, compacta a busca da Home e acelera READMEs grandes.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.96',
                       text: 'Simplifica a tela de APKs, corrige a ordem por versão, agrupa variantes e troca avisos centrais por feedback discreto.',
                     ),
                     _ChangeNote(
                       version: '2.0.95',
                       text: 'Estabiliza o seletor de branch e a CI, sem alterar os fontes no runner antes dos testes.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.92',
-                      text: 'Corrige a última expectativa frágil do teste do seletor de branch.',
                     ),
                   ],
                 ),

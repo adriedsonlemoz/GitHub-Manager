@@ -38,7 +38,6 @@ class RepositoryCard extends ConsumerWidget {
       data: (value) => value.version,
       orElse: () => null,
     );
-    final description = repository.description?.trim();
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -115,18 +114,6 @@ class RepositoryCard extends ConsumerWidget {
                   ),
                 ],
               ),
-              if (description?.isNotEmpty == true) ...[
-                const SizedBox(height: 5),
-                Text(
-                  description!,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        height: 1.35,
-                      ),
-                ),
-              ],
             ],
           ),
         ),

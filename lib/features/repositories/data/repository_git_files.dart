@@ -82,7 +82,13 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
   Future<RepositoryTextFile?> readReadme({
     required String repositoryFullName,
     required String branch,
+    bool forceRefresh = false,
   }) async {
+    final cacheKey = _readmeCacheKey(repositoryFullName, branch);
+    if (!forceRefresh && _readmeCache.containsKey(cacheKey)) {
+      return _readmeCache[cacheKey];
+    }
+
     try {
       final response = await _client.get<Map<String, dynamic>>(
         '/repos/$repositoryFullName/readme',
@@ -103,15 +109,22 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
         );
       }
       final encoded = (json['content'] as String? ?? '').replaceAll('\n', '');
-      final bytes = base64.decode(encoded);
-      return RepositoryTextFile(
+      final content = encoded.length >= 64 * 1024
+          ? await Isolate.run(
+              () => utf8.decode(base64.decode(encoded), allowMalformed: false),
+            )
+          : utf8.decode(base64.decode(encoded), allowMalformed: false);
+      final file = RepositoryTextFile(
         name: json['name'] as String? ?? 'README.md',
         path: json['path'] as String? ?? 'README.md',
         sha: json['sha'] as String? ?? '',
-        content: utf8.decode(bytes, allowMalformed: false),
+        content: content,
         size: size,
       );
+      _cacheReadme(cacheKey, file);
+      return file;
     } on GitHubNotFoundException {
+      _cacheReadme(cacheKey, null);
       return null;
     } on FormatException {
       throw const RepositoryFileException(
@@ -139,6 +152,9 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
         'branch': branch,
       },
     );
+    if (_looksLikeReadmePath(normalized)) {
+      _invalidateReadmeCache(repositoryFullName, branch);
+    }
   }
 
   Future<void> updateTextFile({
@@ -159,6 +175,9 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
         'branch': branch,
       },
     );
+    if (_looksLikeReadmePath(file.path)) {
+      _invalidateReadmeCache(repositoryFullName, branch);
+    }
   }
 
   Future<void> deleteItem({
@@ -180,6 +199,9 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
         'branch': branch,
       },
     );
+    if (_looksLikeReadmePath(item.path)) {
+      _invalidateReadmeCache(repositoryFullName, branch);
+    }
   }
 
   Future<List<PlatformFile>> pickFiles() => FilePicker.pickFiles(
@@ -441,6 +463,13 @@ mixin _RepositoryGitFileOperations on _RepositoryGitBase {
         code: 'REPOSITORY_CLEAR_CONFLICT',
       );
     }
+  }
+
+  static bool _looksLikeReadmePath(String raw) {
+    final normalized = raw.replaceAll('\\', '/').trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    final name = normalized.split('/').last;
+    return name == 'readme' || name.startsWith('readme.');
   }
 
   static String _contentsEndpoint(String fullName, String path) {

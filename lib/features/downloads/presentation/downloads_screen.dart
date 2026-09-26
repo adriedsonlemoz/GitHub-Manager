@@ -161,9 +161,9 @@ class DownloadsScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Excluir arquivo?'),
+        title: const Text('Excluir do aparelho?'),
         content: const Text(
-          'O arquivo será removido da pasta Downloads e também do histórico do GitHub Manager.',
+          'O arquivo será apagado fisicamente da pasta Downloads e também removido do histórico do GitHub Manager.',
         ),
         actions: [
           TextButton(
@@ -172,13 +172,29 @@ class DownloadsScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Excluir'),
+            child: const Text('Excluir do aparelho'),
           ),
         ],
       ),
     );
     if (confirmed == true) {
-      await delete();
+      try {
+        await delete();
+        if (context.mounted) {
+          _snack(context, 'Arquivo excluído do aparelho.');
+        }
+      } on PlatformException catch (error) {
+        if (context.mounted) {
+          _snack(
+            context,
+            error.message ?? 'Não foi possível excluir o arquivo do aparelho.',
+          );
+        }
+      } catch (_) {
+        if (context.mounted) {
+          _snack(context, 'Não foi possível excluir o arquivo do aparelho.');
+        }
+      }
     }
   }
 

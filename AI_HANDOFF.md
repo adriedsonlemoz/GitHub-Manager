@@ -1,8 +1,18 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.96+200110`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.97+200111`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
+
+
+## Alterações 2.0.97
+
+- Builds: exclusão em lote expõe `BuildCleanupProgress` com etapa, item atual, total e percentual; a AppBar não usa mais spinner indeterminado durante a exclusão.
+- APKs: **Excluir anteriores** usa os snapshots já visíveis (`_future`/`_releaseFuture`) ao chamar `deleteOlderApkOutputs`, evitando uma segunda listagem inconsistente.
+- Downloads: `deletePublishedDownload` retorna confirmação booleana do Android. O histórico só é removido depois de exclusão física confirmada; `content://` é reaberto para distinguir item já ausente de falha silenciosa.
+- Home: cards não mostram descrição; a descrição continua pesquisável. A pesquisa agora é uma lupa no AppBar e o campo ocupa o título somente enquanto ativo.
+- README: cache em memória por repositório/branch, `Isolate.run` para decodificação Base64 grande e `ListView.builder` para renderização lazy dos blocos Markdown. Atualizar força nova consulta.
+- Markdown do README foi separado em `repository_markdown_preview.dart` para manter os arquivos menores e modularizados.
 
 ## Alterações 2.0.96
 

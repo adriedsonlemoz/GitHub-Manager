@@ -393,14 +393,16 @@ class ArtifactService {
   /// contrário, a opção "Excluir APKs anteriores" pode parecer não funcionar
   /// quando os APKs antigos foram publicados como assets de Release.
   Future<OlderApkCleanupResult> deleteOlderApkOutputs(
-    String repositoryFullName,
-  ) async {
+    String repositoryFullName, {
+    List<ActionArtifact>? artifactsSnapshot,
+    List<ReleaseAsset>? releaseAssetsSnapshot,
+  }) async {
     final warnings = <String>[];
     var artifactsDeleted = 0;
     var releaseAssetsDeleted = 0;
 
     try {
-      final artifacts = await listArtifacts(repositoryFullName);
+      final artifacts = artifactsSnapshot ?? await listArtifacts(repositoryFullName);
       final apks = artifacts
           .where((item) => item.likelyContainsApk)
           .toList(growable: false);
@@ -438,7 +440,8 @@ class ArtifactService {
     }
 
     try {
-      final releaseAssets = (await listReleaseAssets(repositoryFullName))
+      final releaseAssets = (releaseAssetsSnapshot ??
+              await listReleaseAssets(repositoryFullName))
           .where((item) => item.isApk)
           .toList(growable: false);
       final releaseGroups = groupReleaseAssets(releaseAssets);

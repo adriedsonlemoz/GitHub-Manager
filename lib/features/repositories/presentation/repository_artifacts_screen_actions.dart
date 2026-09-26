@@ -629,9 +629,18 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
     );
     if (confirmed != true || !mounted) return;
     try {
+      // Usa exatamente os itens que estão visíveis na tela. Assim a limpeza
+      // não depende de uma segunda listagem que pode chegar vazia/atrasada
+      // enquanto o usuário está vendo APKs antigos no card.
+      final visibleArtifacts = await _future;
+      final visibleReleaseAssets = await _releaseFuture;
       final result = await ref
           .read(artifactServiceProvider)
-          .deleteOlderApkOutputs(widget.repositoryFullName);
+          .deleteOlderApkOutputs(
+            widget.repositoryFullName,
+            artifactsSnapshot: visibleArtifacts,
+            releaseAssetsSnapshot: visibleReleaseAssets,
+          );
       await _refresh();
       if (!mounted) return;
       final details = <String>[

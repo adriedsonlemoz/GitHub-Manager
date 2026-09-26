@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
@@ -20,6 +21,23 @@ abstract class _RepositoryGitBase {
 
   final GitHubApiClient _client;
   final Map<String, String?> _runVersionCache = <String, String?>{};
+  final Map<String, RepositoryTextFile?> _readmeCache =
+      <String, RepositoryTextFile?>{};
+
+  String _readmeCacheKey(String repositoryFullName, String branch) =>
+      '${repositoryFullName.trim().toLowerCase()}@${branch.trim()}';
+
+  void _cacheReadme(String key, RepositoryTextFile? file) {
+    _readmeCache.remove(key);
+    _readmeCache[key] = file;
+    while (_readmeCache.length > 8) {
+      _readmeCache.remove(_readmeCache.keys.first);
+    }
+  }
+
+  void _invalidateReadmeCache(String repositoryFullName, String branch) {
+    _readmeCache.remove(_readmeCacheKey(repositoryFullName, branch));
+  }
 }
 
 class RepositoryGitService extends _RepositoryGitBase

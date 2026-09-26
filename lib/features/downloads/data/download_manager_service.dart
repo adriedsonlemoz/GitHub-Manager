@@ -229,10 +229,12 @@ class DownloadManagerService {
     }
     final location = item.localPath;
     if (location != null && location.isNotEmpty) {
-      try {
-        await PlatformActions.deletePublishedDownload(location);
-      } catch (_) {
-        // O arquivo pode já ter sido removido pelo usuário fora do app.
+      final removed = await PlatformActions.deletePublishedDownload(location);
+      if (!removed) {
+        throw PlatformException(
+          code: 'DELETE_DOWNLOAD_NOT_CONFIRMED',
+          message: 'O Android não confirmou a exclusão do arquivo em Downloads.',
+        );
       }
     }
     await _deleteWorkingFile(item);

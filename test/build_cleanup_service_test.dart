@@ -9,8 +9,8 @@ import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 
 void main() {
-  RepositoryWorkflowRun run() => RepositoryWorkflowRun.fromJson({
-        'id': 77,
+  RepositoryWorkflowRun run({int id = 77}) => RepositoryWorkflowRun.fromJson({
+        'id': id,
         'workflow_id': 10,
         'path': '.github/workflows/android-apk.yml',
         'name': 'Android APK',
@@ -90,6 +90,30 @@ void main() {
 
     expect(result.artifactsRemoved, 1);
     expect(events, contains('delete-artifact:999'));
+  });
+
+  test('bulk cleanup reports determinate progress from 0 to 100 percent', () async {
+    final events = <String>[];
+    final client = _FakeGitHubApiClient(events);
+    final artifacts = _FakeArtifactService(client, events);
+    final progress = <BuildCleanupProgress>[];
+
+    final result = await BuildCleanupService(client, artifacts).deleteBuilds(
+      repositoryFullName: 'owner/repo',
+      runs: [run(id: 77), run(id: 78)],
+      onProgress: progress.add,
+    );
+
+    expect(result.deletedCount, 2);
+    expect(progress, isNotEmpty);
+    expect(progress.first.percent, 0);
+    expect(progress.last.percent, 100);
+    expect(progress.last.current, 2);
+    expect(progress.last.total, 2);
+    expect(
+      progress.map((item) => item.stage),
+      contains(BuildCleanupStage.deletingRun),
+    );
   });
 }
 

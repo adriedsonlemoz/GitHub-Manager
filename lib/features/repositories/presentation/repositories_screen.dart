@@ -38,9 +38,11 @@ class RepositoriesScreen extends ConsumerStatefulWidget {
 class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
     with WidgetsBindingObserver, _RepositoriesScreenActions {
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   String _query = '';
   String _filter = 'Todos';
   RepositorySort _sort = RepositorySort.updatedDesc;
+  bool _searchMode = false;
   late int _section;
 
   bool get _showingFollowed => _section == 1;
@@ -62,6 +64,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
         _query = '';
         _filter = 'Todos';
         _sort = RepositorySort.updatedDesc;
+        _searchMode = false;
         _searchController.clear();
       });
       _scheduleRepositoryReconciliation();
@@ -72,6 +75,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -199,6 +203,22 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
     );
   }
 
+  void _openSearch() {
+    setState(() => _searchMode = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocusNode.requestFocus();
+    });
+  }
+
+  void _closeSearch() {
+    _searchFocusNode.unfocus();
+    _searchController.clear();
+    setState(() {
+      _searchMode = false;
+      _query = '';
+    });
+  }
+
   Widget _connectedHome(BuildContext context) {
     final repositories = _showingFollowed
         ? ref.watch(followedRepositoriesProvider)
@@ -229,54 +249,97 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
               clipBehavior: Clip.hardEdge,
               toolbarHeight: 68,
               titleSpacing: 18,
-              title: _showingFollowed
-                  ? const Text('Acompanhados')
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text.rich(
-                          TextSpan(
-                            children: [
+              title: _searchMode
+                  ? TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      autofocus: true,
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: _showingFollowed
+                            ? 'Pesquisar acompanhado'
+                            : 'Pesquisar projeto',
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                      onChanged: (value) => setState(() => _query = value),
+                    )
+                  : _showingFollowed
+                      ? const Text('Acompanhados')
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text.rich(
                               TextSpan(
-                                text: 'Meus ',
-                                style: TextStyle(color: scheme.onSurface),
+                                children: [
+                                  TextSpan(
+                                    text: 'Meus ',
+                                    style: TextStyle(color: scheme.onSurface),
+                                  ),
+                                  TextSpan(
+                                    text: 'repositórios',
+                                    style: TextStyle(
+                                      color: dark
+                                          ? const Color(0xFF8B80FF)
+                                          : scheme.primary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              TextSpan(
-                                text: 'repositórios',
-                                style: TextStyle(
-                                  color: dark ? const Color(0xFF8B80FF) : scheme.primary,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            repositories.maybeWhen(
+                              data: (items) => Text(
+                                '${items.length} ${items.length == 1 ? 'projeto' : 'projetos'}  •  ${formatRepositorySize(items.fold<int>(0, (total, repository) => total + repository.sizeKb))} no total',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                               ),
-                            ],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                              orElse: () => const SizedBox.shrink(),
+                            ),
+                          ],
                         ),
-                        repositories.maybeWhen(
-                          data: (items) => Text(
-                            '${items.length} ${items.length == 1 ? 'projeto' : 'projetos'}  •  ${formatRepositorySize(items.fold<int>(0, (total, repository) => total + repository.sizeKb))} no total',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                          orElse: () => const SizedBox.shrink(),
+              actions: _searchMode
+                  ? [
+                      IconButton(
+                        onPressed: _closeSearch,
+                        tooltip: 'Fechar pesquisa',
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                      const SizedBox(width: 4),
+                    ]
+                  : [
+                      IconButton(
+                        onPressed: _openSearch,
+                        tooltip: 'Pesquisar',
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.search_rounded, size: 22),
+                      ),
+                      IconButton(
+                        onPressed: _showingFollowed
+                            ? _addFollowedRepository
+                            : _createRepository,
+                        tooltip: _showingFollowed
+                            ? 'Acompanhar repositório'
+                            : 'Novo repositório',
+                        icon: Icon(
+                          _showingFollowed
+                              ? Icons.bookmark_add_outlined
+                              : Icons.add_rounded,
                         ),
-                      ],
-                    ),
-              actions: [
-                IconButton(
-                  onPressed: _showingFollowed ? _addFollowedRepository : _createRepository,
-                  tooltip: _showingFollowed ? 'Acompanhar repositório' : 'Novo repositório',
-                  icon: Icon(_showingFollowed ? Icons.bookmark_add_outlined : Icons.add_rounded),
-                ),
-                const UploadCenterButton(),
-                const SizedBox(width: 4),
-              ],
+                      ),
+                      const UploadCenterButton(),
+                      const SizedBox(width: 4),
+                    ],
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
@@ -307,29 +370,12 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
                             _query = '';
                             _filter = 'Todos';
                             _sort = RepositorySort.updatedDesc;
+                            _searchMode = false;
                             _searchController.clear();
                           });
                           _scheduleRepositoryReconciliation();
                         },
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    SearchBar(
-                      controller: _searchController,
-                      hintText: _showingFollowed ? 'Pesquisar acompanhado' : 'Pesquisar projeto',
-                      leading: const Icon(Icons.search_rounded),
-                      trailing: _query.isEmpty
-                          ? null
-                          : [
-                              IconButton(
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _query = '');
-                                },
-                                icon: const Icon(Icons.close_rounded),
-                              ),
-                            ],
-                      onChanged: (value) => setState(() => _query = value),
                     ),
                     const SizedBox(height: 12),
                     Row(

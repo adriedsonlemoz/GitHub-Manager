@@ -141,6 +141,45 @@ void main() {
     expect(service.deletedReleaseAssetIds, isNot(contains(75)));
   });
 
+  test('cleanup can use the APK snapshot already visible on screen', () async {
+    final client = _NoopGitHubApiClient();
+    final published = DateTime(2026, 9, 12, 23, 6);
+    final service = _CleanupArtifactService(client);
+    final visibleReleaseAssets = [
+      ReleaseAsset(
+        id: 31,
+        name: 'Explorador-XP-0.1.0-alpha.31-performance.apk',
+        sizeBytes: 20,
+        downloadUrl: '',
+        tagName: 'explorador-xp-dev',
+        publishedAt: published,
+        releaseId: 300,
+        releaseName: 'explorador-xp-dev',
+        targetCommitish: 'main',
+      ),
+      ReleaseAsset(
+        id: 74,
+        name: 'Explorador-XP-0.1.0-alpha.74-performance.apk',
+        sizeBytes: 20,
+        downloadUrl: '',
+        tagName: 'explorador-xp-dev',
+        publishedAt: published,
+        releaseId: 300,
+        releaseName: 'explorador-xp-dev',
+        targetCommitish: 'main',
+      ),
+    ];
+
+    final result = await service.deleteOlderApkOutputs(
+      'owner/repo',
+      artifactsSnapshot: const <ActionArtifact>[],
+      releaseAssetsSnapshot: visibleReleaseAssets,
+    );
+
+    expect(result.releaseAssetsDeleted, 1);
+    expect(service.deletedReleaseAssetIds, [31]);
+  });
+
   test('cleanup keeps newest active APK artifact even if newer record expired', () async {
     final client = _NoopGitHubApiClient();
     final service = _CleanupArtifactService(client)

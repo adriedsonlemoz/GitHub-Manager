@@ -5,6 +5,37 @@ import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 
+
+enum BuildCleanupStage {
+  preparing,
+  inspectingArtifacts,
+  inspectingReleaseApks,
+  deletingRun,
+  cleaningArtifacts,
+  cleaningReleaseApks,
+  completed,
+}
+
+class BuildCleanupProgress {
+  const BuildCleanupProgress({
+    required this.current,
+    required this.total,
+    required this.completed,
+    required this.runId,
+    required this.stage,
+    required this.progress,
+  });
+
+  final int current;
+  final int total;
+  final int completed;
+  final int runId;
+  final BuildCleanupStage stage;
+  final double progress;
+
+  int get percent => (progress.clamp(0, 1) * 100).round();
+}
+
 class BuildCleanupResult {
   const BuildCleanupResult({
     required this.runId,
@@ -62,6 +93,7 @@ class BuildCleanupService {
   Future<BuildCleanupResult> deleteBuild({
     required String repositoryFullName,
     required RepositoryWorkflowRun run,
+    void Function(BuildCleanupStage stage)? onStage,
   }) async {
     final warnings = <String>[];
     List<ActionArtifact> linkedArtifacts = const <ActionArtifact>[];
@@ -69,6 +101,7 @@ class BuildCleanupService {
 
     // Descobrimos os vínculos antes de apagar a execução, pois o endpoint
     // específico do run deixa de existir após a exclusão.
+    onStage?.call(BuildCleanupStage.inspectingArtifacts);
     try {
       linkedArtifacts = await _artifacts.listArtifactsForRun(
         repositoryFullName: repositoryFullName,
@@ -80,6 +113,7 @@ class BuildCleanupService {
       );
     }
 
+    onStage?.call(BuildCleanupStage.inspectingReleaseApks);
     try {
       linkedReleaseApks = await _artifacts.findReleaseApksForBuild(
         repositoryFullName: repositoryFullName,
@@ -92,6 +126,7 @@ class BuildCleanupService {
     }
 
     // Primeiro removemos a execução. Se isso falhar, nenhuma Release é tocada.
+    onStage?.call(BuildCleanupStage.deletingRun);
     await _client.delete<void>(
       '/repos/$repositoryFullName/actions/runs/${run.id}',
     );
@@ -104,6 +139,7 @@ class BuildCleanupService {
     // O GitHub deve remover os artifacts junto com o run. Fazemos uma
     // verificação adicional na coleção do repositório para cobrir atraso de
     // consistência ou comportamento inesperado da API.
+    onStage?.call(BuildCleanupStage.cleaningArtifacts);
     try {
       final remaining = (await _artifacts.listArtifacts(repositoryFullName))
           .where((artifact) => artifact.workflowRunId == run.id)
@@ -139,6 +175,7 @@ class BuildCleanupService {
 
     // Release assets não são apagados pelo GitHub quando o workflow run some.
     // Removemos apenas APKs cuja Release foi ligada com segurança ao mesmo SHA.
+    onStage?.call(BuildCleanupStage.cleaningReleaseApks);
     for (final asset in linkedReleaseApks) {
       try {
         await _artifacts.deleteReleaseAsset(
@@ -166,6 +203,7 @@ class BuildCleanupService {
   Future<BuildBulkCleanupResult> deleteBuilds({
     required String repositoryFullName,
     required Iterable<RepositoryWorkflowRun> runs,
+    void Function(BuildCleanupProgress progress)? onProgress,
   }) async {
     final deletedIds = <int>[];
     final failedIds = <int>[];
@@ -176,13 +214,50 @@ class BuildCleanupService {
 
     final uniqueRuns = <int, RepositoryWorkflowRun>{
       for (final run in runs) run.id: run,
-    }.values;
+    }.values.toList(growable: false);
+    final total = uniqueRuns.length;
 
-    for (final run in uniqueRuns) {
+    const stageFraction = <BuildCleanupStage, double>{
+      BuildCleanupStage.preparing: 0.0,
+      BuildCleanupStage.inspectingArtifacts: 0.08,
+      BuildCleanupStage.inspectingReleaseApks: 0.22,
+      BuildCleanupStage.deletingRun: 0.42,
+      BuildCleanupStage.cleaningArtifacts: 0.68,
+      BuildCleanupStage.cleaningReleaseApks: 0.86,
+      BuildCleanupStage.completed: 1.0,
+    };
+
+    void emit({
+      required int index,
+      required RepositoryWorkflowRun run,
+      required BuildCleanupStage stage,
+    }) {
+      if (total == 0) return;
+      final completedBefore = index;
+      final currentFraction = stageFraction[stage] ?? 0;
+      final overall = (completedBefore + currentFraction) / total;
+      onProgress?.call(
+        BuildCleanupProgress(
+          current: index + 1,
+          total: total,
+          completed: stage == BuildCleanupStage.completed
+              ? index + 1
+              : index,
+          runId: run.id,
+          stage: stage,
+          progress: overall.clamp(0.0, 1.0).toDouble(),
+        ),
+      );
+    }
+
+    for (var index = 0; index < uniqueRuns.length; index++) {
+      final run = uniqueRuns[index];
+      emit(index: index, run: run, stage: BuildCleanupStage.preparing);
       try {
         final result = await deleteBuild(
           repositoryFullName: repositoryFullName,
           run: run,
+          onStage: (stage) => emit(index: index, run: run, stage: stage),
         );
         deletedIds.add(run.id);
         artifactsRemoved += result.artifactsRemoved;
@@ -191,6 +266,8 @@ class BuildCleanupService {
       } catch (error) {
         failedIds.add(run.id);
         failures[run.id] = _message(error);
+      } finally {
+        emit(index: index, run: run, stage: BuildCleanupStage.completed);
       }
     }
 

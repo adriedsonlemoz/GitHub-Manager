@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.96+200110`
+`version: 2.0.97+200111`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.97+200111` melhora exclusões e desempenho: Builds mostram progresso determinado, downloads só saem do histórico após exclusão física confirmada, a Home usa busca compacta e o README passa a usar cache e renderização lazy.
 
 A versão `2.0.96+200110` reorganiza a tela de APKs: grupos passam a ser ordenados pela versão detectada mesmo quando várias builds estão anexadas à mesma Release de tag fixa, variantes de ABI ficam agrupadas e o feedback global de ações deixa de cobrir o centro da tela.
 
@@ -107,6 +109,10 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+### 2.0.97
+
+A 2.0.97 torna exclusões destrutivas verificáveis e visíveis, corrige a divergência da limpeza de APKs usando os itens já carregados na tela, compacta a Home e reduz o custo de abrir READMEs grandes com cache, decodificação fora da UI e lista lazy de blocos Markdown.
 
 ### 2.0.96
 

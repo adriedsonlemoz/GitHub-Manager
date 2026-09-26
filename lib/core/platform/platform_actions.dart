@@ -58,10 +58,11 @@ abstract final class PlatformActions {
       await _channel.invokeMethod<bool>('requestLegacyDownloadsPermission') ??
       false;
 
-  static Future<void> deletePublishedDownload(String location) =>
-      _channel.invokeMethod<void>('deletePublishedDownload', {
+  static Future<bool> deletePublishedDownload(String location) async =>
+      await _channel.invokeMethod<bool>('deletePublishedDownload', {
         'location': location,
-      });
+      }) ??
+      false;
 
   static Future<void> showUploadForegroundService({
     required bool startService,

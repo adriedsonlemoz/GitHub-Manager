@@ -354,19 +354,52 @@ class MainActivity : FlutterActivity() {
 
     private fun deletePublishedDownload(location: String?, result: MethodChannel.Result) {
         if (location.isNullOrBlank()) {
-            result.success(null)
+            result.success(true)
             return
         }
         try {
             if (location.startsWith("content://")) {
-                contentResolver.delete(Uri.parse(location), null, null)
-            } else {
-                val file = File(location)
-                if (file.exists()) {
-                    file.delete()
+                val uri = Uri.parse(location)
+                val deletedRows = contentResolver.delete(uri, null, null)
+                if (deletedRows > 0) {
+                    result.success(true)
+                    return
                 }
+
+                // Quando o MediaStore devolve 0, confirmamos se o arquivo já
+                // não existe. Se ele ainda puder ser aberto, não removemos o
+                // registro do histórico silenciosamente.
+                val stillExists = try {
+                    contentResolver.openFileDescriptor(uri, "r")?.use { true } ?: false
+                } catch (_: java.io.FileNotFoundException) {
+                    false
+                }
+                if (stillExists) {
+                    result.error(
+                        "DELETE_DOWNLOAD_NOT_CONFIRMED",
+                        "O Android não confirmou a exclusão do arquivo em Downloads.",
+                        null,
+                    )
+                } else {
+                    result.success(true)
+                }
+                return
             }
-            result.success(null)
+
+            val file = File(location)
+            if (!file.exists()) {
+                result.success(true)
+                return
+            }
+            if (!file.delete()) {
+                result.error(
+                    "DELETE_DOWNLOAD_NOT_CONFIRMED",
+                    "Não foi possível apagar o arquivo da pasta Downloads.",
+                    null,
+                )
+                return
+            }
+            result.success(true)
         } catch (error: Exception) {
             result.error("DELETE_DOWNLOAD_FAILED", error.message, null)
         }

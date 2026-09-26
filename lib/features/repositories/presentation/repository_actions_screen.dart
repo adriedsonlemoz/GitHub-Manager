@@ -7,6 +7,7 @@ import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
+import 'package:github_manager/features/builds/data/build_cleanup_service.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
@@ -70,27 +71,31 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
       appBar: AppBar(
         leading: _selectionMode
             ? IconButton(
-                onPressed: _clearRunSelection,
+                onPressed: _deletingSelected ? null : _clearRunSelection,
                 tooltip: 'Cancelar seleção',
                 icon: const Icon(Icons.close_rounded),
               )
             : null,
         title: Text(
-          _selectionMode
-              ? _selectionTitle()
-              : screenTitle,
+          _deletingSelected
+              ? _deletionTitle()
+              : _selectionMode
+                  ? _selectionTitle()
+                  : screenTitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
           if (_selectionMode && !widget.readOnly) ...[
             IconButton(
-              onPressed: () => _selectAllVisibleRuns(failedOnly: true),
+              onPressed: _deletingSelected
+                  ? null
+                  : () => _selectAllVisibleRuns(failedOnly: true),
               tooltip: 'Selecionar falhas',
               icon: const Icon(Icons.error_outline_rounded),
             ),
             IconButton(
-              onPressed: () => _selectAllVisibleRuns(),
+              onPressed: _deletingSelected ? null : () => _selectAllVisibleRuns(),
               tooltip: 'Selecionar todas',
               icon: const Icon(Icons.select_all_rounded),
             ),
@@ -100,10 +105,15 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
                   : _deleteSelectedRuns,
               tooltip: 'Excluir selecionadas',
               icon: _deletingSelected
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  ? SizedBox(
+                      width: 38,
+                      child: Text(
+                        '${_deleteProgress?.percent ?? 0}%',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
                     )
                   : const Icon(Icons.delete_forever_outlined),
             ),

@@ -153,7 +153,7 @@ class _CompletedDownloadCard extends StatelessWidget {
         _CompactDownloadButton(
           onPressed: onDeleteFile,
           icon: Icons.delete_outline_rounded,
-          label: 'Excluir',
+          label: 'Excluir do aparelho',
         ),
       ],
     );

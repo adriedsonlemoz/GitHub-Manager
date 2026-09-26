@@ -1,3 +1,15 @@
+## 2.0.97+200111 — 2026-09-26
+
+- exclusão em lote de Builds passa a exibir etapa, item atual e percentual determinado de 0 a 100%;
+- limpeza **Excluir APKs anteriores** reutiliza os artifacts/APKs já carregados na tela, corrigindo divergências entre a lista visível e uma segunda consulta remota;
+- Central de Downloads passa a confirmar com o Android a exclusão física do arquivo antes de remover o registro local;
+- ação de download é renomeada para **Excluir do aparelho**, mantendo **Remover do histórico** como operação separada;
+- descrições dos projetos são removidas dos cards da Home para reduzir altura e poluição visual, sem perder a busca por descrição;
+- pesquisa da Home vira uma lupa compacta no AppBar e só ocupa espaço enquanto está ativa;
+- README usa cache em memória por repositório/branch, decodificação isolada para conteúdo grande e renderização Markdown lazy;
+- adiciona teste de progresso da limpeza em lote;
+- sincroniza identidade e documentação para `2.0.97+200111`.
+
 ## 2.0.96+200110 — 2026-09-25
 
 - reorganiza a tela **APKs** para exibir um card por versão detectada, reduzindo informação duplicada;

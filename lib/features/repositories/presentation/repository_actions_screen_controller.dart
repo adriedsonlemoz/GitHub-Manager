@@ -14,6 +14,7 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
   final Set<int> _selectedRunIds = <int>{};
   bool _selectionMode = false;
   bool _deletingSelected = false;
+  BuildCleanupProgress? _deleteProgress;
   bool _initialRunOpened = false;
 
   void initializeRepositoryActionsState() {
@@ -263,6 +264,12 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
     });
   }
 
+  String _deletionTitle() {
+    final progress = _deleteProgress;
+    if (progress == null) return 'Preparando exclusão…';
+    return 'Excluindo ${progress.current} de ${progress.total} • ${progress.percent}%';
+  }
+
   Future<void> _deleteSelectedRuns() async {
     if (_selectedRunIds.isEmpty || widget.readOnly || _deletingSelected) return;
     final count = _selectedRunIds.length;
@@ -303,13 +310,20 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
     );
     if (confirmed != true || !mounted) return;
 
-    setState(() => _deletingSelected = true);
+    setState(() {
+      _deletingSelected = true;
+      _deleteProgress = null;
+    });
     try {
       final result = await ref
           .read(buildCleanupServiceProvider)
           .deleteBuilds(
             repositoryFullName: widget.repositoryFullName,
             runs: selectedRuns,
+            onProgress: (progress) {
+              if (!mounted) return;
+              setState(() => _deleteProgress = progress);
+            },
           );
       ref.invalidate(repositoryArtifactsProvider(widget.repositoryFullName));
       ref.invalidate(repositoryReleaseAssetsProvider(widget.repositoryFullName));
@@ -342,7 +356,10 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
       if (mounted) _showError(error);
     } finally {
       if (mounted) {
-        setState(() => _deletingSelected = false);
+        setState(() {
+          _deletingSelected = false;
+          _deleteProgress = null;
+        });
       }
     }
   }
