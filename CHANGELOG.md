@@ -1,3 +1,14 @@
+## 2.0.103+200117 — 2026-09-26
+
+- trata reabertura da `MainActivity` com `FlutterEngine` preservado usando `getCachedEngineId()` somente quando o engine está executando Dart;
+- mantém `shouldDestroyEngineWithHost() = false`, preservando transferências ativas entre saídas e retornos à Activity;
+- em reattach, aplica `NormalTheme` antes do `super.onCreate()` e reforça a limpeza do fundo nativo em `onFlutterUiDisplayed()`;
+- corrige o tema noturno de inicialização para `Theme.Material.NoActionBar`, ícones de sistema claros e fundo `#050B14`;
+- adiciona telemetria local `android.engine_reattach`, com contador, task, estado restaurado, Android, aparelho e versão;
+- importa o evento nativo também em `AppLifecycleState.resumed`, cobrindo reaberturas do mesmo isolate sem reiniciar `main()`;
+- atualiza a tela **Novidades da atualização** somente com as mudanças da 2.0.103 e atualiza Configurações;
+- adiciona teste de contrato do ciclo de engine em cache e sincroniza identidade/documentação em `2.0.103+200117`.
+
 ## 2.0.102+200116 — 2026-09-26
 
 - unifica visualmente os cards de GitHub Releases e GitHub Actions Artifacts na tela **APKs**;

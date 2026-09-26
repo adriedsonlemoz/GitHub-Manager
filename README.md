@@ -1,4 +1,14 @@
-# GitHub Manager 2.0.102
+# GitHub Manager 2.0.103
+
+
+## Reabertura estável com engine em cache 2.0.103
+
+- a `MainActivity` passa a informar `getCachedEngineId()` somente quando o engine preservado existe e já está executando Dart, permitindo que o embedding reconheça corretamente o reattach;
+- em reaberturas com engine ativo, o Android troca imediatamente do `LaunchTheme` para o `NormalTheme`, evitando manter a tela nativa de abertura sobre a interface já renderizada;
+- uploads e downloads continuam preservando o mesmo `FlutterEngine`, pois `shouldDestroyEngineWithHost()` permanece `false`;
+- o splash noturno usa fundo `#050B14`, alinhado ao fundo escuro principal, com status/navigation bar em modo escuro;
+- a telemetria local registra `android.engine_reattach`, contador cumulativo e contexto do Android para validar o ciclo de reabertura;
+- a tela **Novidades da atualização** descreve somente as mudanças desta versão.
 
 
 ## APKs unificados 2.0.102
@@ -302,7 +312,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.102+200116`;
+- versão: `2.0.103+200117`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

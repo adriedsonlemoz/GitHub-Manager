@@ -71,12 +71,55 @@ class GitHubManagerApplication : Application() {
     companion object {
         private const val PREFS_NAME = "github_manager_crash_telemetry"
         private const val KEY_LAST_NATIVE_CRASH = "last_native_crash"
+        private const val KEY_LAST_ENGINE_LIFECYCLE = "last_engine_lifecycle"
+        private const val KEY_ENGINE_REATTACH_COUNT = "engine_reattach_count"
 
         fun consumePendingNativeCrash(context: Context): String? {
             val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val report = preferences.getString(KEY_LAST_NATIVE_CRASH, null)
             if (report != null) {
                 preferences.edit().remove(KEY_LAST_NATIVE_CRASH).apply()
+            }
+            return report
+        }
+
+        fun recordCachedEngineReattach(
+            context: Context,
+            taskId: Int,
+            restoredActivityState: Boolean,
+        ) {
+            runCatching {
+                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val reattachCount = preferences.getInt(KEY_ENGINE_REATTACH_COUNT, 0) + 1
+                val payload = JSONObject().apply {
+                    put("timestamp", System.currentTimeMillis())
+                    put("event", "cached_engine_reattach")
+                    put("reattachCount", reattachCount)
+                    put("taskId", taskId)
+                    put("restoredActivityState", restoredActivityState)
+                    put("androidSdk", Build.VERSION.SDK_INT)
+                    put("device", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+                    put("appVersion", packageInfo.versionName.orEmpty())
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        put("versionCode", packageInfo.longVersionCode)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        put("versionCode", packageInfo.versionCode)
+                    }
+                }
+                preferences.edit()
+                    .putInt(KEY_ENGINE_REATTACH_COUNT, reattachCount)
+                    .putString(KEY_LAST_ENGINE_LIFECYCLE, payload.toString())
+                    .apply()
+            }
+        }
+
+        fun consumePendingEngineLifecycle(context: Context): String? {
+            val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val report = preferences.getString(KEY_LAST_ENGINE_LIFECYCLE, null)
+            if (report != null) {
+                preferences.edit().remove(KEY_LAST_ENGINE_LIFECYCLE).apply()
             }
             return report
         }

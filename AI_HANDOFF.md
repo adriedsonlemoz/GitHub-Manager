@@ -1,9 +1,19 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.102+200116`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.103+200117`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 
+
+
+## Alterações 2.0.103
+
+- `MainActivity.getCachedEngineId()` retorna `github_manager_main_engine` apenas quando o engine cacheado existe e `dartExecutor.isExecutingDart` está ativo; não voltar a usar `provideFlutterEngine()` para esse fluxo.
+- `shouldDestroyEngineWithHost()` continua `false`: uploads/downloads podem manter o isolate vivo enquanto a Activity sai da tela.
+- Em reattach, `NormalTheme` é aplicado antes de `super.onCreate()` e o background nativo da janela é limpo após o attach, evitando que a splash fique sobre a Home já renderizada.
+- `values-night` usa tema Material escuro e `values-night/colors.xml` define `launch_background=#050B14`.
+- `GitHubManagerApplication` registra o último `cached_engine_reattach`; `AppTelemetryService` importa o evento como `android.engine_reattach` também ao receber `AppLifecycleState.resumed`.
+- `test/android_cached_engine_contract_test.dart` protege o contrato do reattach e do splash noturno.
 
 
 ## Alterações 2.0.102

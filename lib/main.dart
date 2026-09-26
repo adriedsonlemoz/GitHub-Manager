@@ -15,6 +15,7 @@ void main() {
     () {
       WidgetsFlutterBinding.ensureInitialized();
       _installGlobalErrorCapture();
+      WidgetsBinding.instance.addObserver(_nativeEngineLifecycleObserver);
 
       // O primeiro frame nunca deve depender de plugins/armazenamento. A splash
       // nativa do Android só é removida quando o Flutter desenha esse frame.
@@ -76,7 +77,26 @@ void _recordNonFatal(
   );
 }
 
+final _nativeEngineLifecycleObserver = _NativeEngineLifecycleObserver();
+
+class _NativeEngineLifecycleObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(AppTelemetryService.instance.importPendingNativeEngineLifecycle());
+    }
+  }
+}
+
 Future<void> _initializeAfterFirstFrame() async {
+  try {
+    await AppTelemetryService.instance.importPendingNativeEngineLifecycle().timeout(
+          const Duration(seconds: 3),
+        );
+  } catch (error, stackTrace) {
+    _recordNonFatal('startup.native_engine_lifecycle_import', error, stackTrace);
+  }
+
   try {
     await AppTelemetryService.instance.importPendingNativeCrash().timeout(
           const Duration(seconds: 3),

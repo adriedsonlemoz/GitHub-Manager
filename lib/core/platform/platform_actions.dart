@@ -116,4 +116,7 @@ abstract final class PlatformActions {
 
   static Future<String?> consumeNativeCrashReport() =>
       _channel.invokeMethod<String>('consumeNativeCrashReport');
+
+  static Future<String?> consumeNativeEngineLifecycleReport() =>
+      _channel.invokeMethod<String>('consumeNativeEngineLifecycleReport');
 }

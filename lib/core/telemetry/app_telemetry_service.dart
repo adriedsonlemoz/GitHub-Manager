@@ -26,6 +26,7 @@ class AppTelemetryEvent {
   final Map<String, Object?> context;
 
   bool get fatal => severity == 'fatal';
+  bool get info => severity == 'info';
 
   factory AppTelemetryEvent.fromRow(Map<String, Object?> row) {
     final rawContext = row['context_json']?.toString();
@@ -109,13 +110,40 @@ class AppTelemetryService {
     StackTrace? stackTrace,
     bool fatal = false,
     Map<String, Object?> context = const {},
+  }) =>
+      _recordEvent(
+        source: source,
+        severity: fatal ? 'fatal' : 'error',
+        message: error,
+        stackTrace: stackTrace,
+        context: context,
+      );
+
+  Future<void> recordInfo({
+    required String source,
+    required Object message,
+    Map<String, Object?> context = const {},
+  }) =>
+      _recordEvent(
+        source: source,
+        severity: 'info',
+        message: message,
+        context: context,
+      );
+
+  Future<void> _recordEvent({
+    required String source,
+    required String severity,
+    required Object message,
+    StackTrace? stackTrace,
+    Map<String, Object?> context = const {},
   }) async {
     try {
       if (!await isEnabled()) return;
       await _database.insertErrorTelemetry(
         source: _sanitize(source, 160),
-        severity: fatal ? 'fatal' : 'error',
-        message: _sanitize(error.toString(), _maxMessageLength),
+        severity: severity,
+        message: _sanitize(message.toString(), _maxMessageLength),
         stackTrace: stackTrace == null
             ? null
             : _sanitize(stackTrace.toString(), _maxStackLength),
@@ -171,6 +199,38 @@ class AppTelemetryService {
       );
     } catch (error, stackTrace) {
       debugPrint('Falha ao importar crash nativo: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  Future<void> importPendingNativeEngineLifecycle() async {
+    try {
+      final raw = await PlatformActions.consumeNativeEngineLifecycleReport();
+      if (raw == null || raw.trim().isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final map = decoded.map((key, value) => MapEntry(key.toString(), value));
+      final event = map['event']?.toString();
+      if (event != 'cached_engine_reattach') return;
+
+      final context = <String, Object?>{
+        'reattachCount': map['reattachCount'],
+        'taskId': map['taskId'],
+        'restoredActivityState': map['restoredActivityState'],
+        'androidSdk': map['androidSdk'],
+        'device': map['device']?.toString(),
+        'appVersion': map['appVersion']?.toString(),
+        'versionCode': map['versionCode'],
+        'nativeTimestamp': map['timestamp'],
+      }..removeWhere((_, value) => value == null || value == '');
+
+      await recordInfo(
+        source: 'android.engine_reattach',
+        message: 'FlutterEngine em cache reanexado à Activity',
+        context: context,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('Falha ao importar ciclo nativo do engine: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
   }

@@ -339,7 +339,11 @@ class _TelemetryEventCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         leading: Icon(
-          event.fatal ? Icons.crisis_alert_rounded : Icons.error_outline_rounded,
+          event.fatal
+              ? Icons.crisis_alert_rounded
+              : event.info
+                  ? Icons.sync_alt_rounded
+                  : Icons.error_outline_rounded,
           color: event.fatal ? scheme.error : scheme.primary,
         ),
         title: Text(

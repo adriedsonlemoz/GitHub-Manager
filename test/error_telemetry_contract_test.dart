@@ -19,6 +19,9 @@ void main() {
     expect(main, contains('FlutterError.onError'));
     expect(main, contains('PlatformDispatcher.instance.onError'));
     expect(main, contains('importPendingNativeCrash'));
+    expect(main, contains('importPendingNativeEngineLifecycle'));
+    expect(telemetry, contains("source: 'android.engine_reattach'"));
+    expect(application, contains('recordCachedEngineReattach'));
     expect(telemetry, contains("source: 'android.native'"));
     expect(application, contains('setDefaultUncaughtExceptionHandler'));
     expect(manifest, contains('GitHubManagerApplication'));

@@ -27,13 +27,38 @@ class MainActivity : FlutterActivity() {
     private var pendingStoragePermissionResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val reattachingCachedEngine = cachedRunningEngine() != null
+        if (reattachingCachedEngine) {
+            // O engine já desenhou o primeiro frame em uma Activity anterior.
+            // Troca o LaunchTheme antes do attach para não manter a splash nativa
+            // aguardando um "primeiro frame" que já aconteceu nesse isolate.
+            setTheme(R.style.NormalTheme)
+        }
+
         super.onCreate(savedInstanceState)
+
+        if (reattachingCachedEngine) {
+            window.setBackgroundDrawableResource(android.R.color.transparent)
+            GitHubManagerApplication.recordCachedEngineReattach(
+                context = applicationContext,
+                taskId = taskId,
+                restoredActivityState = savedInstanceState != null,
+            )
+        }
         cleanupDuplicateRecentTasks()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         cleanupDuplicateRecentTasks()
+    }
+
+    override fun onFlutterUiDisplayed() {
+        super.onFlutterUiDisplayed()
+        // Garante que nenhum background do LaunchTheme sobreviva ao momento em
+        // que a FlutterView já está efetivamente renderizando pixels.
+        setTheme(R.style.NormalTheme)
+        window.setBackgroundDrawableResource(android.R.color.transparent)
     }
 
     private fun cleanupDuplicateRecentTasks() {
@@ -45,8 +70,13 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    override fun provideFlutterEngine(context: Context): FlutterEngine? =
-        FlutterEngineCache.getInstance().get(MAIN_ENGINE_ID)
+    private fun cachedRunningEngine(): FlutterEngine? =
+        FlutterEngineCache.getInstance()
+            .get(MAIN_ENGINE_ID)
+            ?.takeIf { it.dartExecutor.isExecutingDart }
+
+    override fun getCachedEngineId(): String? =
+        if (cachedRunningEngine() != null) MAIN_ENGINE_ID else null
 
     override fun shouldDestroyEngineWithHost(): Boolean = false
 
@@ -151,6 +181,11 @@ class MainActivity : FlutterActivity() {
                 "consumeNativeCrashReport" -> {
                     result.success(
                         GitHubManagerApplication.consumePendingNativeCrash(applicationContext),
+                    )
+                }
+                "consumeNativeEngineLifecycleReport" -> {
+                    result.success(
+                        GitHubManagerApplication.consumePendingEngineLifecycle(applicationContext),
                     )
                 }
                 else -> result.notImplemented()

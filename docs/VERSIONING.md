@@ -4,14 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.102+200116`
+`version: 2.0.103+200117`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.102+200116` unifica visualmente Releases e Artifacts na tela APKs, reconhece versões já publicadas e evita publicar novamente o mesmo APK.
+A versão `2.0.103+200117` estabiliza a reabertura da Activity com FlutterEngine preservado, alinha a splash ao tema escuro e registra reanexos do engine na telemetria local.
 
 A versão `2.0.99+200113` reduz o arredondamento dos cards da Home e adiciona uma tela de novidades exibida uma única vez no primeiro acesso de cada atualização.
 
@@ -116,6 +116,10 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+### 2.0.103
+
+A 2.0.103 mantém o FlutterEngine vivo durante transferências, mas passa a reutilizá-lo pelo contrato explícito de `getCachedEngineId()` quando o isolate já está executando. Reaberturas trocam para `NormalTheme` antes do attach, o splash noturno usa o mesmo fundo base da interface escura e a telemetria local registra `android.engine_reattach` em cada reanexo importado no resume.
 
 ### 2.0.102
 
