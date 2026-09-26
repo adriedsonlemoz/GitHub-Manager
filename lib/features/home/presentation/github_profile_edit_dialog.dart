@@ -171,7 +171,7 @@ Future<GitHubProfileDraft?> showGitHubProfileEditDialog(
                             padding: const EdgeInsets.all(11),
                             decoration: BoxDecoration(
                               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
                               'Login e foto não podem ser alterados por esta API do GitHub. '

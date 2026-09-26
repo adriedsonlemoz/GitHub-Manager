@@ -6,6 +6,7 @@ import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/core/notifications/app_notification_service.dart';
 import 'package:github_manager/core/persistence/local_database.dart';
 import 'package:github_manager/core/security/secure_storage_service.dart';
+import 'package:github_manager/core/telemetry/app_telemetry_service.dart';
 import 'package:github_manager/features/repositories/data/repository_service.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -27,7 +28,12 @@ void buildMonitorCallbackDispatcher() {
       WidgetsFlutterBinding.ensureInitialized();
       DartPluginRegistrant.ensureInitialized();
       return await BuildMonitorService.runBackgroundCheck();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      await AppTelemetryService.instance.recordError(
+        source: 'background.build_monitor',
+        error: error,
+        stackTrace: stackTrace,
+      );
       // Uma falha transitória não deve desativar o monitor.
       return true;
     }

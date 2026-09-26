@@ -126,7 +126,7 @@ class _RepositoryHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant.withValues(alpha: .38)),
       ),
       child: Column(
@@ -298,7 +298,7 @@ class _ProjectVersionBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant.withValues(alpha: .55)),
       ),
       child: Row(
@@ -430,7 +430,7 @@ class _CompactQuickAction extends StatelessWidget {
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 visualDensity: VisualDensity.compact,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               ),
               child: child,
             )
@@ -442,7 +442,7 @@ class _CompactQuickAction extends StatelessWidget {
                 side: BorderSide(
                   color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .48),
                 ),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               ),
               child: child,
             ),
@@ -468,7 +468,7 @@ class _WorkspaceTile extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(4),
           side: BorderSide(
             color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .34),
           ),
@@ -483,7 +483,7 @@ class _WorkspaceTile extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Icon(
               icon,
@@ -599,7 +599,7 @@ class _RepositoryLoadingView extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(4),
                 border: Border.all(
                   color: scheme.outlineVariant.withValues(alpha: .38),
                 ),

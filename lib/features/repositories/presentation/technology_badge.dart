@@ -25,7 +25,7 @@ class TechnologyBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(
           color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .7),
         ),

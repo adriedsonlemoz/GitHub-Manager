@@ -268,7 +268,7 @@ class _MarkdownBlockWidget extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(10, 7, 8, 7),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4),
           ),
           child: SelectableText(
             block.text,
@@ -309,7 +309,7 @@ class _MarkdownBlockWidget extends StatelessWidget {
           padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(4),
           ),
           child: SelectableText(
             block.text,

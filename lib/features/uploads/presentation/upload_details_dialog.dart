@@ -19,7 +19,7 @@ class UploadDetailsDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(4),
         side: BorderSide.none,
       ),
       titlePadding: const EdgeInsets.fromLTRB(16, 14, 10, 0),
@@ -204,7 +204,7 @@ class UploadDetailsDialog extends StatelessWidget {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: SelectableText(
                       item.technicalLog,

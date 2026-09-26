@@ -1,9 +1,21 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.100+200114`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.101+200115`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 
+
+
+## Alterações 2.0.101
+
+- raio retangular global padronizado em 4 px; pills de status intencionais permanecem em 99/999;
+- nova central **Erros e telemetria** em Configurações com captura local, exportação e limpeza;
+- `LocalDatabase.schemaVersion = 3` inclui tabela `error_telemetry` com retenção de 120 eventos;
+- `main.dart` instala handlers para `FlutterError.onError`, `PlatformDispatcher.onError` e `runZonedGuarded`;
+- `GitHubManagerApplication` captura o último crash nativo via `UncaughtExceptionHandler` e `MainActivity` expõe `consumeNativeCrashReport` ao Flutter;
+- relatórios sanitizam padrões conhecidos de tokens/senhas/segredos e nunca são enviados automaticamente;
+- `StartupUpdateGate` só persiste `app.whats_new.last_seen_version` depois de **Continuar**; fechar antes mantém a tela pendente para o próximo acesso;
+- Configurações permite rever manualmente a tela **Novidades desta versão**.
 
 ## Alterações 2.0.100
 
@@ -236,7 +248,7 @@ Flutter/Dart Android local-first, sem backend obrigatório. GitHub é acessado d
 
 ## Persistência e recuperação 2.0.67
 
-- SQLite usa `schemaVersion = 2`, com `CREATE TABLE/INDEX IF NOT EXISTS` em criação, upgrade e abertura;
+- SQLite usa `schemaVersion = 3`, com `CREATE TABLE/INDEX IF NOT EXISTS` em criação, upgrade e abertura;
 - instalações antigas com banco incompleto são migradas sem exigir limpar dados do Android;
 - cada `LocalDatabase` abre conexão própria (`singleInstance: false`), evitando que serviços auxiliares fechem a conexão usada pela UI;
 - reconciliação de projetos fixados é auxiliar e não pode derrubar a lista remota de repositórios;
@@ -332,7 +344,7 @@ Se um ZIP gerar a mesma árvore Git já publicada, não criar commit nem build a
 - `_opening` deduplica aberturas concorrentes do mesmo isolate.
 - `localDatabaseProvider` não fecha a conexão em `ref.onDispose`; startup, `BuildMonitorService` e `UploadRecoverySettings` também não fecham o banco após cada operação.
 - `rebuildLocalDatabase()` é o único fluxo autorizado a fechar internamente a conexão antes de excluir e reabrir o banco.
-- manter `schemaVersion = 2` enquanto não houver alteração real de schema; `_ensureSchema` continua idempotente para instalações antigas.
+- manter `schemaVersion = 3` enquanto não houver nova alteração real de schema; `_ensureSchema` continua idempotente para instalações antigas.
 
 ## Refatoração ManagedUpload 2.0.72
 

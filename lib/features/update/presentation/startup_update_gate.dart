@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:github_manager/core/persistence/local_database.dart';
+import 'package:github_manager/core/telemetry/app_telemetry_service.dart';
 import 'package:github_manager/core/widgets/installed_version_banner.dart';
 import 'package:github_manager/features/update/presentation/update_whats_new_screen.dart';
 
@@ -19,6 +20,7 @@ class _StartupUpdateGateState extends State<StartupUpdateGate> {
 
   String? _pendingVersion;
   bool _checking = false;
+  bool _closing = false;
 
   @override
   void initState() {
@@ -42,10 +44,17 @@ class _StartupUpdateGateState extends State<StartupUpdateGate> {
           .timeout(const Duration(seconds: 3));
       if (!mounted || lastSeen?.toString() == version) return;
 
+      // A versão só é marcada como vista depois que a pessoa tocar em
+      // Continuar. Assim, fechar o app durante a tela não "consome" as notas.
       setState(() => _pendingVersion = version);
-      unawaited(_markVersionAsSeen(version));
-    } catch (_) {
-      // A tela de novidades é auxiliar e nunca pode bloquear o startup.
+    } catch (error, stackTrace) {
+      unawaited(
+        AppTelemetryService.instance.recordError(
+          source: 'startup.whats_new_check',
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
     } finally {
       _checking = false;
     }
@@ -56,14 +65,24 @@ class _StartupUpdateGateState extends State<StartupUpdateGate> {
       await LocalDatabase.shared
           .putJson(_lastSeenVersionKey, version)
           .timeout(const Duration(seconds: 2));
-    } catch (_) {
-      // Falha de persistência não bloqueia a tela nem o restante do aplicativo.
+    } catch (error, stackTrace) {
+      unawaited(
+        AppTelemetryService.instance.recordError(
+          source: 'startup.whats_new_persist',
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
     }
   }
 
   Future<void> _continue() async {
-    if (!mounted || _pendingVersion == null) return;
-    setState(() => _pendingVersion = null);
+    final version = _pendingVersion;
+    if (!mounted || version == null || _closing) return;
+    _closing = true;
+    await _markVersionAsSeen(version);
+    if (mounted) setState(() => _pendingVersion = null);
+    _closing = false;
   }
 
   @override
@@ -76,7 +95,9 @@ class _StartupUpdateGateState extends State<StartupUpdateGate> {
           Positioned.fill(
             child: BackButtonListener(
               onBackButtonPressed: () async {
-                await _continue();
+                // Não marca a versão como lida apenas por pressionar Voltar.
+                // A pessoa precisa confirmar em Continuar para que a tela seja
+                // exibida somente uma vez de forma confiável.
                 return true;
               },
               child: UpdateWhatsNewScreen(

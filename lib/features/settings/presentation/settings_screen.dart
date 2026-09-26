@@ -15,6 +15,7 @@ import 'package:github_manager/features/home/presentation/github_profile_edit_di
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/uploads/data/upload_recovery_settings.dart';
+import 'package:github_manager/features/update/presentation/update_whats_new_screen.dart';
 import 'package:go_router/go_router.dart';
 
 part 'settings_widgets.dart';
@@ -202,6 +203,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.monitor_heart_outlined),
+                  title: const Text('Erros e telemetria'),
+                  subtitle: const Text(
+                    'Revisar crashes e falhas capturadas localmente, copiar ou exportar um relatório.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push('/settings/telemetry'),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.build_circle_outlined),
                   title: const Text('Diagnóstico de dados locais'),
                   subtitle: const Text(
@@ -231,13 +242,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   ),
                 ),
                 const Divider(height: 1),
-                ExpansionTile(
+                ListTile(
                   leading: const Icon(Icons.new_releases_outlined),
+                  title: const Text('Novidades desta versão'),
+                  subtitle: const Text('Rever a tela exibida automaticamente após a atualização.'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: _showCurrentWhatsNew,
+                ),
+                const Divider(height: 1),
+                ExpansionTile(
+                  leading: const Icon(Icons.history_rounded),
                   title: const Text('Últimas 3 mudanças'),
                   subtitle: const Text('Toque para expandir'),
                   initiallyExpanded: false,
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
+                    _ChangeNote(
+                      version: '2.0.101',
+                      text: 'Padroniza os cantos retangulares, adiciona telemetria local de erros/crashes e reforça a tela automática de novidades por versão.',
+                    ),
                     _ChangeNote(
                       version: '2.0.100',
                       text: 'Corrige cartões duplicados do GitHub Manager em Aplicativos recentes após atualização, instalação de APK ou retorno por notificação.',
@@ -245,10 +268,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     _ChangeNote(
                       version: '2.0.99',
                       text: 'Deixa os cards de projetos quase retos e adiciona a tela de novidades exibida uma única vez após cada atualização.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.98',
-                      text: 'Compacta os atalhos dentro do projeto, reorganiza os menus, simplifica Releases e deixa a escolha de branch mais clara com Continuar.',
                     ),
                   ],
                 ),

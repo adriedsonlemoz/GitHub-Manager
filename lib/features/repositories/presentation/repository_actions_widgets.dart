@@ -146,11 +146,11 @@ class _RunResultTile extends StatelessWidget {
       margin: const EdgeInsets.only(top: 6),
       decoration: BoxDecoration(
         color: statusColor.withValues(alpha: .08),
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: statusColor.withValues(alpha: .30)),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(4),
         onTap: onTap,
         onLongPress: onLongPress,
         child: Padding(
@@ -260,7 +260,7 @@ class _WorkflowStepTile extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(7, 3, 7, 3),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: ListTile(
         dense: true,

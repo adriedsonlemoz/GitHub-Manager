@@ -309,7 +309,7 @@ class _RepositoryIssuesScreenState
                       final issue = issues[index];
                       return Material(
                         color: scheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(11),
+                        borderRadius: BorderRadius.circular(4),
                         clipBehavior: Clip.antiAlias,
                         child: ListTile(
                           dense: true,
@@ -382,7 +382,7 @@ class _MessageCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(4),
         ),
         child: Text(message),
       );

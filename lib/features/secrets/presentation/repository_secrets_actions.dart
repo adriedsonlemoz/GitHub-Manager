@@ -349,7 +349,7 @@ mixin _RepositorySecretsActions on ConsumerState<RepositorySecretsScreen> {
                     margin: const EdgeInsets.only(bottom: 5),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: ListTile(
                       dense: true,

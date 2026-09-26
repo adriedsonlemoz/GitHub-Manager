@@ -1,4 +1,16 @@
-# GitHub Manager 2.0.100
+# GitHub Manager 2.0.101
+
+
+## Consistência visual, telemetria e novidades confiáveis 2.0.101
+
+- padroniza os cantos de cards, botões, campos, diálogos, snackbars, indicadores de navegação e outros retângulos para o mesmo raio discreto de 4 px usado na Home;
+- preserva somente elementos intencionalmente circulares/pill, como alguns indicadores de status;
+- adiciona **Configurações > Erros e telemetria**, com captura local de falhas Flutter/Dart, importação do último crash nativo do Android, histórico limitado, cópia, exportação e limpeza;
+- instala um `UncaughtExceptionHandler` nativo desde o `Application` para registrar crashes que encerram o processo e importá-los no próximo acesso;
+- tokens, senhas, API keys e secrets conhecidos são ocultados nos relatórios, que permanecem locais e nunca são enviados automaticamente;
+- o startup registra falhas auxiliares de tema, banco, UI do sistema e monitor de builds sem permitir que a própria telemetria derrube o aplicativo;
+- a tela **Novidades da atualização** continua automática, mas a versão só é marcada como vista depois de tocar em **Continuar**; se o app for fechado antes, ela reaparece no próximo acesso;
+- Configurações ganha **Novidades desta versão** para rever manualmente o resumo atual sem alterar o controle automático por versão.
 
 
 ## Correção de janelas duplicadas nos Recentes 2.0.100
@@ -279,7 +291,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.100+200114`;
+- versão: `2.0.101+200115`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

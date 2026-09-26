@@ -55,3 +55,7 @@ As mutações de sincronização são executadas sequencialmente. O serviço de 
 Durante um envio existe um foreground service Android do tipo `dataSync`. Ele mantém uma notificação persistente e, em conjunto com o FlutterEngine principal mantido em cache, permite que a sincronização continue quando a Activity é removida dos recentes enquanto o processo permanece vivo.
 
 Cada blob remoto criado é salvo no histórico como checkpoint de conteúdo. Se o processo for realmente encerrado, o próximo início do app restaura a fila automaticamente: blobs cujo SHA ainda corresponde ao ZIP são reutilizados e, se o commit já foi persistido, a retomada pula diretamente para a etapa de build. `Forçar parada` e encerramento do processo pelo sistema não podem executar código em segundo plano; nesses casos a retomada acontece ao abrir o GitHub Manager novamente.
+
+## Telemetria local de estabilidade (2.0.101)
+
+`AppTelemetryService` centraliza falhas capturadas pelo Flutter/Dart e persiste um histórico curto no SQLite (`error_telemetry`). `main.dart` conecta `FlutterError.onError`, `PlatformDispatcher.onError` e `runZonedGuarded`. No Android, `GitHubManagerApplication` instala um `UncaughtExceptionHandler` antes da Activity e preserva o último crash fatal em `SharedPreferences`; `MainActivity` entrega esse registro ao Flutter no próximo acesso. A telemetria é local, opt-out e não possui endpoint de envio automático.

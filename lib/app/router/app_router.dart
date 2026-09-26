@@ -13,6 +13,7 @@ import 'package:github_manager/features/repositories/presentation/repository_det
 import 'package:github_manager/features/repositories/presentation/repository_files_screen.dart';
 import 'package:github_manager/features/repositories/presentation/repository_text_preview_screen.dart';
 import 'package:github_manager/features/secrets/presentation/repository_secrets_screen.dart';
+import 'package:github_manager/features/settings/presentation/error_telemetry_screen.dart';
 import 'package:github_manager/features/settings/presentation/settings_screen.dart';
 import 'package:github_manager/features/setup/presentation/setup_wizard_screen.dart';
 import 'package:github_manager/features/uploads/presentation/uploads_screen.dart';
@@ -36,6 +37,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (_, _) => const SettingsScreen(),
+      routes: [
+        GoRoute(
+          path: 'telemetry',
+          builder: (_, _) => const ErrorTelemetryScreen(),
+        ),
+      ],
     ),
     GoRoute(
       path: '/downloads',

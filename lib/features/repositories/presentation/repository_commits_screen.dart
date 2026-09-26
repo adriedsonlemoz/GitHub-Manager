@@ -167,7 +167,7 @@ class _CommitCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 11, 8, 10),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant.withValues(alpha: .36)),
       ),
       child: Row(
@@ -202,7 +202,7 @@ class _CommitCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     commit.shortSha,

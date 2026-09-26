@@ -113,4 +113,7 @@ abstract final class PlatformActions {
 
   static Future<void> stopDownloadForegroundService() =>
       _channel.invokeMethod<void>('stopDownloadForegroundService');
+
+  static Future<String?> consumeNativeCrashReport() =>
+      _channel.invokeMethod<String>('consumeNativeCrashReport');
 }

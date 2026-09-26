@@ -15,7 +15,7 @@ import 'package:sqflite/sqflite.dart';
 class LocalDatabase {
   LocalDatabase._();
 
-  static const int schemaVersion = 2;
+  static const int schemaVersion = 3;
   static const String databaseFileName = 'github_manager.db';
 
   static final LocalDatabase shared = LocalDatabase._();
@@ -95,6 +95,21 @@ class LocalDatabase {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_operation_logs_created_at '
       'ON operation_logs(created_at)',
+    );
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS error_telemetry (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        message TEXT NOT NULL,
+        stack_trace TEXT,
+        context_json TEXT,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_error_telemetry_created_at '
+      'ON error_telemetry(created_at)',
     );
   }
 
@@ -238,6 +253,58 @@ class LocalDatabase {
         whereArgs: [id],
       );
     }
+  }
+
+  Future<int> insertErrorTelemetry({
+    required String source,
+    required String severity,
+    required String message,
+    String? stackTrace,
+    Map<String, Object?>? context,
+  }) async {
+    final db = await database;
+    final id = await db.insert('error_telemetry', {
+      'source': source,
+      'severity': severity,
+      'message': message,
+      'stack_trace': stackTrace,
+      'context_json': context == null ? null : jsonEncode(context),
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    });
+
+    // Mantém a telemetria pequena e previsível mesmo em sessões com muitos
+    // erros repetidos. Os registros mais antigos são descartados primeiro.
+    await db.rawDelete('''
+      DELETE FROM error_telemetry
+      WHERE id NOT IN (
+        SELECT id FROM error_telemetry
+        ORDER BY created_at DESC, id DESC
+        LIMIT 120
+      )
+    ''');
+    return id;
+  }
+
+  Future<List<Map<String, Object?>>> readErrorTelemetry({int limit = 100}) async {
+    final db = await database;
+    final safeLimit = limit < 1 ? 1 : (limit > 120 ? 120 : limit);
+    return db.query(
+      'error_telemetry',
+      orderBy: 'created_at DESC, id DESC',
+      limit: safeLimit,
+    );
+  }
+
+  Future<void> clearErrorTelemetry() async {
+    final db = await database;
+    await db.delete('error_telemetry');
+  }
+
+  Future<int> errorTelemetryCount() async {
+    final db = await database;
+    final rows = await db.rawQuery('SELECT COUNT(*) AS total FROM error_telemetry');
+    if (rows.isEmpty) return 0;
+    return (rows.first['total'] as num?)?.toInt() ?? 0;
   }
 
   /// Verifica o banco e recria qualquer tabela/índice ausente sem apagar

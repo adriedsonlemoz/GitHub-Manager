@@ -148,6 +148,11 @@ class MainActivity : FlutterActivity() {
                         result.error("DOWNLOAD_FOREGROUND_STOP_FAILED", error.message, null)
                     }
                 }
+                "consumeNativeCrashReport" -> {
+                    result.success(
+                        GitHubManagerApplication.consumePendingNativeCrash(applicationContext),
+                    )
+                }
                 else -> result.notImplemented()
             }
         }

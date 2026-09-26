@@ -57,7 +57,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
                 padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,7 +242,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     'Os jobs ainda não foram publicados pelo GitHub.',
@@ -255,7 +255,7 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
                     child: Container(
                       decoration: BoxDecoration(
                         color: scheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: ExpansionTile(

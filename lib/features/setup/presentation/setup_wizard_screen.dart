@@ -84,7 +84,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                     height: 48,
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: Icon(
                       Icons.developer_mode_rounded,

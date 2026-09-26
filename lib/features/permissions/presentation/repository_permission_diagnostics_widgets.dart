@@ -17,7 +17,7 @@ class _ReportView extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 9),
           decoration: BoxDecoration(
             color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(4),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,7 +127,7 @@ class _CapabilityCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Material(
       color: theme.colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(11),
+      borderRadius: BorderRadius.circular(4),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 11),
@@ -225,7 +225,7 @@ class _ResultRow extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     'Necessário: ${result.requiredPermission}',

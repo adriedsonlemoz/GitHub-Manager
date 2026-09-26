@@ -440,7 +440,7 @@ class _RepositoriesScreenState extends ConsumerState<RepositoriesScreen>
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 border: Border.all(color: scheme.outlineVariant),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Icon(Icons.sort_rounded, size: 21),
                             ),

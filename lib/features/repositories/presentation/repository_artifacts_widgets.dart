@@ -34,7 +34,7 @@ class _ArtifactCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(4),
         onLongPress: readOnly ? null : onToggleSelection,
         onTap: selectionMode && !readOnly ? onToggleSelection : null,
         child: Padding(
@@ -60,7 +60,7 @@ class _ArtifactCard extends StatelessWidget {
                       height: 42,
                       decoration: BoxDecoration(
                         color: scheme.primaryContainer.withValues(alpha: .72),
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Icon(
                         descriptor.icon,
@@ -387,7 +387,7 @@ class _ArtifactsOverview extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant.withValues(alpha: .55)),
       ),
       child: Row(
@@ -498,7 +498,7 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(4),
         onTap: onDownload,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
@@ -513,7 +513,7 @@ class _ReleaseAssetGroupCard extends StatelessWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       color: scheme.primaryContainer.withValues(alpha: .72),
-                      borderRadius: BorderRadius.circular(13),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: Icon(
                       group.hasApk

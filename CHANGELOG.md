@@ -1,3 +1,19 @@
+## 2.0.101+200115 — 2026-09-26
+
+- faz varredura visual completa e padroniza retângulos para raio de 4 px, alinhando cards, campos, botões, diálogos, snackbars e indicador da navegação ao padrão da Home;
+- mantém somente pills/círculos deliberados para estados e indicadores que dependem dessa forma;
+- adiciona `error_telemetry` ao SQLite (`schemaVersion = 3`) com retenção máxima de 120 eventos;
+- captura erros globais de Flutter, exceções assíncronas do Dart e falhas registradas pelo logger;
+- adiciona `GitHubManagerApplication` com `UncaughtExceptionHandler` nativo para preservar o último crash Android antes do encerramento do processo;
+- importa o crash nativo no próximo acesso e disponibiliza tudo em **Configurações > Erros e telemetria**;
+- adiciona ações de copiar relatório, exportar `.txt` para Downloads/GitHub Manager e limpar o histórico local;
+- sanitiza padrões conhecidos de Authorization Bearer, token, password, api key, secret, `github_pat_...` e `gh*_...`;
+- nada de telemetria é enviado automaticamente; a captura pode ser desativada nas Configurações;
+- corrige o controle da tela **Novidades da atualização**: a versão só é marcada como vista após **Continuar**, evitando que a tela seja consumida antes de realmente ser lida;
+- adiciona **Novidades desta versão** em Configurações para revisão manual;
+- adiciona testes de contrato para raios visuais, telemetria global/nativa e exibição das novidades;
+- sincroniza documentação e identidade para `2.0.101+200115`.
+
 ## 2.0.100+200114 — 2026-09-26
 
 - corrige a criação/retenção de duas janelas do GitHub Manager em **Aplicativos recentes** após atualização, instalação de APK ou retorno por notificação;

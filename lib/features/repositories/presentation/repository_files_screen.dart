@@ -468,7 +468,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: scheme.errorContainer.withValues(alpha: .35),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(_message(snapshot.error!)),
                           ),
@@ -505,7 +505,7 @@ class _RepositoryFilesScreenState extends ConsumerState<RepositoryFilesScreen> {
                         final item = items[index];
                         return Material(
                           color: scheme.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(11),
+                          borderRadius: BorderRadius.circular(4),
                           clipBehavior: Clip.antiAlias,
                           child: ListTile(
                             dense: true,

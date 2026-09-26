@@ -4,14 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.100+200114`
+`version: 2.0.101+200115`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
 
-A versão `2.0.100+200114` corrige a duplicação da janela do GitHub Manager em Aplicativos recentes após atualização, instalação de APK e retorno por notificações, consolidando a abertura na mesma task do Android.
+A versão `2.0.101+200115` padroniza os cantos visuais, adiciona telemetria local de erros/crashes e torna a tela de novidades confiável ao marcar a versão como vista somente depois de **Continuar**.
 
 A versão `2.0.99+200113` reduz o arredondamento dos cards da Home e adiciona uma tela de novidades exibida uma única vez no primeiro acesso de cada atualização.
 
@@ -114,6 +114,11 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+
+### 2.0.101
+
+A 2.0.101 padroniza superfícies retangulares em raio de 4 px e adiciona telemetria local de estabilidade. O SQLite passa ao schema 3 com `error_telemetry`; o Flutter captura erros de framework, dispatcher e zone; o Android registra o último crash nativo desde o `Application`; e Configurações permite revisar/exportar os eventos sem envio automático. A tela de novidades passa a marcar a versão como vista somente após confirmação explícita em **Continuar**.
 
 ### 2.0.100
 

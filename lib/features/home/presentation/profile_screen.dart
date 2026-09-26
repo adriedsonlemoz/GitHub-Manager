@@ -77,7 +77,7 @@ class ProfileScreen extends ConsumerWidget {
                       padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
                       decoration: BoxDecoration(
                         color: scheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(4),
                         border: Border.all(
                           color: scheme.outlineVariant.withValues(alpha: .55),
                         ),
@@ -179,7 +179,7 @@ class _Metric extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(alpha: .45),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         children: [
@@ -234,7 +234,7 @@ class _DetailsCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(children: rows),
     );

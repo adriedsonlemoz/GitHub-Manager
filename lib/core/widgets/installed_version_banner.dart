@@ -44,7 +44,7 @@ class InstalledVersionBanner extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(compact ? 10 : 12),
+              borderRadius: BorderRadius.circular(4),
               border: Border.all(
                 color: scheme.outlineVariant.withValues(alpha: .55),
               ),

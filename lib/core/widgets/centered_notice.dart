@@ -33,7 +33,7 @@ void showCenteredNotice(
           backgroundColor: visuals.background,
           elevation: 5,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(4),
           ),
           content: Row(
             children: [
@@ -133,7 +133,7 @@ void _showBottomOverlay(
         child: Material(
           elevation: 5,
           color: visuals.background,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(4),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             child: Row(

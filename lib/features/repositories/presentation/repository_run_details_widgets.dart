@@ -73,7 +73,7 @@ class _RunInformationCard extends StatelessWidget {
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,7 +139,7 @@ class _RunInformationCard extends StatelessWidget {
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 color: scheme.secondaryContainer.withValues(alpha: .45),
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
                 apkOutcome,
@@ -338,7 +338,7 @@ class _FailureSummaryCardState extends ConsumerState<_FailureSummaryCard> {
           padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
             color: scheme.errorContainer.withValues(alpha: .42),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(4),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,7 +421,7 @@ class _FailureSummaryCardState extends ConsumerState<_FailureSummaryCard> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: scheme.surface.withValues(alpha: .52),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: SelectableText(
                     failure!.logContext.join('\n'),

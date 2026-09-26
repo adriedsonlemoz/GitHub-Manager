@@ -119,7 +119,7 @@ class _UploadCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 5),
       child: Material(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(4),
         clipBehavior: Clip.antiAlias,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),
@@ -260,7 +260,7 @@ class _UploadCard extends StatelessWidget {
                             ? scheme.tertiaryContainer
                             : scheme.errorContainer)
                         .withValues(alpha: .38),
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     item.errorMessage!,
@@ -380,7 +380,7 @@ class _UploadMetric extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(alpha: .48),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         '$value $label',

@@ -14,7 +14,7 @@ class _InstalledVersionCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(4),
           ),
           child: Row(
             children: [
@@ -24,7 +24,7 @@ class _InstalledVersionCard extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: scheme.primaryContainer.withValues(alpha: .55),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
                   Icons.verified_outlined,
@@ -133,7 +133,7 @@ class _IntegrationCard extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Icon(icon, color: Theme.of(context).colorScheme.onPrimaryContainer),
                 ),

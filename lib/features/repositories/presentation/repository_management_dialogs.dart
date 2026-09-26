@@ -106,7 +106,7 @@ class _CreateRepositoryDialogState extends State<_CreateRepositoryDialog> {
                       height: 42,
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Icon(
                         Icons.create_new_folder_outlined,
@@ -261,7 +261,7 @@ class _EditRepositoryDialogState extends State<_EditRepositoryDialog> {
                       height: 42,
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Icon(
                         Icons.edit_outlined,
@@ -319,7 +319,7 @@ class _EditRepositoryDialogState extends State<_EditRepositoryDialog> {
                   padding: const EdgeInsets.all(11),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,7 +418,7 @@ class _RepositoryActionsDialog extends StatelessWidget {
                       height: 42,
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Icon(
                         Icons.settings_outlined,
@@ -594,7 +594,7 @@ class _RenameRepositoryDialogState extends State<_RenameRepositoryDialog> {
               padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

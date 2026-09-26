@@ -14,7 +14,7 @@ class _ResultBanner extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: color.withValues(alpha: 0.24)),
       ),
       child: Row(
@@ -111,7 +111,7 @@ class _Metric extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -150,7 +150,7 @@ class _Section extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,7 +189,7 @@ class _ExpandableSection extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
       ),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
@@ -264,7 +264,7 @@ class _FailureReportCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: containerColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: accent.withValues(alpha: 0.20)),
       ),
       child: Column(
@@ -357,7 +357,7 @@ class _FailureReportCard extends StatelessWidget {
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: scheme.surface.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

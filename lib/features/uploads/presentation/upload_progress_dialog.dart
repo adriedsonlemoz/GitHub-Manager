@@ -96,7 +96,7 @@ class UploadProgressDialog extends ConsumerWidget {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,7 +301,7 @@ class _FailureDiagnostic extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: container,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: accent.withValues(alpha: 0.22)),
       ),
       child: Column(
@@ -379,7 +379,7 @@ class _FailureDiagnostic extends StatelessWidget {
                   padding: const EdgeInsets.all(9),
                   decoration: BoxDecoration(
                     color: scheme.surface.withValues(alpha: .45),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: SelectableText(
                     item.buildTriggerFixSnippet,

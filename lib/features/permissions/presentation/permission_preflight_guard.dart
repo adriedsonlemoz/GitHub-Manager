@@ -68,7 +68,7 @@ Future<bool> presentRepositoryPermissionDecision(
                         color: Theme.of(context)
                             .colorScheme
                             .errorContainer,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         permission,

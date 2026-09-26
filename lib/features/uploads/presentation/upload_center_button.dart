@@ -32,7 +32,7 @@ class UploadCenterButton extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     alignment: Alignment.center,
                     child: Text(
@@ -139,7 +139,7 @@ class _UploadCountBadge extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: scheme.error,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         '$count',

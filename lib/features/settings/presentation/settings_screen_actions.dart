@@ -206,7 +206,7 @@ mixin _SettingsScreenActions on ConsumerState<SettingsScreen> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: SelectableText(
                       visible ? token : '•' * 24,
@@ -318,7 +318,7 @@ mixin _SettingsScreenActions on ConsumerState<SettingsScreen> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
                       'Para que serve? Esta integração foi preparada para recursos opcionais de IA, '
@@ -412,6 +412,21 @@ mixin _SettingsScreenActions on ConsumerState<SettingsScreen> {
     baseUrl.dispose();
     apiKey.dispose();
     model.dispose();
+  }
+
+  Future<void> _showCurrentWhatsNew() async {
+    final version = await InstalledVersionBanner.versionLabel;
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (routeContext) => UpdateWhatsNewScreen(
+          versionLabel: version,
+          onContinue: () async {
+            if (routeContext.mounted) Navigator.of(routeContext).pop();
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _repairLocalData() async {

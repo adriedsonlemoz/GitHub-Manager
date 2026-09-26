@@ -256,7 +256,7 @@ class _DownloadCardShell extends StatelessWidget {
                   height: 40,
                   decoration: BoxDecoration(
                     color: scheme.primaryContainer.withValues(alpha: .70),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Icon(
                     item.isApk ? Icons.android_rounded : _typeIcon(item.type),

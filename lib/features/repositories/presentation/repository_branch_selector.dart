@@ -340,7 +340,7 @@ class _RepositoryBranchDialogState extends State<_RepositoryBranchDialog> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: scheme.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,7 +389,7 @@ class _RepositoryBranchDialogState extends State<_RepositoryBranchDialog> {
                         key: ValueKey('repository_branch_${branch.name}'),
                         dense: true,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                         tileColor: scheme.surfaceContainerLow,
                         leading: Icon(

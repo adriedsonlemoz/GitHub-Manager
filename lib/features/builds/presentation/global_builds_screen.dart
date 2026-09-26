@@ -495,7 +495,7 @@ class _RepositoryBuildRunCard extends StatelessWidget {
             InkWell(
               key: ValueKey('run-${run.id}'),
               onTap: onOpen,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(4),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                 child: Row(
@@ -565,7 +565,7 @@ class _StatusPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         label,

@@ -210,7 +210,7 @@ class _TruncatedNotice extends StatelessWidget {
               .colorScheme
               .tertiaryContainer
               .withValues(alpha: .55),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(4),
         ),
         child: const Text(
           'Arquivo muito grande: exibindo apenas o início para manter o aplicativo responsivo.',

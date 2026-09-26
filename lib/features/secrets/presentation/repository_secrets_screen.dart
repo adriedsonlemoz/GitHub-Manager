@@ -141,7 +141,7 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
                       color: error is GitHubPermissionException
                           ? scheme.errorContainer.withValues(alpha: .35)
                           : scheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,7 +205,7 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
                     final secret = items[index];
                     return Material(
                       color: scheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.circular(4),
                       clipBehavior: Clip.antiAlias,
                       child: ListTile(
                         dense: true,
@@ -219,7 +219,7 @@ class _RepositorySecretsScreenState extends ConsumerState<RepositorySecretsScree
                           decoration: BoxDecoration(
                             color: scheme.primaryContainer
                                 .withValues(alpha: .5),
-                            borderRadius: BorderRadius.circular(9),
+                            borderRadius: BorderRadius.circular(4),
                           ),
                           child: Icon(
                             Icons.key_rounded,

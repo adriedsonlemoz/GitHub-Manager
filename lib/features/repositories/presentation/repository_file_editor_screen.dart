@@ -238,7 +238,7 @@ class _RepositoryFileEditorScreenState
                     Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Column(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
+  static const releaseNotesVersion = '2.0.101';
+
   const UpdateWhatsNewScreen({
     required this.versionLabel,
     required this.onContinue,
@@ -30,7 +32,7 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                         height: 58,
                         decoration: BoxDecoration(
                           color: scheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                         child: Icon(
                           Icons.new_releases_rounded,
@@ -57,7 +59,7 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Esta tela aparece somente no primeiro acesso depois de cada atualização.',
+                      'Esta tela aparece automaticamente uma única vez depois de cada nova versão. Você pode rever as novidades depois em Configurações.',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: scheme.onSurfaceVariant,
                             height: 1.4,
@@ -65,24 +67,31 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.view_carousel_outlined,
-                      title: 'Uma única janela nos Recentes',
+                      icon: Icons.crop_square_rounded,
+                      title: 'Visual mais compacto e consistente',
                       description:
-                          'A abertura do aplicativo, das notificações e o retorno após instalar uma atualização agora reutilizam a mesma tarefa do Android, evitando cartões duplicados em Aplicativos recentes.',
+                          'Cards, campos, botões, diálogos e outros retângulos agora usam o mesmo raio discreto da Home, evitando cantos excessivamente arredondados.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.install_mobile_outlined,
-                      title: 'Retorno após instalar APK',
+                      icon: Icons.monitor_heart_outlined,
+                      title: 'Erros e telemetria local',
                       description:
-                          'A instalação e a abertura de arquivos não forçam mais uma nova tarefa quando já existe uma Activity ativa do GitHub Manager.',
+                          'Configurações ganhou uma central para registrar falhas do Flutter/Dart, importar o último crash nativo do Android, revisar eventos e exportar um relatório.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.notifications_active_outlined,
-                      title: 'Notificações mais seguras',
+                      icon: Icons.privacy_tip_outlined,
+                      title: 'Captura privada e controlável',
                       description:
-                          'Uploads e downloads reabrem explicitamente a tela principal existente, preservando a pilha e a entrada única do aplicativo nos Recentes.',
+                          'Os registros ficam somente no aparelho, limitados a um histórico curto, com ocultação de tokens e segredos conhecidos. Nada é enviado automaticamente.',
+                    ),
+                    const SizedBox(height: 12),
+                    const _UpdateItem(
+                      icon: Icons.new_releases_outlined,
+                      title: 'Novidades mais confiáveis',
+                      description:
+                          'A versão só passa a ser considerada vista depois de tocar em Continuar. Fechar o app antes disso faz a tela reaparecer no próximo acesso.',
                     ),
                   ],
                 ),
@@ -123,7 +132,7 @@ class _UpdateItem extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant),
       ),
       child: Row(
@@ -134,7 +143,7 @@ class _UpdateItem extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: scheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Icon(icon, color: scheme.onPrimaryContainer, size: 22),
           ),
