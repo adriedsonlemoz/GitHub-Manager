@@ -81,7 +81,7 @@ void main() {
     expect(screen, contains("'Novidades da atualização'"));
     expect(screen, contains("ValueKey('whats_new_continue')"));
     expect(screen, contains("label: const Text('Continuar')"));
-    expect(screen, contains("title: 'Novidades fora da camada principal'"));
-    expect(screen, contains("title: 'Proteção durante reanexo do engine'"));
+    expect(screen, contains("title: 'Builds mais fáceis de ler'"));
+    expect(screen, contains("title: 'Detalhes técnicos sob demanda'"));
   });
 }

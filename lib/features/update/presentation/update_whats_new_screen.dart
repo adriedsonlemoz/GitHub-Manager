@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.104';
+  static const releaseNotesVersion = '2.0.105';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,24 +69,24 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.layers_clear_rounded,
-                      title: 'Novidades fora da camada principal',
+                      icon: Icons.dashboard_customize_outlined,
+                      title: 'Builds mais fáceis de ler',
                       description:
-                          'A abertura automática deixou de ficar sobreposta ao MaterialApp.builder e agora usa uma rota Flutter opaca e independente da Home.',
+                          'Os detalhes da execução agora começam por um resumo em blocos, separando evento, branch, duração e andamento das etapas.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.motion_photos_paused_outlined,
-                      title: 'Abertura somente após a interface estabilizar',
+                      icon: Icons.error_outline_rounded,
+                      title: 'Falhas com prioridade visual',
                       description:
-                          'A verificação espera o app estar em primeiro plano, confirma que a FlutterView já desenhou e aguarda frames estáveis antes de abrir as novidades.',
+                          'Quando um build falha, o motivo aparece antes dos dados técnicos e o diagnóstico completo fica recolhido para não poluir a tela.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.sync_disabled_rounded,
-                      title: 'Proteção durante reanexo do engine',
+                      icon: Icons.tune_rounded,
+                      title: 'Detalhes técnicos sob demanda',
                       description:
-                          'Quando o Android está apenas reanexando um FlutterEngine preservado por uma transferência, a tela automática não é aberta nesse ciclo.',
+                          'Commit, horários, número da execução e workflow continuam disponíveis, mas agora ficam em uma seção expansível.',
                     ),
                   ],
                 ),

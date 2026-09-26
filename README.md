@@ -1,4 +1,15 @@
-# GitHub Manager 2.0.104
+# GitHub Manager 2.0.105
+
+
+## Detalhes de builds mais claros 2.0.105
+
+- o painel de uma execução deixa de exibir uma lista longa de pares `rótulo: valor` e passa a começar por um **Resumo** em blocos para Evento, Branch, Duração e Etapas;
+- falhas passam a aparecer antes dos metadados técnicos, com título direto, etapa que falhou e mensagem principal do GitHub;
+- o diagnóstico completo continua disponível, mas fica recolhido em **Detalhes do diagnóstico** até o usuário precisar dele;
+- commit, horários, número da execução e caminho do workflow continuam disponíveis em **Detalhes técnicos**, também expansível;
+- a mensagem do commit saiu do cabeçalho e fica em um bloco próprio, evitando repetição e competição visual com status/versão;
+- o estado do APK passa a usar um aviso curto **APK não gerado**, seguido apenas da causa relevante;
+- nenhuma ação foi removida: Logs, Repetir, APK, Excluir, atualização, etapas e cópia do diagnóstico permanecem disponíveis.
 
 
 ## Novidades desacopladas do startup 2.0.104
@@ -323,7 +334,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.104+200118`;
+- versão: `2.0.105+200119`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

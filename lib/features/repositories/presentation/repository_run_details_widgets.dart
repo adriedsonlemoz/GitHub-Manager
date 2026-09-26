@@ -67,10 +67,17 @@ class _RunInformationCard extends StatelessWidget {
     final failed = steps.where((step) => step.conclusion == 'failure').length;
     final skipped = steps.where((step) => step.conclusion == 'skipped').length;
     final apkOutcome = _apkOutcome(run, jobs);
+    final duration = _RepositoryActionsScreenState._formatSpan(
+      run.startedAt ?? run.createdAt,
+      run.isRunning ? null : run.updatedAt,
+    );
+    final stages = steps.isEmpty
+        ? 'Aguardando dados do GitHub'
+        : '${steps.length} total • $success ok${failed > 0 ? ' • $failed falha' : ''}${skipped > 0 ? ' • $skipped ignoradas' : ''}';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(11),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(4),
@@ -79,76 +86,144 @@ class _RunInformationCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Informações da execução',
+            'Resumo',
             style: Theme.of(context)
                 .textTheme
                 .titleSmall
                 ?.copyWith(fontWeight: FontWeight.w900),
           ),
-          const SizedBox(height: 7),
-          _InfoLine(label: 'Execução', value: '#${run.runNumber}'),
-          _InfoLine(
-            label: 'Evento',
-            value: '${_eventLabel(run.event)} • tentativa ${run.runAttempt}',
-          ),
-          _InfoLine(
-            label: 'Branch',
-            value: run.branch.trim().isEmpty ? '-' : run.branch,
-          ),
-          _InfoLine(
-            label: 'Commit',
-            value: run.shortSha.isEmpty ? '-' : run.shortSha,
-          ),
-          if (run.commitMessage.trim().isNotEmpty)
-            _InfoLine(label: 'Mensagem', value: run.commitMessage.trim()),
-          if (run.detectedVersion != null)
-            _InfoLine(label: 'Versão', value: run.detectedVersion!),
-          _InfoLine(
-            label: 'Criada',
-            value: _RepositoryActionsScreenState._formatDate(run.createdAt),
-          ),
-          _InfoLine(
-            label: 'Iniciada',
-            value: _RepositoryActionsScreenState._formatDate(run.startedAt),
-          ),
-          _InfoLine(
-            label: 'Finalizada',
-            value: run.isRunning
-                ? 'Em andamento'
-                : _RepositoryActionsScreenState._formatDate(run.updatedAt),
-          ),
-          _InfoLine(
-            label: 'Duração',
-            value: _RepositoryActionsScreenState._formatSpan(
-              run.startedAt ?? run.createdAt,
-              run.isRunning ? null : run.updatedAt,
-            ),
-          ),
-          _InfoLine(
-            label: 'Etapas',
-            value: steps.isEmpty
-                ? 'Ainda não publicadas pelo GitHub'
-                : '${steps.length} total • $success concluída(s) • $failed falha(s)${skipped > 0 ? ' • $skipped ignorada(s)' : ''}',
-          ),
-          if (run.workflowPath.trim().isNotEmpty)
-            _InfoLine(label: 'Workflow', value: run.workflowPath),
-          if (apkOutcome != null) ...[
-            const SizedBox(height: 5),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: scheme.secondaryContainer.withValues(alpha: .45),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                apkOutcome,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+          const SizedBox(height: 9),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final tileWidth = constraints.maxWidth >= 340
+                  ? (constraints.maxWidth - 8) / 2
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  SizedBox(
+                    width: tileWidth,
+                    child: _RunSummaryTile(
+                      icon: Icons.bolt_rounded,
+                      label: 'Evento',
+                      value:
+                          '${_eventLabel(run.event)} • tentativa ${run.runAttempt}',
                     ),
-              ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _RunSummaryTile(
+                      icon: Icons.account_tree_outlined,
+                      label: 'Branch',
+                      value: run.branch.trim().isEmpty ? '-' : run.branch,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _RunSummaryTile(
+                      icon: Icons.timer_outlined,
+                      label: 'Duração',
+                      value: duration,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _RunSummaryTile(
+                      icon: Icons.fact_check_outlined,
+                      label: 'Etapas',
+                      value: stages,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          if (run.commitMessage.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Mensagem do commit',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              run.commitMessage.trim(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
+          if (apkOutcome != null) ...[
+            const SizedBox(height: 10),
+            _RunOutcomeBanner(text: apkOutcome),
+          ],
+          const SizedBox(height: 6),
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 2),
+              leading: const Icon(Icons.tune_rounded, size: 20),
+              title: Text(
+                'Detalhes técnicos',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              subtitle: const Text('Execução, commit, horários e workflow'),
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(10, 9, 10, 7),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest.withValues(alpha: .45),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _InfoLine(label: 'Execução', value: '#${run.runNumber}'),
+                      if (run.detectedVersion != null)
+                        _InfoLine(label: 'Versão', value: run.detectedVersion!),
+                      _InfoLine(
+                        label: 'Commit',
+                        value: run.shortSha.isEmpty ? '-' : run.shortSha,
+                      ),
+                      _InfoLine(
+                        label: 'Criada',
+                        value: _RepositoryActionsScreenState._formatDate(
+                          run.createdAt,
+                        ),
+                      ),
+                      _InfoLine(
+                        label: 'Iniciada',
+                        value: _RepositoryActionsScreenState._formatDate(
+                          run.startedAt,
+                        ),
+                      ),
+                      _InfoLine(
+                        label: 'Finalizada',
+                        value: run.isRunning
+                            ? 'Em andamento'
+                            : _RepositoryActionsScreenState._formatDate(
+                                run.updatedAt,
+                              ),
+                      ),
+                      if (run.workflowPath.trim().isNotEmpty)
+                        _InfoLine(
+                          label: 'Workflow',
+                          value: run.workflowPath,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -180,7 +255,7 @@ class _RunInformationCard extends StatelessWidget {
       final failed = failedStep;
       if (failed == null) continue;
       if (_looksLikeApkBuildStep(failed.name)) {
-        return 'APK: a execução falhou justamente na etapa de compilação/geração do aplicativo; o APK desta etapa não foi concluído.';
+        return 'A falha aconteceu durante a compilação. O APK desta execução não foi concluído.';
       }
       final laterBuild = steps.where(
         (step) =>
@@ -192,16 +267,17 @@ class _RunInformationCard extends StatelessWidget {
             step.conclusion == 'cancelled' ||
             step.status != 'completed',
       )) {
-        return 'APK: o workflow falhou antes da etapa de compilação, por isso a geração do APK não chegou a ser concluída nesta execução.';
+        return 'O workflow falhou antes da compilação. Por isso, o APK não chegou a ser gerado.';
       }
       final built = steps.any(
-        (step) => _looksLikeApkBuildStep(step.name) && step.conclusion == 'success',
+        (step) =>
+            _looksLikeApkBuildStep(step.name) && step.conclusion == 'success',
       );
       final publishSteps = steps.where((step) => _looksLikePublishStep(step.name));
       if (built && publishSteps.isNotEmpty) {
         final published = publishSteps.any((step) => step.conclusion == 'success');
         if (!published) {
-          return 'APK: a compilação aparece como concluída, mas a etapa de publicação/artifact não terminou com sucesso.';
+          return 'O APK foi compilado, mas a etapa de publicação não terminou com sucesso.';
         }
       }
     }
@@ -226,6 +302,103 @@ class _RunInformationCard extends StatelessWidget {
   }
 }
 
+class _RunSummaryTile extends StatelessWidget {
+  const _RunSummaryTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: .42),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RunOutcomeBanner extends StatelessWidget {
+  const _RunOutcomeBanner({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer.withValues(alpha: .34),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.android_rounded, size: 19, color: scheme.error),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'APK não gerado',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: scheme.error,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(text, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InfoLine extends StatelessWidget {
   const _InfoLine({required this.label, required this.value});
 
@@ -236,20 +409,30 @@ class _InfoLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
-      child: RichText(
-        text: TextSpan(
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.w800),
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 72,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
-            TextSpan(text: value),
-          ],
-        ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -357,15 +540,17 @@ class _FailureSummaryCardState extends ConsumerState<_FailureSummaryCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Diagnóstico da falha',
+                          'Falha identificada',
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 color: scheme.error,
                                 fontWeight: FontWeight.w900,
                               ),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 2),
                         Text(
-                          '$jobName • $stepName',
+                          stepName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ],
@@ -380,77 +565,102 @@ class _FailureSummaryCardState extends ConsumerState<_FailureSummaryCard> {
                 ],
               ),
               const SizedBox(height: 9),
-              _DiagnosticSection(
-                title: 'O que aconteceu',
-                text: whatHappened,
+              Text(
+                whatHappened,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              const SizedBox(height: 7),
-              _DiagnosticSection(
-                title: 'Onde aconteceu',
-                text: 'Job: $jobName\n'
-                    'Etapa: $stepName\n'
-                    'Tentativa: ${widget.run.runAttempt}$stepTiming',
-              ),
-              const SizedBox(height: 7),
-              _DiagnosticSection(
-                title: 'GitHub informou',
-                text: failure?.annotationMessage ??
-                    (snapshot.connectionState == ConnectionState.waiting
-                        ? 'Consultando annotations e logs do GitHub...'
-                        : 'O GitHub não publicou uma annotation detalhada para esta falha.'),
-              ),
-              if (failure?.logHeadline != null) ...[
-                const SizedBox(height: 7),
-                _DiagnosticSection(
-                  title: 'Leitura do GitHub Manager',
-                  text:
-                      'Linha mais relevante localizada automaticamente no log: ${failure!.logHeadline}',
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: scheme.surface.withValues(alpha: .35),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-              ],
-              if (failure?.logContext.isNotEmpty == true) ...[
-                const SizedBox(height: 7),
-                Text(
-                  'Contexto do log',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+                child: Text(
+                  failure?.annotationMessage ??
+                      (snapshot.connectionState == ConnectionState.waiting
+                          ? 'Consultando o diagnóstico publicado pelo GitHub...'
+                          : 'O GitHub não publicou uma mensagem detalhada para esta falha.'),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: scheme.surface.withValues(alpha: .52),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: SelectableText(
-                    failure!.logContext.join('\n'),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
-                          height: 1.3,
+              ),
+              const SizedBox(height: 2),
+              Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.manage_search_rounded, size: 20),
+                  title: Text(
+                    'Detalhes do diagnóstico',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
                         ),
                   ),
-                ),
-              ] else if (failure?.logUnavailableReason != null) ...[
-                const SizedBox(height: 7),
-                Text(
-                  'Leitura automática do log indisponível: ${failure!.logUnavailableReason}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onErrorContainer,
+                  subtitle: const Text('Job, horários e contexto do log'),
+                  children: [
+                    _DiagnosticSection(
+                      title: 'Onde aconteceu',
+                      text: 'Job: $jobName\n'
+                          'Etapa: $stepName\n'
+                          'Tentativa: ${widget.run.runAttempt}$stepTiming',
+                    ),
+                    if (failure?.logHeadline != null) ...[
+                      const SizedBox(height: 7),
+                      _DiagnosticSection(
+                        title: 'Leitura do GitHub Manager',
+                        text:
+                            'Linha mais relevante localizada automaticamente no log: ${failure!.logHeadline}',
                       ),
+                    ],
+                    if (failure?.logContext.isNotEmpty == true) ...[
+                      const SizedBox(height: 7),
+                      Text(
+                        'Contexto do log',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: scheme.surface.withValues(alpha: .52),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: SelectableText(
+                          failure!.logContext.join('\n'),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontFamily: 'monospace',
+                                height: 1.3,
+                              ),
+                        ),
+                      ),
+                    ] else if (failure?.logUnavailableReason != null) ...[
+                      const SizedBox(height: 7),
+                      Text(
+                        'Leitura automática do log indisponível: ${failure!.logUnavailableReason}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onErrorContainer,
+                            ),
+                      ),
+                    ],
+                    if (failure != null) ...[
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => _copyDiagnostic(failure, stepName),
+                          icon: const Icon(Icons.copy_all_outlined, size: 18),
+                          label: const Text('Copiar diagnóstico'),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-              if (failure != null) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => _copyDiagnostic(failure, stepName),
-                    icon: const Icon(Icons.copy_all_outlined, size: 18),
-                    label: const Text('Copiar diagnóstico'),
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         );

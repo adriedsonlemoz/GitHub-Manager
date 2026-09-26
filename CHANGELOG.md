@@ -1,3 +1,14 @@
+## 2.0.105+200119 — 2026-09-26
+
+- reorganiza o bottom sheet de detalhes dos Builds para reduzir densidade e repetição de informações;
+- substitui a lista corrida de metadados por um **Resumo** em blocos com Evento, Branch, Duração e Etapas;
+- move mensagem do commit para uma área própria e deixa commit SHA, horários, número da execução e workflow em **Detalhes técnicos** expansíveis;
+- prioriza a falha antes do resumo quando um workflow termina com erro e recolhe dados extensos em **Detalhes do diagnóstico**;
+- troca o parágrafo técnico do APK por um aviso curto **APK não gerado** com a causa principal;
+- preserva Logs, Repetir, APK, Excluir, atualização, lista de jobs/etapas e cópia do diagnóstico;
+- adiciona teste de contrato visual para impedir regressão à apresentação tumultuada;
+- atualiza versão, Novidades, Configurações, README, AI_HANDOFF, VERSIONING, RELEASE e VALIDATION para `2.0.105+200119`.
+
 ## 2.0.104+200118 — 2026-09-26
 
 - remove `StartupUpdateGate` do `MaterialApp.builder`, eliminando a camada de novidades que podia permanecer sobre a Home durante o ciclo de inicialização;

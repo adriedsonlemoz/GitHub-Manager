@@ -140,15 +140,6 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
                         ),
                       ],
                     ),
-                    if (_run.commitMessage.trim().isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        _run.commitMessage.split('\n').first,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -206,8 +197,6 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
                   ],
                 ],
               ),
-              const SizedBox(height: 8),
-              _RunInformationCard(run: _run, jobs: jobs),
               if (failedJob != null) ...[
                 const SizedBox(height: 8),
                 _FailureSummaryCard(
@@ -216,6 +205,8 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
                   job: failedJob,
                 ),
               ],
+              const SizedBox(height: 8),
+              _RunInformationCard(run: _run, jobs: jobs),
               const SizedBox(height: 12),
               Text(
                 'Etapas',

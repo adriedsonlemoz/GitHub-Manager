@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.104+200118`
+`version: 2.0.105+200119`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.105+200119` reorganiza os detalhes dos Builds em uma hierarquia mais limpa: resumo primeiro, falha priorizada e metadados técnicos recolhidos.
 
 A versão `2.0.104+200118` desacopla a tela automática de novidades do `MaterialApp.builder`, só a abre após a UI nativa/Flutter estar estável e bloqueia essa abertura durante reattach de engine preservado.
 
@@ -118,6 +120,10 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+### 2.0.105
+
+A 2.0.105 reduz o excesso de informação no bottom sheet de Builds sem remover dados. Evento, branch, duração e etapas ficam no resumo; mensagem do commit ganha área própria; execução, SHA, horários e workflow ficam em detalhes técnicos expansíveis. Em falhas, o motivo principal aparece primeiro e o diagnóstico extenso fica recolhido.
 
 ### 2.0.104
 

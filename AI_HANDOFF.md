@@ -1,10 +1,21 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.104+200118`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.105+200119`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 
 
+
+## Alterações 2.0.105
+
+- `_RunDetailsSheet` mantém todas as ações existentes, mas remove a mensagem de commit duplicada do cabeçalho;
+- `_RunInformationCard` virou um resumo visual em blocos para Evento, Branch, Duração e Etapas;
+- mensagem do commit tem área própria e limitada a duas linhas;
+- metadados de baixa prioridade ficam recolhidos em **Detalhes técnicos**;
+- falhas aparecem antes do resumo e `_FailureSummaryCard` mostra só a síntese inicialmente, deixando horários/contexto do log em **Detalhes do diagnóstico**;
+- o resultado relacionado ao APK usa o aviso compacto **APK não gerado**;
+- não remover Logs, Repetir, APK, Excluir, atualização, jobs/etapas nem cópia de diagnóstico em refatorações futuras;
+- `test/repository_run_details_visual_contract_test.dart` protege a nova hierarquia.
 
 ## Alterações 2.0.104
 

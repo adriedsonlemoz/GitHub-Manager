@@ -258,16 +258,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.105',
+                      text: 'Reorganiza os detalhes dos builds com resumo visual, diagnóstico compacto e metadados técnicos recolhidos.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.104',
                       text: 'Move Novidades para uma rota opaca após startup estável e impede sua abertura automática durante reanexo do FlutterEngine.',
                     ),
                     _ChangeNote(
                       version: '2.0.103',
                       text: 'Melhora a reabertura com FlutterEngine em cache, ajusta a splash ao tema escuro e registra reanexos do engine na telemetria local.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.102',
-                      text: 'Unifica visualmente Releases e Artifacts na tela APKs, reconhece versões já publicadas e evita ação Publicar duplicada.',
                     ),
                   ],
                 ),
