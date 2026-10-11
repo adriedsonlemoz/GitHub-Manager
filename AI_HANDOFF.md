@@ -1,3 +1,12 @@
+## Atualização 2.0.112
+
+- Busca da Central de Builds na lupa e filtros avançados recolhidos por padrão.
+- Botões APK global/detalhes sinalizam a consulta e aceitam resultados parciais de Artifacts/Releases; confirmam associação ambígua de Releases.
+- Downloads com rótulo curto sem tocar no nome físico; detalhes completos; actions por ícone e sem truncar texto.
+- Preview de ZIP em janela ampla por pasta, remoções em primeiro lugar; cópia de caminho.
+- Modelo `WorkflowErrorLocation` com origem, caminho/linha e link limitado ao commit SHA. Annotations são confirmação; logs são estimativa, e resumo de testes recebe baixa prioridade.
+- Versão `2.0.112+200126`; ver `docs/VALIDATION_2.0.112.md`.
+
 ## Atualização 2.0.111
 
 - Corrigidos erros reportados por CI #100 / Android APK #101: raios 6/5 agora 4; teste de histórico dinâmico; rótulo da versão remota alinhado ao relatório.
@@ -23,7 +32,7 @@
 
 # GitHub Manager — handoff
 
-Estado atual: `2.0.111+200125`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.112+200126`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 ## Alterações 2.0.108

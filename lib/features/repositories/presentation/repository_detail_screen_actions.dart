@@ -647,68 +647,133 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     BuildContext parentContext,
     ProjectSyncPreview preview,
   ) async {
-    Widget section(String title, List<String> paths, IconData icon) {
+    // Agrupa por diretório, mantendo acesso ao caminho integral e às remoções.
+    Widget section(String title, List<String> paths, IconData icon,
+        {bool expanded = false}) {
       if (paths.isEmpty) return const SizedBox.shrink();
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      final grouped = <String, List<String>>{};
+      for (final path in paths) {
+        final parts = path.split('/');
+        final directory = parts.length > 2
+            ? parts.take(2).join('/')
+            : parts.length == 2 ? parts.first : 'Raiz';
+        grouped.putIfAbsent(directory, () => <String>[]).add(path);
+      }
+      return ExpansionTile(
+        initiallyExpanded: expanded,
+        leading: Icon(icon, size: 20),
+        title: Text('$title (${paths.length})',
+            style: const TextStyle(fontWeight: FontWeight.w800)),
+        children: [
+          for (final group in grouped.entries)
+            ExpansionTile(
+              key: ValueKey('$title:${group.key}'),
+              title: Text(group.key, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text('${group.value.length} arquivo(s)'),
               children: [
-                Icon(icon, size: 18),
-                const SizedBox(width: 7),
-                Text('$title (${paths.length})',
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                for (final path in group.value)
+                  ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.only(left: 34, right: 12),
+                    title: Text(path.split('/').last,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    onLongPress: () async {
+                      await Clipboard.setData(ClipboardData(text: path));
+                      if (parentContext.mounted) {
+                        showCenteredNotice(parentContext, 'Caminho copiado.');
+                      }
+                    },
+                    trailing: IconButton(
+                      tooltip: 'Copiar caminho completo',
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                      onPressed: () async {
+                        await Clipboard.setData(ClipboardData(text: path));
+                        if (parentContext.mounted) {
+                          showCenteredNotice(parentContext, 'Caminho copiado.');
+                        }
+                      },
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 5),
-            ...paths.take(80).map(
-                  (path) => Padding(
-                    padding: const EdgeInsets.only(left: 25, bottom: 3),
-                    child: Text(path),
-                  ),
-                ),
-            if (paths.length > 80)
-              Padding(
-                padding: const EdgeInsets.only(left: 25),
-                child: Text('… e mais ${paths.length - 80} arquivo(s)'),
-              ),
-          ],
-        ),
+        ],
       );
     }
 
     await showDialog<void>(
       context: parentContext,
-      builder: (context) => AlertDialog(
-        title: const Text('Prévia das alterações'),
-        content: AdaptiveDialogBody(
-          child: SingleChildScrollView(
+      builder: (dialogContext) {
+        final screen = MediaQuery.sizeOf(dialogContext);
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 840,
+              maxHeight: screen.height * .90,
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${preview.createdCount} novos • ${preview.modifiedCount} alterados • ${preview.deletedCount} removidos • ${preview.unchangedCount} sem alteração',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+                  child: Row(children: [
+                    const Expanded(child: Text('Prévia das alterações',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20))),
+                    IconButton(
+                      tooltip: 'Fechar',
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ]),
                 ),
-                const SizedBox(height: 12),
-                section('Novos', preview.createdPaths, Icons.add_circle_outline_rounded),
-                section('Alterados', preview.modifiedPaths, Icons.edit_outlined),
-                section('Removidos', preview.deletedPaths, Icons.delete_outline_rounded),
-                if (!preview.hasChanges)
-                  const Text('O ZIP já corresponde ao conteúdo desta branch.'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Wrap(spacing: 7, runSpacing: 6, children: [
+                    Chip(label: Text('${preview.createdCount} novos')),
+                    Chip(label: Text('${preview.modifiedCount} alterados')),
+                    Chip(
+                      avatar: Icon(Icons.warning_amber_rounded,
+                          size: 18, color: Theme.of(dialogContext).colorScheme.error),
+                      label: Text('${preview.deletedCount} removidos'),
+                    ),
+                    Chip(label: Text('${preview.unchangedCount} iguais')),
+                  ]),
+                ),
+                const Divider(height: 14),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      // Remoções são sempre visíveis primeiro por segurança.
+                      section('Removidos', preview.deletedPaths,
+                          Icons.delete_outline_rounded, expanded: true),
+                      section('Novos', preview.createdPaths,
+                          Icons.add_circle_outline_rounded),
+                      section('Alterados', preview.modifiedPaths,
+                          Icons.edit_outlined),
+                      if (!preview.hasChanges)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('O ZIP já corresponde ao conteúdo desta branch.'),
+                        ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Fechar'),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

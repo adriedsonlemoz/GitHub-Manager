@@ -188,6 +188,17 @@ class _RunDetailsSheetState extends ConsumerState<_RunDetailsSheet>
                   ],
                 ],
               ),
+              if (_lookingForApks) ...[
+                const SizedBox(height: 8),
+                const Row(
+                  children: [
+                    SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(width: 10),
+                    Expanded(child: Text('Buscando APKs em artifacts e Releases…')),
+                  ],
+                ),
+              ],
               if (failedJobs.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 _FailureSummaryCard(

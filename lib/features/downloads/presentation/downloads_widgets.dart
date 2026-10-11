@@ -82,9 +82,11 @@ class _CompletedDownloadCard extends StatelessWidget {
     required this.onShare,
     required this.onDeleteFile,
     required this.onRemoveHistory,
+    required this.onDetails,
   });
 
   final ManagedDownload item;
+  final VoidCallback onDetails;
   final VoidCallback onOpen;
   final VoidCallback onInstall;
   final VoidCallback onShare;
@@ -97,12 +99,15 @@ class _CompletedDownloadCard extends StatelessWidget {
     final size = _formatBytes(item.totalBytes > 0 ? item.totalBytes : item.receivedBytes);
     return _DownloadCardShell(
       item: item,
+      compactActions: true,
       menu: PopupMenuButton<String>(
         tooltip: 'Mais ações',
         onSelected: (value) {
           if (value == 'history') onRemoveHistory();
+          if (value == 'details') onDetails();
         },
         itemBuilder: (_) => const [
+          PopupMenuItem(value: 'details', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.info_outline_rounded), title: Text('Nome e detalhes completos'))),
           PopupMenuItem(
             value: 'history',
             child: ListTile(
@@ -145,15 +150,15 @@ class _CompletedDownloadCard extends StatelessWidget {
           label: item.isApk ? 'Instalar' : 'Abrir',
           primary: true,
         ),
-        _CompactDownloadButton(
+        IconButton.outlined(
+          tooltip: 'Compartilhar arquivo',
           onPressed: onShare,
-          icon: Icons.share_outlined,
-          label: 'Compartilhar',
+          icon: const Icon(Icons.share_outlined),
         ),
-        _CompactDownloadButton(
+        IconButton.outlined(
+          tooltip: 'Excluir do aparelho',
           onPressed: onDeleteFile,
-          icon: Icons.delete_outline_rounded,
-          label: 'Excluir do aparelho',
+          icon: const Icon(Icons.delete_outline_rounded),
         ),
       ],
     );
@@ -229,8 +234,10 @@ class _DownloadCardShell extends StatelessWidget {
     required this.actions,
     this.progress,
     this.menu,
+    this.compactActions = false,
   });
 
+  final bool compactActions;
   final ManagedDownload item;
   final List<Widget> badges;
   final List<String> details;
@@ -267,7 +274,7 @@ class _DownloadCardShell extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    item.fileName,
+                    _downloadDisplayName(item),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -302,7 +309,10 @@ class _DownloadCardShell extends StatelessWidget {
                 children: [
                   for (var i = 0; i < actions.length; i++) ...[
                     if (i > 0) const SizedBox(width: 7),
-                    Expanded(child: actions[i]),
+                    if (compactActions && i > 0)
+                      actions[i]
+                    else
+                      Expanded(child: actions[i]),
                   ],
                 ],
               ),
@@ -410,6 +420,21 @@ class _DownloadBadge extends StatelessWidget {
   }
 }
 
+/// Título compacto: nome original e caminho continuam no histórico e nos detalhes.
+String _downloadDisplayName(ManagedDownload item) {
+  if (!item.isApk) return item.fileName;
+  final repository = item.repositoryFullName?.split('/').last.trim();
+  final name = item.fileName.replaceFirst(RegExp(r'\.apk$', caseSensitive: false), '');
+  final project = repository != null && repository.isNotEmpty
+      ? repository.replaceAll('-', ' ')
+      : name.replaceFirst(RegExp(r'[-_ ]?[vV]?\d+\.\d+\.\d+.*$'), '')
+          .replaceAll(RegExp(r'[-_]+'), ' ').trim();
+  final version = RegExp(r'[vV]?(\d+\.\d+\.\d+(?:[-+.]?[A-Za-z0-9.]+)?)')
+      .firstMatch(name)?.group(1);
+  if (project.isEmpty) return item.fileName;
+  return version == null ? project : '$project • v$version';
+}
+
 class _DownloadDescriptor {
   const _DownloadDescriptor({
     required this.format,
@@ -433,8 +458,8 @@ class _DownloadDescriptor {
         stable: false,
       );
     }
-    String buildType = 'Release provável';
-    var stable = true;
+    String? buildType;
+    var stable = false;
     if (lower.contains('debug')) {
       buildType = 'Debug';
       stable = false;
@@ -448,7 +473,8 @@ class _DownloadDescriptor {
       buildType = 'Prévia';
       stable = false;
     } else if (lower.contains('release') || lower.contains('stable')) {
-      buildType = 'Release';
+      buildType = 'Release (nome)';
+      stable = true;
     }
     return _DownloadDescriptor(
       format: 'APK',

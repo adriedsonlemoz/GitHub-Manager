@@ -8,6 +8,7 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/core/utils/commit_message.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
+import 'package:github_manager/features/repositories/domain/workflow_error_location.dart';
 import 'package:github_manager/features/repositories/domain/workflow_definition_inspector.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';

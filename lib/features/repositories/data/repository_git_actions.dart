@@ -302,6 +302,7 @@ mixin _RepositoryGitActionsOperations
     }
 
     String? annotationMessage;
+    WorkflowErrorLocation? annotationLocation;
     try {
       final response = await _client.get<List<dynamic>>(
         '/repos/$repositoryFullName/check-runs/${job.id}/annotations',
@@ -313,6 +314,7 @@ mixin _RepositoryGitActionsOperations
           final value = raw['message']?.toString().trim();
           if (value != null && value.isNotEmpty) {
             annotationMessage = value;
+            annotationLocation = WorkflowErrorLocation.fromAnnotation(raw);
             break;
           }
         }
@@ -338,6 +340,12 @@ mixin _RepositoryGitActionsOperations
     }
 
     final logHeadline = logInsight?.headline;
+    WorkflowErrorLocation? logLocation;
+    for (final line in <String>[...?logInsight?.context, if (logHeadline != null) logHeadline]) {
+      logLocation = WorkflowErrorLocation.fromLogLine(line);
+      if (logLocation != null) break;
+    }
+    final location = annotationLocation ?? logLocation;
     final annotation = annotationMessage;
     final annotationIsGeneric = annotation != null &&
         RegExp(
@@ -355,6 +363,7 @@ mixin _RepositoryGitActionsOperations
       stepName: failedStep?.name ?? 'Etapa não informada pelo GitHub',
       message: message,
       annotationMessage: annotation,
+      location: location,
       logHeadline: logHeadline,
       logContext: logInsight?.context ?? const <String>[],
       logsInspected: logInsight != null,
@@ -440,7 +449,7 @@ mixin _RepositoryGitActionsOperations
               );
             }
           }
-          if (best != null && best.score >= 100) break;
+          if (best != null && best.score >= 150) break;
         }
 
         if (best == null) return null;
@@ -488,7 +497,12 @@ mixin _RepositoryGitActionsOperations
     if (RegExp(r'process completed with exit code\s+\d+').hasMatch(lower)) {
       return 20;
     }
-    if (lower.contains('##[error]')) return 120;
+    if (WorkflowErrorLocation.fromLogLine(line) != null) return 150;
+    if (RegExp(r'\d+ tests? passed,? \d+ failed').hasMatch(lower)) return 9;
+    if (lower.contains('##[error]')) {
+      // O prefixo do Actions, isoladamente, não é uma causa técnica.
+      return 45;
+    }
     if (lower.contains('build failed') ||
         lower.contains('compilation failed') ||
         lower.contains('test failed') ||

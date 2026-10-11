@@ -30,6 +30,9 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen>
   _GlobalBuildFilter _filter = _GlobalBuildFilter.all;
   _BuildPeriod _period = _BuildPeriod.all;
   bool _showHistory = false;
+  bool _searchOpen = false;
+  bool _filtersExpanded = false;
+  final Set<int> _apkSearches = <int>{};
   String _query = '';
   String? _branch;
   String? _workflow;
@@ -222,49 +225,98 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen>
   }
 
   Future<void> _downloadApk(GlobalBuildEntry entry) async {
+    // Impede requisições duplicadas e apresenta resposta imediatamente.
+    if (!_apkSearches.add(entry.run.id)) return;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final loadingRoute = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(width: 26, height: 26,
+                child: CircularProgressIndicator(strokeWidth: 3)),
+            SizedBox(width: 18),
+            Expanded(child: Text('Buscando APKs em artifacts e Releases…')),
+          ],
+        ),
+      ),
+    );
+    navigator.push(loadingRoute);
+    void closeLoading() {
+      if (loadingRoute.isActive) navigator.removeRoute(loadingRoute);
+    }
+
     try {
       final artifactService = ref.read(artifactServiceProvider);
+      // Inicia as duas consultas em paralelo: uma fonte falhando não oculta a outra.
+      var failedSources = 0;
       final artifactsFuture = artifactService.listArtifactsForRun(
         repositoryFullName: entry.repository.fullName,
         runId: entry.run.id,
-      );
+      ).catchError((Object _) {
+        failedSources++;
+        return <ActionArtifact>[];
+      });
       final releasesFuture = artifactService.findReleaseApksForBuild(
         repositoryFullName: entry.repository.fullName,
         run: entry.run,
-      );
-
+      ).catchError((Object _) {
+        failedSources++;
+        return <ReleaseAsset>[];
+      });
       AndroidDeviceInfo? deviceInfo;
       try {
         deviceInfo = await PlatformActions.getAndroidDeviceInfo();
       } catch (_) {
-        deviceInfo = null;
+        // ABI desconhecida: o usuário ainda pode escolher o APK manualmente.
       }
 
-      final artifacts = (await artifactsFuture)
-          .where((artifact) => !artifact.expired && artifact.likelyContainsApk)
-          .toList(growable: false);
-      final releases = (await releasesFuture)
-          .where((asset) => asset.isApk)
-          .toList(growable: false);
-
+      List<ActionArtifact> artifacts = const [];
+      List<ReleaseAsset> releases = const [];
+      try {
+        artifacts = (await artifactsFuture)
+            .where((item) => !item.expired && item.likelyContainsApk)
+            .toList(growable: false);
+      } catch (_) {
+        failedSources++;
+      }
+      try {
+        releases = (await releasesFuture)
+            .where((item) => item.isApk)
+            .toList(growable: false);
+      } catch (_) {
+        failedSources++;
+      }
+      closeLoading();
+      if (!mounted) return;
       final candidates = <_GlobalApkCandidate>[
         ...releases.map(_GlobalApkCandidate.fromRelease),
+        ...artifacts.map(_GlobalApkCandidate.fromArtifact),
       ];
-      // Assets de Release podem compartilhar o SHA com várias execuções.
-      // Não ocultar o Artifact específico da execução por ter a mesma ABI.
-      candidates.addAll(artifacts.map(_GlobalApkCandidate.fromArtifact));
-
-      if (!mounted) return;
+      // APKs de Release têm associação por commit, não por ID de execução.
       if (candidates.isEmpty) {
-        showCenteredNotice(
-          context,
-          entry.run.isRunning
-              ? 'O APK ainda não está disponível. A build continua em execução.'
-              : 'Nenhum APK disponível foi encontrado para esta build.',
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Nenhum APK encontrado'),
+            content: Text(failedSources == 2
+                ? 'Não foi possível consultar artifacts nem Releases. Verifique a conexão e as permissões do GitHub e tente novamente.'
+                : failedSources == 1
+                    ? 'Uma fonte de APKs não respondeu e a outra não encontrou arquivos. Tente novamente ou consulte a Central de Downloads.'
+                    : entry.run.isRunning
+                        ? 'A build ainda está em execução. O APK poderá aparecer após a publicação.'
+                        : 'Esta execução não possui artifacts APK disponíveis ou Releases associadas. O artifact pode ter expirado.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Entendi')),
+            ],
+          ),
         );
         return;
       }
-
+      if (failedSources > 0) {
+        showCenteredNotice(context, 'Uma fonte de APKs não respondeu; mostrando os arquivos disponíveis.');
+      }
       final supportedAbis = deviceInfo?.supportedAbis ?? const <String>[];
       candidates.sort((left, right) {
         final leftRank = apkRecommendationRank(left.name, supportedAbis);
@@ -300,12 +352,13 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen>
           !await _confirmReleaseAssociation(selected.release!)) return;
       if (mounted) _startGlobalApkDownload(entry, selected, deviceInfo);
     } catch (_) {
+      closeLoading();
       if (mounted) {
-        showCenteredNotice(
-          context,
-          'Não foi possível localizar os APKs desta build agora.',
-        );
+        showCenteredNotice(context, 'Falha ao consultar APKs. Confira a conexão e tente novamente.');
       }
+    } finally {
+      closeLoading();
+      _apkSearches.remove(entry.run.id);
     }
   }
 
@@ -478,6 +531,14 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen>
         title: const Text('Builds'),
         actions: [
           IconButton(
+            tooltip: _searchOpen ? 'Fechar busca' : 'Buscar builds',
+            icon: Icon(_searchOpen ? Icons.close_rounded : Icons.search_rounded),
+            onPressed: () => setState(() {
+              _searchOpen = !_searchOpen;
+              if (!_searchOpen) _query = '';
+            }),
+          ),
+          IconButton(
             tooltip: 'Atualizar todos os repositórios',
             onPressed: () => _refresh(forceFull: true),
             icon: const Icon(Icons.refresh_rounded),
@@ -529,17 +590,28 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen>
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
               children: [
                 _GlobalBuildSummary(snapshot: snapshot),
-                const SizedBox(height: 10),
-                TextField(
-                  key: const ValueKey('builds-search'),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    prefixIcon: Icon(Icons.search_rounded),
-                    border: OutlineInputBorder(),
-                    hintText: 'Buscar projeto, workflow, branch, versão ou SHA',
+                if (_searchOpen) ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    key: const ValueKey('builds-search'),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: IconButton(
+                        tooltip: 'Limpar pesquisa',
+                        icon: const Icon(Icons.clear_rounded),
+                        onPressed: () => setState(() {
+                          _query = '';
+                          _searchOpen = false;
+                        }),
+                      ),
+                      border: const OutlineInputBorder(),
+                      hintText: 'Projeto, workflow, branch, versão ou SHA',
+                    ),
+                    onChanged: (value) => setState(() => _query = value),
                   ),
-                  onChanged: (value) => setState(() => _query = value),
-                ),
+                ],
                 const SizedBox(height: 8),
                 Wrap(spacing: 8, runSpacing: 6, children: [
                   ChoiceChip(
@@ -555,8 +627,21 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen>
                   ),
                 ]),
                 const SizedBox(height: 8),
-                _buildAdvancedFilters(snapshot),
-                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const ValueKey('builds-advanced-toggle'),
+                    onPressed: () => setState(() => _filtersExpanded = !_filtersExpanded),
+                    icon: Icon(_filtersExpanded ? Icons.filter_list_off_rounded : Icons.filter_list_rounded),
+                    label: Text(_filtersExpanded ? 'Ocultar filtros' :
+                        (_branch != null || _workflow != null || _period != _BuildPeriod.all)
+                            ? 'Filtros avançados • ativos' : 'Filtros avançados'),
+                  ),
+                ),
+                if (_filtersExpanded) ...[
+                  _buildAdvancedFilters(snapshot),
+                  const SizedBox(height: 8),
+                ],
                 SizedBox(
                   height: 42,
                   child: ListView(

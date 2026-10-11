@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.111';
+  static const releaseNotesVersion = '2.0.112';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,24 +69,21 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.cloud_upload_outlined,
-                      title: 'Correções na CI e nos testes',
-                      description:
-                          'Testes de histórico e identificação foram alinhados ao funcionamento atual, evitando bloqueios por textos e versões antigas.',
+                      icon: Icons.search_rounded,
+                      title: 'Builds mais compactas',
+                      description: 'Busca pela lupa e filtros avançados recolhíveis para exibir mais execuções.',
+                    ),
+                    const SizedBox(height: 12),
+                    const _UpdateItem(
+                      icon: Icons.android_rounded,
+                      title: 'APKs com resposta visível',
+                      description: 'Consulta com carregamento, erros claros e recuperação se uma das fontes de APKs falhar.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.rule_folder_outlined,
-                      title: 'Aparência padronizada',
-                      description:
-                          'Painéis de conferência seguem o raio de 4 pixels usado pelos demais cartões do aplicativo.',
-                    ),
-                    const SizedBox(height: 12),
-                    const _UpdateItem(
-                      icon: Icons.verified_outlined,
-                      title: 'Versionamento sincronizado',
-                      description:
-                          'Versão 2.0.111 e código Android 200125 sincronizados com documentação e tela de novidades.',
+                      title: 'Arquivos e erros localizados',
+                      description: 'Prévia agrupada por pastas, downloads mais legíveis e arquivo/linha identificados nos erros quando disponíveis.',
                     ),
                   ],
                 ),

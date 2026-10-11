@@ -1,4 +1,13 @@
-# GitHub Manager 2.0.111
+# GitHub Manager 2.0.112
+
+## Busca, APKs, Downloads, prévia de ZIP e diagnóstico 2.0.112
+
+- Busca global de Builds sob demanda pela lupa, com filtros avançados recolhíveis e indicadores de filtros ativos.
+- Botões APK com feedback imediato, proteção contra toques repetidos e consultas independentes a Artifacts e Releases; uma fonte indisponível não oculta a outra.
+- Downloads exibem títulos compactos sem renomear arquivos. Ações Compartilhar/Excluir usam ícones com tooltips; nome original e caminho ficam nos detalhes. Não há rótulo de Release **provável** tomado como fato.
+- Prévia de sincronização ampliada, agrupada por diretórios, com remoções primeiro e cópia do caminho integral.
+- Diagnóstico usa localização proveniente de annotations do GitHub ou linhas reconhecidas do log; diferencia confirmação de hipótese e oferece acesso ao arquivo no commit da execução quando o caminho é seguro.
+- Versão canônica `2.0.112+200126` e documentação/testes atualizados. A validação Flutter/Android deve ocorrer no CI.
 
 ## Correções de CI, testes e consistência visual 2.0.111
 

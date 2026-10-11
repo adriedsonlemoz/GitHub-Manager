@@ -1,3 +1,13 @@
+## 2.0.112+200126 — 2026-10-11
+
+- substitui a barra permanente de pesquisa de Builds por lupa no topo e filtros avançados recolhíveis;
+- adiciona carregamento visível na seleção APK global e no detalhe das execuções; resultados de Artifacts e Releases são independentes e falhas parciais têm diagnóstico;
+- compacta a Central de Downloads com título curto, detalhes completos e ações sem cortes; evita tratar classificação inferida pelo nome como origem comprovada;
+- reorganiza a prévia ZIP em janela ampla com grupos por pasta, remoções prioritárias e cópia de caminhos;
+- preserva caminho/linha de annotations, interpreta formatos comuns de compiladores em logs e permite abrir arquivos seguros no commit do GitHub, sem afirmar causa baseada somente em resumo de testes;
+- adiciona testes de regressão, documentação de validação, últimas mudanças e Novidades; incrementa versionCode para 200126.
+- Sem Flutter/Dart SDK local, execução e compilação ainda dependem do CI.
+
 ## 2.0.111+200125 — 2026-10-10
 
 - corrige 3 falhas dos jobs CI #100 e Android APK #101: arredondamento fora do padrão, expectativa de versões antigas no histórico e terminologia diferente no relatório de identificação;

@@ -1,3 +1,7 @@
+### 2.0.112
+
+A 2.0.112+200126 compacta a pesquisa e filtros das Builds, adiciona feedback e recuperação de erro nas consultas de APKs, melhora nomes e ações nos Downloads, agrupa a prévia de ZIP por pasta e preserva arquivo/linha das annotations e dos logs nos diagnósticos. Mantém as salvaguardas de Releases, identidade e exclusão.
+
 ### 2.0.111
 
 A 2.0.111+200125 corrige três falhas de contrato nos jobs CI #100 e Android APK #101: raios fora do padrão, histórico com versões fixas obsoletas e divergência de terminologia no relatório de identificação. Remove banner sem uso, torna os testes de conteúdo rotativo menos frágeis e amplia a checagem de sincronização das versões em documentação e interface.
@@ -16,7 +20,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.111+200125`
+`version: 2.0.112+200126`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

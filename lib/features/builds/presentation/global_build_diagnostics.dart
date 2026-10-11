@@ -91,6 +91,12 @@ class _GlobalBuildDiagnosisDialogState
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     SelectableText(item.message),
+                    if (item.location != null) ...[
+                      const SizedBox(height: 4),
+                      SelectableText('Arquivo: ${item.location!.path}'
+                          '${item.location!.line == null ? '' : ':${item.location!.line}'} '
+                          '(${item.location!.source})'),
+                    ],
                     if (item.logContext.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       ExpansionTile(

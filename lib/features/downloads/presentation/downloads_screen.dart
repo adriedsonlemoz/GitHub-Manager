@@ -100,6 +100,7 @@ class DownloadsScreen extends ConsumerWidget {
                       () => manager.deleteFileAndHistory(item.id),
                     ),
                     onRemoveHistory: () => manager.removeFromHistory(item.id),
+                    onDetails: () => _showDetails(context, item),
                   ),
                 ),
                 const SizedBox(height: 10),

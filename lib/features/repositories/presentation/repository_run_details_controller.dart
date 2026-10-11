@@ -5,6 +5,7 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
   late Future<List<RepositoryWorkflowJob>> _jobsFuture;
   Timer? _timer;
   bool _working = false;
+  bool _lookingForApks = false;
   List<RepositoryWorkflowJob>? _currentJobs;
 
   @override
@@ -167,17 +168,25 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
   }
 
   Future<void> _openRunApks() async {
-    setState(() => _working = true);
+    if (_working) return;
+    setState(() { _working = true; _lookingForApks = true; });
     try {
       final service = ref.read(artifactServiceProvider);
+      var failedSources = 0;
       final artifactsFuture = service.listArtifactsForRun(
         repositoryFullName: widget.repositoryFullName,
         runId: _run.id,
-      );
+      ).catchError((Object _) {
+        failedSources++;
+        return <ActionArtifact>[];
+      });
       final releasesFuture = service.findReleaseApksForBuild(
         repositoryFullName: widget.repositoryFullName,
         run: _run,
-      );
+      ).catchError((Object _) {
+        failedSources++;
+        return <ReleaseAsset>[];
+      });
 
       AndroidDeviceInfo? deviceInfo;
       try {
@@ -186,12 +195,23 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
         deviceInfo = null;
       }
 
-      final artifacts = (await artifactsFuture)
-          .where((artifact) => artifact.likelyContainsApk && !artifact.expired)
-          .toList(growable: false);
-      final releases = (await releasesFuture)
-          .where((asset) => asset.isApk)
-          .toList(growable: false);
+      List<ActionArtifact> artifacts = const [];
+      List<ReleaseAsset> releases = const [];
+      try {
+        artifacts = (await artifactsFuture)
+            .where((artifact) => artifact.likelyContainsApk && !artifact.expired)
+            .toList(growable: false);
+      } catch (_) {
+        failedSources++;
+      }
+      try {
+        releases = (await releasesFuture)
+            .where((asset) => asset.isApk)
+            .toList(growable: false);
+      } catch (_) {
+        failedSources++;
+      }
+      if (mounted) setState(() => _lookingForApks = false);
 
       final candidates = <_RunApkCandidate>[
         ...releases.map(_RunApkCandidate.fromRelease),
@@ -206,8 +226,12 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Nenhum APK vinculado a esta execução'),
-            content: const Text(
-              'O GitHub Manager não encontrou um APK que pudesse ser associado com segurança a esta build. Você pode abrir a lista geral de APKs do repositório sem escolher um arquivo automaticamente.',
+            content: Text(
+              failedSources == 2
+                  ? 'Falha ao consultar artifacts e Releases. Verifique conexão, permissões e tente novamente.'
+                  : failedSources == 1
+                      ? 'Uma das fontes não respondeu. Nenhum APK foi localizado na outra. Você pode consultar a lista geral.'
+                      : 'O GitHub Manager não encontrou APKs vinculados à execução. Eles podem ter expirado ou não ter sido publicados. Você pode consultar a lista geral.',
             ),
             actions: [
               TextButton(
@@ -228,6 +252,9 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
         return;
       }
 
+      if (failedSources > 0) {
+        showCenteredNotice(context, 'Uma fonte de APKs não respondeu; exibindo os arquivos encontrados.');
+      }
       final supportedAbis = deviceInfo?.supportedAbis ?? const <String>[];
       candidates.sort((left, right) {
         final leftRank = apkRecommendationRank(left.name, supportedAbis);
@@ -265,7 +292,7 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
-      if (mounted) setState(() => _working = false);
+      if (mounted) setState(() { _working = false; _lookingForApks = false; });
     }
   }
 

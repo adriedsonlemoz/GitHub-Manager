@@ -1,3 +1,4 @@
+import 'package:github_manager/features/repositories/domain/workflow_error_location.dart';
 class RepositoryContentItem {
   const RepositoryContentItem({
     required this.name,
@@ -419,6 +420,7 @@ class RepositoryWorkflowFailure {
     required this.stepName,
     required this.message,
     this.annotationMessage,
+    this.location,
     this.logHeadline,
     this.logContext = const <String>[],
     this.logsInspected = false,
@@ -428,6 +430,7 @@ class RepositoryWorkflowFailure {
   final String jobName;
   final String stepName;
   final String message;
+  final WorkflowErrorLocation? location;
   final String? annotationMessage;
   final String? logHeadline;
   final List<String> logContext;

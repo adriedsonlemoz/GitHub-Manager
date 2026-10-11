@@ -604,6 +604,41 @@ class _FailureDetailsDialogState extends ConsumerState<_FailureDetailsDialog> {
                         text: explanation.whatHappened,
                       ),
                       const SizedBox(height: 12),
+                      if (failure?.location != null) ...[
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Arquivo identificado',
+                                    style: TextStyle(fontWeight: FontWeight.w800)),
+                                const SizedBox(height: 5),
+                                SelectableText(failure!.location!.path),
+                                Text(
+                                  '${failure.location!.line == null ? 'Linha não fornecida' : 'Linha ${failure.location!.line}'} • ${failure.location!.confirmed ? 'Confirmado pela annotation' : 'Detectado no log (verificar)'}',
+                                ),
+                                if (failure.location!.githubUrl(widget.repositoryFullName, widget.run.headSha) != null)
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      final uri = failure.location!.githubUrl(
+                                          widget.repositoryFullName, widget.run.headSha)!;
+                                      try {
+                                        await PlatformActions.openUri(uri);
+                                      } catch (_) {
+                                        if (context.mounted) showCenteredNotice(context,
+                                            'Não foi possível abrir o arquivo no GitHub.');
+                                      }
+                                    },
+                                    icon: const Icon(Icons.open_in_new_rounded),
+                                    label: const Text('Ver arquivo no commit'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       _ErrorExplanationSection(
                         title: 'Onde aconteceu',
                         icon: Icons.location_on_outlined,
@@ -848,6 +883,7 @@ class _BuildFailureExplanation {
     final technical = <String>[
       'Job: ${failure?.jobName ?? job.name}',
       'Etapa: $stepName',
+      if (failure?.location != null) 'Arquivo: ${failure!.location!.path}:${failure.location!.line ?? '?'} (${failure.location!.source})',
       if (failure?.annotationMessage?.trim().isNotEmpty == true)
         'GitHub: ${failure!.annotationMessage!.trim()}',
       if (failure?.logHeadline?.trim().isNotEmpty == true)
@@ -935,7 +971,7 @@ class _BuildFailureExplanation {
         _containsStrongFailureSignature(logCorpus);
     return _BuildFailureExplanation(
       whatHappened: 'A execução falhou no job “${failure?.jobName ?? job.name}”, durante a etapa “$stepName”.',
-      whereHappened: 'Job: ${failure?.jobName ?? job.name}\nEtapa: $stepName${failedStep == null ? '' : '\nDuração: ${_RepositoryActionsScreenState._formatSpan(failedStep.startedAt, failedStep.completedAt)}'}',
+      whereHappened: 'Job: ${failure?.jobName ?? job.name}\nEtapa: $stepName${failure?.location == null ? '' : '\nArquivo: ${failure!.location!.path}:${failure.location!.line ?? '?'}'}${failedStep == null ? '' : '\nDuração: ${_RepositoryActionsScreenState._formatSpan(failedStep.startedAt, failedStep.completedAt)}'}',
       cause: cause,
       fix: fix,
       causeIdentified: identified,
