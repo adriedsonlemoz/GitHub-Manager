@@ -1,3 +1,9 @@
+## Atualização 2.0.113
+
+- CI #102 / Android APK #103: um único teste falhou por procurar `builds-search` antes de expandir a lupa (`StateError: Bad state: No element`).
+- `test/global_builds_enhancements_test.dart`: o teste agora toca no tooltip `Buscar builds` antes de digitar e verifica os dois estados. Não reabrir busca automaticamente na UI apenas para satisfazer testes antigos.
+- Versão `2.0.113+200127` sincronizada. Ver `docs/VALIDATION_2.0.113.md`; Flutter/Dart não estavam disponíveis localmente para executar testes e compilar.
+
 ## Atualização 2.0.112
 
 - Busca da Central de Builds na lupa e filtros avançados recolhidos por padrão.

@@ -1,3 +1,7 @@
+### 2.0.113
+
+A 2.0.113+200127 corrige o único teste que interrompia os workflows CI #102 e Android APK #103: depois de mover a busca global das Builds para a lupa na 2.0.112, o teste ainda tentava inserir texto antes de abrir o campo. O novo teste abre a busca primeiro e valida seu estado inicial e expandido, sem alterar o comportamento de produção.
+
 ### 2.0.112
 
 A 2.0.112+200126 compacta a pesquisa e filtros das Builds, adiciona feedback e recuperação de erro nas consultas de APKs, melhora nomes e ações nos Downloads, agrupa a prévia de ZIP por pasta e preserva arquivo/linha das annotations e dos logs nos diagnósticos. Mantém as salvaguardas de Releases, identidade e exclusão.
@@ -20,7 +24,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.112+200126`
+`version: 2.0.113+200127`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

@@ -1,3 +1,11 @@
+## 2.0.113+200127 — 2026-10-11
+
+- Corrige o único teste falho dos workflows CI #102 e Android APK #103 (`185 tests passed, 1 failed`).
+- O teste `histórico permite buscar por branch e abrir uma execução antiga` agora aciona a lupa antes de localizar e preencher o campo de pesquisa.
+- Adiciona asserções do estado recolhido/expandido da busca, preservando a interface compacta.
+- Sincroniza versionName/versionCode, README, CHANGELOG, VERSIONING, Novidades, Configurações e notas de release.
+- Os 73 apontamentos informativos do analisador não bloqueavam o job; não se alterou o tratamento de permissões ou lógica de APK.
+
 ## 2.0.112+200126 — 2026-10-11
 
 - substitui a barra permanente de pesquisa de Builds por lupa no topo e filtros avançados recolhíveis;

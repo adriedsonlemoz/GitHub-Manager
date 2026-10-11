@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.112';
+  static const releaseNotesVersion = '2.0.113';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.search_rounded,
-                      title: 'Builds mais compactas',
-                      description: 'Busca pela lupa e filtros avançados recolhíveis para exibir mais execuções.',
+                      title: 'Busca de Builds validada',
+                      description: 'Corrigido o teste do histórico para abrir a pesquisa pela lupa antes de digitar.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.android_rounded,
-                      title: 'APKs com resposta visível',
-                      description: 'Consulta com carregamento, erros claros e recuperação se uma das fontes de APKs falhar.',
+                      title: 'Melhorias anteriores preservadas',
+                      description: 'Busca compacta, filtros, APKs com carregamento e downloads legíveis continuam disponíveis.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.rule_folder_outlined,
-                      title: 'Arquivos e erros localizados',
-                      description: 'Prévia agrupada por pastas, downloads mais legíveis e arquivo/linha identificados nos erros quando disponíveis.',
+                      title: 'CI e Android APK',
+                      description: 'Corrige a falha de teste que impedia a execução dos workflows CI #102 e Android APK #103.',
                     ),
                   ],
                 ),

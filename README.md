@@ -1,4 +1,11 @@
-# GitHub Manager 2.0.112
+# GitHub Manager 2.0.113
+
+## Correção da CI após a busca compacta 2.0.113
+
+- Corrige `global_builds_enhancements_test.dart` para abrir a lupa antes de buscar uma branch no histórico.
+- O teste agora confere que a pesquisa está oculta inicialmente e disponível após o toque, evitando `Bad state: No element` no Flutter Test.
+- Mantém o comportamento da v2.0.112 nas telas de Builds, Downloads, APKs, prévia do ZIP e diagnóstico; nenhuma regra de negócio foi alterada.
+- Versão canônica `2.0.113+200127`; documentação e histórico sincronizados. A CI deve executar `flutter test` e o Android APK para confirmar o resultado.
 
 ## Busca, APKs, Downloads, prévia de ZIP e diagnóstico 2.0.112
 

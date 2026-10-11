@@ -59,7 +59,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2 execuções no histórico'), findsOneWidget);
 
-    await tester.enterText(find.byKey(const ValueKey('builds-search')), 'develop');
+    // Desde a v2.0.112, a busca fica fechada até tocar na lupa do AppBar.
+    // Nao tentar digitar em um TextField que ainda nao foi montado.
+    expect(find.byKey(const ValueKey('builds-search')), findsNothing);
+    await tester.tap(find.byTooltip('Buscar builds'));
+    await tester.pumpAndSettle();
+    final searchField = find.byKey(const ValueKey('builds-search'));
+    expect(searchField, findsOneWidget);
+    await tester.enterText(searchField, 'develop');
     await tester.pumpAndSettle();
     expect(find.text('1 execução no histórico'), findsOneWidget);
     await tester.ensureVisible(find.byKey(const ValueKey('repository-build-owner/projeto')));
