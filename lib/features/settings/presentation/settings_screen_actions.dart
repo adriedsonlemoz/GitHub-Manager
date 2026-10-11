@@ -41,6 +41,23 @@ mixin _SettingsScreenActions on ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _setShowRepositoryDescriptions(bool enabled) async {
+    try {
+      await RepositoryDescriptionSettings.setEnabled(
+        enabled,
+        database: ref.read(localDatabaseProvider),
+      );
+      ref.invalidate(showRepositoryDescriptionsProvider);
+    } catch (_) {
+      if (!mounted) return;
+      showCenteredNotice(
+        context,
+        'Não foi possível salvar a preferência de descrições.',
+        kind: CenteredNoticeKind.error,
+      );
+    }
+  }
+
   Future<void> _setUploadAutomaticRecovery(bool enabled) async {
     try {
       await UploadRecoverySettings.setAutomaticRecoveryEnabled(

@@ -28,6 +28,8 @@ class RepositoryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final showDescription = ref.watch(showRepositoryDescriptionsProvider).valueOrNull ?? false;
+    final description = repository.description?.trim() ?? '';
     final info = readOnly ? null : ref.watch(repositoryProjectSummaryProvider(repository));
     final projectName = info?.maybeWhen(
           data: (value) => value.projectName,
@@ -123,6 +125,16 @@ class RepositoryCard extends ConsumerWidget {
                   ),
                 ],
               ),
+              if (showDescription && description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                  softWrap: true,
+                ),
+              ],
             ],
           ),
         ),

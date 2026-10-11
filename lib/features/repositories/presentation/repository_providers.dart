@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/features/repositories/data/repository_git_service.dart';
+import 'package:github_manager/features/repositories/data/repository_description_settings.dart';
 import 'package:github_manager/features/repositories/data/repository_project_info_service.dart';
 import 'package:github_manager/features/repositories/data/repository_service.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
@@ -66,3 +67,9 @@ final repositoryProjectInfoProvider = FutureProvider.autoDispose
         ),
       ),
 );
+
+/// Compartilhado entre Configurações e os cartões da Home.
+final showRepositoryDescriptionsProvider = FutureProvider<bool>((ref) =>
+    RepositoryDescriptionSettings.isEnabled(
+      database: ref.watch(localDatabaseProvider),
+    ));

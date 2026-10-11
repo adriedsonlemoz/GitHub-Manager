@@ -15,6 +15,7 @@ import 'package:github_manager/features/home/domain/github_profile.dart';
 import 'package:github_manager/features/home/presentation/github_profile_edit_dialog.dart';
 import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
+import 'package:github_manager/features/repositories/data/repository_description_settings.dart';
 import 'package:github_manager/features/uploads/data/upload_recovery_settings.dart';
 import 'package:github_manager/features/update/presentation/update_whats_new_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -76,6 +77,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 selected: {_themeMode},
                 onSelectionChanged: (value) => _setTheme(value.first),
               ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          const _SectionTitle('Página inicial'),
+          Card(
+            child: SwitchListTile(
+              secondary: const Icon(Icons.notes_rounded),
+              title: const Text('Mostrar descrição dos repositórios'),
+              subtitle: const Text(
+                'Exibir o texto completo da descrição abaixo do nome de cada repositório na Home, sem cortar linhas ou caracteres.',
+              ),
+              value: ref.watch(showRepositoryDescriptionsProvider).valueOrNull ?? false,
+              onChanged: ref.watch(showRepositoryDescriptionsProvider).isLoading
+                  ? null
+                  : _setShowRepositoryDescriptions,
             ),
           ),
           const SizedBox(height: 18),
