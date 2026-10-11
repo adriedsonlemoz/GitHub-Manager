@@ -1,4 +1,12 @@
-# GitHub Manager 2.0.113
+# GitHub Manager 2.0.114
+
+## Notificações que abrem o evento 2.0.114
+
+- Notificações de GitHub Actions agora abrem o repositório e a execução pelo ID e branch; quando não está na primeira página, o app consulta a execução diretamente.
+- Toques em downloads e envios abrem a Central correspondente com o registro destacado e acesso aos detalhes. Serviços foreground nativos enviam o identificador correto, mesmo na abertura da Activity.
+- Tap no app aberto, minimizado e iniciado por notificação é tratado em Flutter e Android. Eventos legados são compatíveis, e destinos desconhecidos são ignorados sem abrir URLs externas.
+- Falhas de build e download recebem prioridade maior que notificações de conclusão normal. A tela de Novidades não desvia o usuário que abriu uma notificação.
+- Nova versão `2.0.114+200128`, com testes de contrato, documentação e histórico. A compilação precisa ser confirmada pela CI.
 
 ## Correção da CI após a busca compacta 2.0.113
 

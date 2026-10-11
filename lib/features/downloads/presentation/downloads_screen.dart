@@ -12,7 +12,9 @@ import 'package:github_manager/features/downloads/presentation/download_provider
 part 'downloads_widgets.dart';
 
 class DownloadsScreen extends ConsumerWidget {
-  const DownloadsScreen({super.key});
+  const DownloadsScreen({super.key, this.focusDownloadId});
+
+  final String? focusDownloadId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,6 +55,16 @@ class DownloadsScreen extends ConsumerWidget {
             );
           }
 
+          ManagedDownload? focus;
+          if (focusDownloadId != null) {
+            for (final item in items) {
+              if (item.id == focusDownloadId) {
+                focus = item;
+                break;
+              }
+            }
+          }
+          final selectedDownload = focus;
           final active = items.where((item) => item.isActive).toList();
           final completed = items
               .where((item) => item.status == ManagedDownloadStatus.completed)
@@ -69,6 +81,30 @@ class DownloadsScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 28),
             children: [
+              if (focusDownloadId != null && selectedDownload != null)
+                Card(
+                  key: const ValueKey('notification_download_target'),
+                  child: ListTile(
+                    leading: const Icon(Icons.notifications_active_outlined),
+                    title: const Text('Download da notificação'),
+                    subtitle: Text(
+                      '${selectedDownload.fileName}\n${selectedDownload.statusLabel}',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    isThreeLine: true,
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showDetails(context, selectedDownload),
+                  ),
+                ),
+              if (focusDownloadId != null && selectedDownload == null)
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.info_outline_rounded),
+                    title: Text('Download não encontrado no histórico local'),
+                    subtitle: Text('Ele pode ter sido removido ou o histórico pode ter sido limpo.'),
+                  ),
+                ),
               if (active.isNotEmpty) ...[
                 _SectionTitle(
                   icon: Icons.downloading_rounded,

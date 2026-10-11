@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/app/github_manager_app.dart';
 import 'package:github_manager/app/theme/app_theme_controller.dart';
 import 'package:github_manager/core/background/build_monitor_service.dart';
+import 'package:github_manager/core/notifications/notification_navigation_service.dart';
 import 'package:github_manager/core/persistence/local_database.dart';
 import 'package:github_manager/core/platform/system_ui_settings.dart';
 import 'package:github_manager/core/telemetry/app_telemetry_service.dart';
@@ -30,6 +31,10 @@ void main() {
       );
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(NotificationNavigationService.start().catchError(
+          (Object error, StackTrace stackTrace) =>
+              _recordNonFatal('startup.notification_navigation', error, stackTrace),
+        ));
         unawaited(_initializeAfterFirstFrame());
       });
     },

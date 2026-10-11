@@ -105,6 +105,24 @@ mixin _RepositoryGitActionsOperations
     );
   }
 
+  /// Busca uma execução específica quando ela não está mais na primeira página.
+  Future<RepositoryWorkflowRun> getWorkflowRunById(
+    String repositoryFullName,
+    int runId,
+  ) async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '/repos/$repositoryFullName/actions/runs/$runId',
+    );
+    final json = response.data;
+    if (json == null) {
+      throw const RepositoryFileException(
+        'Execução não encontrada no GitHub.',
+        code: 'NOTIFICATION_RUN_NOT_FOUND',
+      );
+    }
+    return RepositoryWorkflowRun.fromJson(json);
+  }
+
   Future<List<RepositoryWorkflowRun>> listWorkflowRuns(
     String repositoryFullName,
   ) async {

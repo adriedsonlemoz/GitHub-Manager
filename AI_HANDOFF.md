@@ -1,3 +1,12 @@
+## Atualização 2.0.114
+
+- Corrigido roteamento de notificações locais e foreground Android (toque com app aberto, em segundo plano ou fechado).
+- Payload tipado de build, download e envio, com parser estrito de rota e suporte legado.
+- Builds buscam uma execução específica quando ela não está na lista recente.
+- Centrais destacam registro relacionado à notificação e oferecem acesso a detalhes.
+- Canais de sucesso discretos e falhas prioritárias; diálogo automático de novidades suspenso ao abrir notificação.
+- Versão 2.0.114+200128; ver docs/RELEASE_2.0.114.md e docs/VALIDATION_2.0.114.md.
+
 ## Atualização 2.0.113
 
 - CI #102 / Android APK #103: um único teste falhou por procurar `builds-search` antes de expandir a lupa (`StateError: Bad state: No element`).

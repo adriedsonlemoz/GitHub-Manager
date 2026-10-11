@@ -28,11 +28,14 @@ class MainActivity : FlutterActivity() {
     private var reattachingCachedEngineOnCreate = false
     private var restoredActivityStateOnCreate = false
     private var flutterUiDisplayed = false
+    private var pendingNotificationRoute: String? = null
+    private var notificationChannel: MethodChannel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         reattachingCachedEngineOnCreate = cachedRunningEngine() != null
         restoredActivityStateOnCreate = savedInstanceState != null
         flutterUiDisplayed = false
+        pendingNotificationRoute = intent?.getStringExtra("notificationRoute")
         if (reattachingCachedEngineOnCreate) {
             // O engine já desenhou o primeiro frame em uma Activity anterior.
             // Troca o LaunchTheme antes do attach para não manter a splash nativa
@@ -41,6 +44,7 @@ class MainActivity : FlutterActivity() {
         }
 
         super.onCreate(savedInstanceState)
+        attachNotificationChannel()
 
         if (reattachingCachedEngineOnCreate) {
             window.setBackgroundDrawableResource(android.R.color.transparent)
@@ -55,7 +59,32 @@ class MainActivity : FlutterActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
+        pendingNotificationRoute = intent.getStringExtra("notificationRoute")
+        pendingNotificationRoute?.let { route ->
+            notificationChannel?.invokeMethod("notificationTapped", route)
+        }
         cleanupDuplicateRecentTasks()
+    }
+
+    private fun attachNotificationChannel() {
+        val engine = flutterEngine ?: cachedRunningEngine() ?: return
+        // Canal separado: não substitui os métodos Android de arquivo/instalação
+        // nem depende do handler deixado por uma Activity anterior no engine em cache.
+        notificationChannel = MethodChannel(
+            engine.dartExecutor.binaryMessenger,
+            "br.com.githubmanager.app/notifications",
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "consumeNotificationRoute" -> {
+                        result.success(pendingNotificationRoute)
+                        pendingNotificationRoute = null
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
     }
 
     override fun onFlutterUiDisplayed() {

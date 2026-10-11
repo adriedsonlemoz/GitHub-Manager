@@ -165,11 +165,12 @@ class UploadForegroundService : Service() {
                 )
                 .setContentText(arguments.phase.ifBlank { arguments.repositoryFullName })
                 .setSubText(arguments.repositoryFullName)
+                .setSubText("Toque para abrir na Central de Envios")
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setSilent(true)
                 .setCategory(NotificationCompat.CATEGORY_PROGRESS)
-                .setContentIntent(openAppPendingIntent(context))
+                .setContentIntent(openAppPendingIntent(context, arguments))
                 .setProgress(
                     max,
                     progress,
@@ -178,10 +179,10 @@ class UploadForegroundService : Service() {
                 .build()
         }
 
-        private fun openAppPendingIntent(context: Context): PendingIntent {
+        private fun openAppPendingIntent(context: Context, arguments: Arguments): PendingIntent {
             val launch = Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_MAIN
-                addCategory(Intent.CATEGORY_LAUNCHER)
+                action = "br.com.githubmanager.app.OPEN_UPLOAD"
+                putExtra("notificationRoute", "/uploads?uploadId=" + android.net.Uri.encode(arguments.uploadId))
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or

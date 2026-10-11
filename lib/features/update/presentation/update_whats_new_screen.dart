@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.113';
+  static const releaseNotesVersion = '2.0.114';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,21 +69,21 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.search_rounded,
-                      title: 'Busca de Builds validada',
-                      description: 'Corrigido o teste do histórico para abrir a pesquisa pela lupa antes de digitar.',
+                      icon: Icons.notifications_active_outlined,
+                      title: 'Notificações que abrem o evento',
+                      description: 'Ao tocar, abre a execução exata da build ou destaca o download/envio na Central correspondente.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.android_rounded,
-                      title: 'Melhorias anteriores preservadas',
-                      description: 'Busca compacta, filtros, APKs com carregamento e downloads legíveis continuam disponíveis.',
+                      icon: Icons.play_circle_outline_rounded,
+                      title: 'Builds antigas e links de execução',
+                      description: 'Consulta a execução pelo ID quando ela não está na lista recente. Notificações antigas continuam compatíveis.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.rule_folder_outlined,
-                      title: 'CI e Android APK',
-                      description: 'Corrige a falha de teste que impedia a execução dos workflows CI #102 e Android APK #103.',
+                      icon: Icons.notifications_none_rounded,
+                      title: 'Avisos mais inteligentes',
+                      description: 'Sucessos são discretos; falhas recebem destaque. Envios e downloads em andamento abrem o registro correto.',
                     ),
                   ],
                 ),

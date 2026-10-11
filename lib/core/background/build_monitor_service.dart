@@ -244,6 +244,7 @@ class BuildMonitorService {
             workflowName: workflowName,
             runNumber: runNumber,
             conclusion: conclusion,
+            branch: run['head_branch'] as String?,
           );
           notified.add(id);
         }
@@ -265,6 +266,7 @@ class BuildMonitorService {
     required String workflowName,
     required int? runNumber,
     required String conclusion,
+    String? branch,
   }) =>
       AppNotificationService.showBuildResult(
         id: id,
@@ -272,6 +274,7 @@ class BuildMonitorService {
         workflowName: workflowName,
         runNumber: runNumber,
         conclusion: conclusion,
+        branch: branch,
       );
 
   static void _startFastPolling() {

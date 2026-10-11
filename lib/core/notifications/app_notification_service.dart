@@ -1,17 +1,41 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:github_manager/core/notifications/notification_destination.dart';
 
 abstract final class AppNotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
-  static bool _initialized = false;
+  static Future<void>? _initialization;
+  static void Function(String payload)? onNotificationTapped;
 
-  static Future<void> initialize() async {
-    if (_initialized) return;
-    const settings = InitializationSettings(
-      android: AndroidInitializationSettings('ic_stat_github_manager'),
-    );
-    await _notifications.initialize(settings: settings);
-    _initialized = true;
+  static void _onNotificationResponse(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload != null && payload.isNotEmpty) {
+      onNotificationTapped?.call(payload);
+    }
+  }
+
+  static Future<String?> initialLaunchPayload() async {
+    await initialize();
+    final details = await _notifications.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp != true) return null;
+    return details?.notificationResponse?.payload;
+  }
+
+  static Future<void> initialize() => _initialization ??= _initializePlugin();
+
+  static Future<void> _initializePlugin() async {
+    try {
+      const settings = InitializationSettings(
+        android: AndroidInitializationSettings('ic_stat_github_manager'),
+      );
+      await _notifications.initialize(
+        settings: settings,
+        onDidReceiveNotificationResponse: _onNotificationResponse,
+      );
+    } catch (_) {
+      _initialization = null;
+      rethrow;
+    }
   }
 
   static Future<bool> requestPermission() async {
@@ -32,6 +56,7 @@ abstract final class AppNotificationService {
     required String workflowName,
     required int? runNumber,
     required String conclusion,
+    String? branch,
   }) async {
     await initialize();
     final (title, status) = switch (conclusion) {
@@ -41,13 +66,17 @@ abstract final class AppNotificationService {
       'timed_out' => ('Build excedeu o tempo', 'excedeu o tempo limite'),
       _ => ('Build precisa de atenção', 'precisa de atenção'),
     };
-    const details = NotificationDetails(
+    // Conclusões rotineiras são discretas; falhas exigem atenção.
+    final success = conclusion == 'success';
+    final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'github_build_status',
-        'Status das builds',
-        channelDescription: 'Avisos quando uma execução do GitHub Actions termina.',
-        importance: Importance.high,
-        priority: Priority.high,
+        success ? 'github_build_success' : 'github_build_alerts',
+        success ? 'Builds concluídas' : 'Alertas de builds',
+        channelDescription: success
+            ? 'Confirmações discretas das builds concluídas.'
+            : 'Falhas, cancelamentos e builds que precisam de atenção.',
+        importance: success ? Importance.defaultImportance : Importance.high,
+        priority: success ? Priority.defaultPriority : Priority.high,
         category: AndroidNotificationCategory.status,
       ),
     );
@@ -56,9 +85,14 @@ abstract final class AppNotificationService {
       await _notifications.show(
         id: id & 0x7fffffff,
         title: title,
-        body: '$repository • $workflowName$number $status.',
+        body: '$repository • $workflowName$number $status. '
+            'Toque para ver a execução.',
         notificationDetails: details,
-        payload: repository,
+        payload: NotificationDestination.forBuild(
+          repository: repository,
+          runId: id,
+          branch: branch,
+        ),
       );
     } catch (_) {
       // Notificação nunca invalida a operação principal.
@@ -73,11 +107,11 @@ abstract final class AppNotificationService {
     await initialize();
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'github_download_results',
+        'github_download_completed',
         'Downloads concluídos',
-        channelDescription: 'Avisos imediatos quando um download termina ou falha.',
-        importance: Importance.high,
-        priority: Priority.high,
+        channelDescription: 'Avisos discretos de downloads finalizados.',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
         category: AndroidNotificationCategory.status,
       ),
     );
@@ -86,10 +120,10 @@ abstract final class AppNotificationService {
         id: _stableId('download:$id'),
         title: 'Download concluído ✓',
         body: repository.trim().isEmpty
-            ? fileName
-            : '$fileName • $repository',
+            ? '$fileName • toque para abrir na Central'
+            : '$fileName • $repository • toque para abrir',
         notificationDetails: details,
-        payload: 'download:$id',
+        payload: NotificationDestination.forDownload(id),
       );
     } catch (_) {
       // O arquivo já foi salvo; falha visual não muda o download.
@@ -104,9 +138,9 @@ abstract final class AppNotificationService {
     await initialize();
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'github_download_results',
-        'Downloads concluídos',
-        channelDescription: 'Avisos imediatos quando um download termina ou falha.',
+        'github_download_failures',
+        'Falhas de downloads',
+        channelDescription: 'Falhas de download que precisam de atenção.',
         importance: Importance.high,
         priority: Priority.high,
         category: AndroidNotificationCategory.status,
@@ -116,9 +150,9 @@ abstract final class AppNotificationService {
       await _notifications.show(
         id: _stableId('download:$id'),
         title: 'Download com falha',
-        body: '$fileName • $message',
+        body: '$fileName • $message • toque para ver detalhes',
         notificationDetails: details,
-        payload: 'download:$id',
+        payload: NotificationDestination.forDownload(id),
       );
     } catch (_) {
       // A Central de Downloads continua exibindo a falha normalmente.

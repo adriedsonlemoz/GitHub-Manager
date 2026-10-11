@@ -16,6 +16,7 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
   bool _deletingSelected = false;
   BuildCleanupProgress? _deleteProgress;
   bool _initialRunOpened = false;
+  int? _initialRunLoadingId;
 
   void initializeRepositoryActionsState() {
     WidgetsBinding.instance.addObserver(this);
@@ -56,12 +57,43 @@ mixin _RepositoryActionsStateController on ConsumerState<RepositoryActionsScreen
         break;
       }
     }
-    if (target == null) return;
+    if (target == null) {
+      if (_initialRunLoadingId != runId) unawaited(_loadNotListedRun(runId));
+      return;
+    }
     _initialRunOpened = true;
     final selected = target;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_showRunDetails(selected));
     });
+  }
+
+  Future<void> _loadNotListedRun(int runId) async {
+    _initialRunLoadingId = runId;
+    try {
+      final run = await ref.read(repositoryGitServiceProvider).getWorkflowRunById(
+        widget.repositoryFullName,
+        runId,
+      );
+      if (!mounted || widget.initialRunId != runId) return;
+      _initialRunOpened = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_showRunDetails(run));
+      });
+    } catch (_) {
+      if (!mounted || widget.initialRunId != runId) return;
+      _initialRunOpened = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+            'Não foi possível carregar esta execução. Ela pode ter sido excluída ou estar indisponível.',
+          )),
+        );
+      });
+    } finally {
+      if (_initialRunLoadingId == runId) _initialRunLoadingId = null;
+    }
   }
 
   Future<void> _refresh({

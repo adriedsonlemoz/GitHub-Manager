@@ -1,3 +1,7 @@
+### 2.0.114
+
+A 2.0.114+200128 corrige a navegação dos toques em notificações de Builds, Downloads e Envios. Cada aviso leva ao registro/execução relevante. Builds antigas são consultadas diretamente pelo ID; eventos legados permanecem compatíveis e canais distinguem falhas de conclusões normais. A tela de Novidades não deve competir com a abertura causada por notificação.
+
 ### 2.0.113
 
 A 2.0.113+200127 corrige o único teste que interrompia os workflows CI #102 e Android APK #103: depois de mover a busca global das Builds para a lupa na 2.0.112, o teste ainda tentava inserir texto antes de abrir o campo. O novo teste abre a busca primeiro e valida seu estado inicial e expandido, sem alterar o comportamento de produção.
@@ -24,7 +28,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.113+200127`
+`version: 2.0.114+200128`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

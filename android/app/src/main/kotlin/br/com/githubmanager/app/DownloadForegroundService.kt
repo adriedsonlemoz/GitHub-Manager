@@ -159,19 +159,20 @@ class DownloadForegroundService : Service() {
                     },
                 )
                 .setContentText(arguments.repositoryFullName.ifBlank { "GitHub Manager" })
+                .setSubText("Toque para abrir na Central de Downloads")
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setSilent(true)
                 .setCategory(NotificationCompat.CATEGORY_PROGRESS)
-                .setContentIntent(openAppPendingIntent(context))
+                .setContentIntent(openAppPendingIntent(context, arguments))
                 .setProgress(max, progress, arguments.indeterminate || max <= 0)
                 .build()
         }
 
-        private fun openAppPendingIntent(context: Context): PendingIntent {
+        private fun openAppPendingIntent(context: Context, arguments: Arguments): PendingIntent {
             val launch = Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_MAIN
-                addCategory(Intent.CATEGORY_LAUNCHER)
+                action = "br.com.githubmanager.app.OPEN_DOWNLOAD"
+                putExtra("notificationRoute", "/downloads?downloadId=" + android.net.Uri.encode(arguments.downloadId))
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or

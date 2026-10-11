@@ -1,3 +1,11 @@
+## 2.0.114+200128 — 2026-10-11
+
+- Abre a execução específica pelo ID/branch ao tocar em notificações de Builds, inclusive em abertura a frio do aplicativo e quando a execução saiu da primeira página.
+- Notificações de download concluído/falho e serviços foreground de upload/download abrem a Central correspondente com o registro identificado e acesso ao detalhe.
+- Diferencia canais de conclusões rotineiras e falhas importantes; mensagens mais explícitas e deduplicação de toques simultâneos.
+- Preserva notificações antigas e rejeita destinos inválidos, sem confiar em URLs externas.
+- Evita que a tela automática de Novidades interrompa o caminho da notificação; adiciona testes de rotas e ponte Android, sincroniza documentação e versionCode `200128`.
+
 ## 2.0.113+200127 — 2026-10-11
 
 - Corrige o único teste falho dos workflows CI #102 e Android APK #103 (`185 tests passed, 1 failed`).

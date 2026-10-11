@@ -10,7 +10,9 @@ import 'package:go_router/go_router.dart';
 part 'uploads_widgets.dart';
 
 class UploadsScreen extends ConsumerWidget {
-  const UploadsScreen({super.key});
+  const UploadsScreen({super.key, this.focusUploadId});
+
+  final String? focusUploadId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,6 +56,16 @@ class UploadsScreen extends ConsumerWidget {
             );
           }
 
+          ManagedUpload? focus;
+          if (focusUploadId != null) {
+            for (final item in items) {
+              if (item.id == focusUploadId) {
+                focus = item;
+                break;
+              }
+            }
+          }
+          final selectedUpload = focus;
           final active = items.where((item) => item.isActive).toList();
           final finished = items
               .where(
@@ -76,6 +88,33 @@ class UploadsScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(10, 6, 10, 88),
             children: [
+              if (focusUploadId != null && selectedUpload != null)
+                Card(
+                  key: const ValueKey('notification_upload_target'),
+                  child: ListTile(
+                    leading: const Icon(Icons.notifications_active_outlined),
+                    title: const Text('Envio da notificação'),
+                    subtitle: Text(
+                      '${selectedUpload.projectName} • ${selectedUpload.statusLabel}\n${selectedUpload.phase}',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    isThreeLine: true,
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => UploadDetailsDialog(item: selectedUpload),
+                    ),
+                  ),
+                ),
+              if (focusUploadId != null && selectedUpload == null)
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.info_outline_rounded),
+                    title: Text('Envio não encontrado no histórico local'),
+                    subtitle: Text('Ele pode ter sido removido ou o histórico pode ter sido limpo.'),
+                  ),
+                ),
               if (active.isNotEmpty) ...[
                 _SectionTitle(
                   icon: Icons.cloud_upload_outlined,

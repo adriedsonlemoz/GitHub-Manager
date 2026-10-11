@@ -55,6 +55,19 @@ class _RepositoryActionsScreenState extends ConsumerState<RepositoryActionsScree
   }
 
   @override
+  void didUpdateWidget(covariant RepositoryActionsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialRunId != widget.initialRunId ||
+        oldWidget.defaultBranch != widget.defaultBranch) {
+      _initialRunOpened = false;
+      _branch = widget.defaultBranch;
+      unawaited(_refresh(silent: true));
+      final data = _currentData;
+      if (data != null) _openInitialRunIfNeeded(data.allRuns);
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     handleRepositoryActionsLifecycleState(state);
   }

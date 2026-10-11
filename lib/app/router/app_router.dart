@@ -46,11 +46,15 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/downloads',
-      builder: (_, _) => const DownloadsScreen(),
+      builder: (_, state) => DownloadsScreen(
+        focusDownloadId: state.uri.queryParameters['downloadId'],
+      ),
     ),
     GoRoute(
       path: '/uploads',
-      builder: (_, _) => const UploadsScreen(),
+      builder: (_, state) => UploadsScreen(
+        focusUploadId: state.uri.queryParameters['uploadId'],
+      ),
     ),
     GoRoute(
       path: '/setup',

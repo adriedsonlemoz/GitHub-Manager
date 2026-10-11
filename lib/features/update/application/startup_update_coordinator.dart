@@ -30,6 +30,9 @@ class StartupUpdateCoordinator with WidgetsBindingObserver {
   bool _finishedForProcess = false;
   int _readinessRetries = 0;
 
+  /// Um toque de notificação deve priorizar o evento, não a tela de novidades.
+  void suppressAutomaticForNotification() => _finishForProcess();
+
   void start() {
     if (_started || _finishedForProcess) return;
     _started = true;
@@ -145,6 +148,7 @@ class StartupUpdateCoordinator with WidgetsBindingObserver {
         return;
       }
 
+      if (_finishedForProcess) return;
       final navigator = rootNavigatorKey.currentState;
       if (navigator == null) {
         retryAfterAttempt = _requestReadinessRetry();
