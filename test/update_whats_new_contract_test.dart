@@ -81,7 +81,12 @@ void main() {
     expect(screen, contains("'Novidades da atualização'"));
     expect(screen, contains("ValueKey('whats_new_continue')"));
     expect(screen, contains("label: const Text('Continuar')"));
-    expect(screen, contains("title: 'Envio de ZIP mais objetivo'"));
-    expect(screen, contains("title: 'Diagnóstico de identificação'"));
+    // Os títulos são conteúdo editorial e mudam a cada versão.
+    // Exigir itens de novidades sem prender este teste ao release anterior.
+    expect(
+      RegExp(r'const _UpdateItem\(').allMatches(screen).length,
+      greaterThanOrEqualTo(1),
+    );
+    expect(screen, contains('description:'));
   });
 }

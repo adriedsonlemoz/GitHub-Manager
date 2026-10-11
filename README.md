@@ -1,4 +1,13 @@
-# GitHub Manager 2.0.110
+# GitHub Manager 2.0.111
+
+## Correções de CI, testes e consistência visual 2.0.111
+
+- Corrige os raios de dois contêineres da confirmação de envio para 4 px, conforme o contrato de estilo.
+- Remove um banner de versão não utilizado, sinalizado pelo analisador.
+- Atualiza o teste do relatório de identificação para o mesmo rótulo apresentado na interface: **Versão no GitHub**.
+- Valida as **três últimas versões** do histórico automaticamente a partir da versão canônica, em vez de fixar versões antigas no teste de tela inteira.
+- Testa a presença de itens de Novidades sem exigir títulos editoriais de uma atualização específica.
+- A fonte canônica segue sendo `pubspec.yaml` (`2.0.111+200125`); para homologação, executar os comandos indicados em `docs/VALIDATION_2.0.111.md`.
 
 ## Conferência compacta e diagnóstico de projetos 2.0.110
 

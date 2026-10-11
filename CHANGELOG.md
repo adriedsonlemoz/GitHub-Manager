@@ -1,3 +1,12 @@
+## 2.0.111+200125 — 2026-10-10
+
+- corrige 3 falhas dos jobs CI #100 e Android APK #101: arredondamento fora do padrão, expectativa de versões antigas no histórico e terminologia diferente no relatório de identificação;
+- padroniza dois contêineres em raio 4 e remove widget de banner não utilizado;
+- torna os testes de histórico e Novidades independentes de conteúdo que muda a cada versão, preservando contratos funcionais;
+- reforça a verificação da versão canônica contra Configurações, Novidades, README, CHANGELOG e release notes;
+- sincroniza a tela de Novidades, últimas três mudanças, README, VERSIONING, validação, notas de release e versionCode 200125;
+- o SDK Flutter não está disponível neste ambiente: testes e compilação ainda exigem execução na CI.
+
 ## 2.0.110+200124 — 2026-10-10
 
 - compacta a confirmação de envio de ZIP com destino, branch, comparação de versões e contagem de arquivos; mantém prévia de arquivos e avisos de exclusão;

@@ -36,8 +36,22 @@ void main() {
     expect(settings, contains('valueListenable: SystemUiSettings.instance'));
     expect(settings, contains('_setFullScreenEnabled'));
     expect(actions, contains('SystemUiSettings.instance.setEnabled(enabled)'));
-    expect(settings, contains("version: '2.0.108'"));
-    expect(settings, contains("version: '2.0.107'"));
-    expect(settings, contains("version: '2.0.106'"));
+
+    // Não fixe versões de lançamentos antigos: as três notas mudam a cada release.
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final current = RegExp(
+      r'^version: (\d+\.\d+\.)(\d+)\+\d+$',
+      multiLine: true,
+    ).firstMatch(pubspec);
+    expect(current, isNotNull);
+    final prefix = current!.group(1)!;
+    final patch = int.parse(current.group(2)!);
+    final history = RegExp(r"version: '(\d+\.\d+\.\d+)'")
+        .allMatches(settings)
+        .map((match) => match.group(1)!)
+        .toList();
+    expect(history, [
+      for (var offset = 0; offset < 3; offset++) '$prefix${patch - offset}',
+    ]);
   });
 }

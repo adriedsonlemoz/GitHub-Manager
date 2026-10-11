@@ -31,7 +31,7 @@ void main() {
       branch: 'main', check: check,
     );
     expect(report, contains('Versão do ZIP: não identificada'));
-    expect(report, contains('Versão do GitHub: não identificada'));
+    expect(report, contains('Versão no GitHub: não identificada'));
     expect(report, contains('AndroidManifest.xml'));
     expect(report, contains('owner/repo-test / main'));
     expect(report.toLowerCase(), isNot(contains('authorization:')));

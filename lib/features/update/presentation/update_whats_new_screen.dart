@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.110';
+  static const releaseNotesVersion = '2.0.111';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,25 +70,25 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.cloud_upload_outlined,
-                      title: 'Envio de ZIP mais objetivo',
+                      title: 'Correções na CI e nos testes',
                       description:
-                          'Confirmação mostra destino, branch, versões e arquivos alterados. Informações técnicas ficam recolhidas.',
+                          'Testes de histórico e identificação foram alinhados ao funcionamento atual, evitando bloqueios por textos e versões antigas.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.rule_folder_outlined,
-                      title: 'Diagnóstico de identificação',
+                      title: 'Aparência padronizada',
                       description:
-                          'Avisos específicos para versão e nome não identificados, com orientações e opção de copiar diagnóstico sem credenciais.',
+                          'Painéis de conferência seguem o raio de 4 pixels usado pelos demais cartões do aplicativo.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.android_rounded,
-                      title: 'Nomes Android reconhecidos',
+                      icon: Icons.verified_outlined,
+                      title: 'Versionamento sincronizado',
                       description:
-                          'Quando não há nome em metadados explícitos, consulta android:label no Manifest e no strings.xml.',
+                          'Versão 2.0.111 e código Android 200125 sincronizados com documentação e tela de novidades.',
                     ),
-                ],
+                  ],
                 ),
               ),
               const SizedBox(height: 16),

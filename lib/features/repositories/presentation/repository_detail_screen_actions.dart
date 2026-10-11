@@ -456,7 +456,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                         : check.warning
                             ? Theme.of(dialogContext).colorScheme.tertiaryContainer
                             : Theme.of(dialogContext).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,3 +1,7 @@
+### 2.0.111
+
+A 2.0.111+200125 corrige três falhas de contrato nos jobs CI #100 e Android APK #101: raios fora do padrão, histórico com versões fixas obsoletas e divergência de terminologia no relatório de identificação. Remove banner sem uso, torna os testes de conteúdo rotativo menos frágeis e amplia a checagem de sincronização das versões em documentação e interface.
+
 ### 2.0.110
 
 A 2.0.110+200124 simplifica a confirmação de envio de ZIP, permite expandir informações técnicas e copiar um diagnóstico contextual de nome/versão/identidade sem credenciais. Projetos Android podem usar o `android:label` do Manifest/strings como nome visual quando não houver metadados melhores. Mantém avisos de remoção, troca de branch e confirmação extra para identidades incompatíveis.
@@ -12,7 +16,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.110+200124`
+`version: 2.0.111+200125`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

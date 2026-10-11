@@ -1,3 +1,10 @@
+## Atualização 2.0.111
+
+- Corrigidos erros reportados por CI #100 / Android APK #101: raios 6/5 agora 4; teste de histórico dinâmico; rótulo da versão remota alinhado ao relatório.
+- `update_whats_new_contract_test` verifica versão e itens de novidades sem prender o teste aos títulos de uma release antiga.
+- Removida `_ProjectVersionBanner` (classe não usada) e reforçado `tool/check_version_sync.sh` para verificar interfaces e documentação.
+- Versão `2.0.111+200125`; sem SDK Flutter/Dart neste ambiente: rodar CI real antes de declarar APK válido.
+
 ## Atualização 2.0.110
 
 - Confirmação de ZIP compacta: branch, GitHub → ZIP, resumo de mudanças, alertas e checkbox de build. Detalhes técnicos em `ExpansionTile` com diagnóstico acessível.
@@ -16,7 +23,7 @@
 
 # GitHub Manager — handoff
 
-Estado atual: `2.0.110+200124`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.111+200125`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 ## Alterações 2.0.108

@@ -17,5 +17,31 @@ test "$JSON_VERSION" = "$VERSION_NAME" || { echo "github-manager.json version=$J
 test "$JSON_ANDROID_VERSION" = "$VERSION_NAME" || { echo "github-manager.json android.versionName=$JSON_ANDROID_VERSION difere de $VERSION_NAME" >&2; exit 1; }
 test "$JSON_CODE" = "$VERSION_CODE" || { echo "github-manager.json versionCode=$JSON_CODE difere de $VERSION_CODE" >&2; exit 1; }
 
+# Evitar alterações com versões inconsistentes em UI, documentação e release.
+grep -Fq "releaseNotesVersion = '$VERSION_NAME'" "$ROOT/lib/features/update/presentation/update_whats_new_screen.dart" || {
+  echo "Versão de Novidades divergente" >&2
+  exit 1
+}
+grep -Fq "version: '$VERSION_NAME'," "$ROOT/lib/features/settings/presentation/settings_screen.dart" || {
+  echo "Histórico de Configurações não inclui a versão atual" >&2
+  exit 1
+}
+grep -Fxq "# GitHub Manager $VERSION_NAME" "$ROOT/README.md" || {
+  echo "Título do README desatualizado" >&2
+  exit 1
+}
+grep -Fq "## $VERSION_NAME+$VERSION_CODE" "$ROOT/CHANGELOG.md" || {
+  echo "CHANGELOG sem a versão atual" >&2
+  exit 1
+}
+grep -Fq "\`version: $VERSION_NAME+$VERSION_CODE\`" "$ROOT/docs/VERSIONING.md" || {
+  echo "VERSIONING sem a versão canônica" >&2
+  exit 1
+}
+test -f "$ROOT/docs/RELEASE_$VERSION_NAME.md" || {
+  echo "Notas de release da versão $VERSION_NAME ausentes" >&2
+  exit 1
+}
+
 echo "versionName=$VERSION_NAME"
 echo "versionCode=$VERSION_CODE"

@@ -283,60 +283,6 @@ class _ProjectInfoLine extends StatelessWidget {
       );
 }
 
-class _ProjectVersionBanner extends StatelessWidget {
-  const _ProjectVersionBanner({required this.versionLabel});
-
-  final String? versionLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final version = versionLabel?.trim();
-    final identified = version?.isNotEmpty == true;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .55)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            identified ? Icons.new_releases_outlined : Icons.help_outline_rounded,
-            size: 20,
-            color: identified ? scheme.primary : scheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'VERSÃO DO PROJETO A ENVIAR',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: .35,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  identified ? version! : 'Não identificada',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _BuildSafetyRow extends StatelessWidget {
   const _BuildSafetyRow({
     required this.label,
@@ -764,7 +710,7 @@ class _UploadSyncSummary extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
