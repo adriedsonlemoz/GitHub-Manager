@@ -1,3 +1,10 @@
+## 2.0.115+200129 — 2026-10-11
+
+- Corrige o único teste que impedia a CI #104 e o Android APK #105: contrato de lançamento da MainActivity a partir das notificações nativas (191 testes aprovados, 1 falha).
+- Restaura `Intent.ACTION_MAIN` e `Intent.CATEGORY_LAUNCHER` nos serviços de Upload e Download; mantém `CLEAR_TOP`/`SINGLE_TOP` e as rotas com os IDs das transferências.
+- Reforça os testes para garantir que notificações abram a mesma task Android e levem à Central com o evento correto, sem `NEW_TASK`.
+- Atualiza versionamento, Novidades, Configurações e notas de lançamento; execução Flutter e Android ainda pendente.
+
 ## 2.0.114+200128 — 2026-10-11
 
 - Abre a execução específica pelo ID/branch ao tocar em notificações de Builds, inclusive em abertura a frio do aplicativo e quando a execução saiu da primeira página.

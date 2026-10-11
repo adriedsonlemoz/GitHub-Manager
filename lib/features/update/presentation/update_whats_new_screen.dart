@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.114';
+  static const releaseNotesVersion = '2.0.115';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.notifications_active_outlined,
-                      title: 'Notificações que abrem o evento',
-                      description: 'Ao tocar, abre a execução exata da build ou destaca o download/envio na Central correspondente.',
+                      title: 'Notificações mais confiáveis',
+                      description: 'Toques em envios e downloads voltam para a mesma tela Android, mantendo o destino da transferência.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.play_circle_outline_rounded,
-                      title: 'Builds antigas e links de execução',
-                      description: 'Consulta a execução pelo ID quando ela não está na lista recente. Notificações antigas continuam compatíveis.',
+                      title: 'Navegação preservada',
+                      description: 'O identificador do evento continua acompanhando a notificação, mesmo com o aplicativo em segundo plano.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.notifications_none_rounded,
-                      title: 'Avisos mais inteligentes',
-                      description: 'Sucessos são discretos; falhas recebem destaque. Envios e downloads em andamento abrem o registro correto.',
+                      title: 'Testes de regressão reforçados',
+                      description: 'Os contratos verificam abertura da Activity e as rotas específicas de Envios e Downloads.',
                     ),
                   ],
                 ),

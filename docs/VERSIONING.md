@@ -28,12 +28,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.114+200128`
+`version: 2.0.115+200129`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.115+200129` restaura o lançamento da MainActivity por ACTION_MAIN/CATEGORY_LAUNCHER nas notificações nativas, preservando as rotas específicas das transferências e o contrato de task única.
 
 A versão `2.0.108+200122` permite ligar ou desligar a tela inteira nas Configurações, preservando o modo imersivo como padrão e salvando a preferência local; Android recente pode restringir a alteração.
 

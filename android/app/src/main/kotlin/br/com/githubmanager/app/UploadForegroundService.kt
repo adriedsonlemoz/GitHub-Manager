@@ -181,7 +181,9 @@ class UploadForegroundService : Service() {
 
         private fun openAppPendingIntent(context: Context, arguments: Arguments): PendingIntent {
             val launch = Intent(context, MainActivity::class.java).apply {
-                action = "br.com.githubmanager.app.OPEN_UPLOAD"
+                // Reutiliza a task da MainActivity sem perder a rota do evento.
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
                 putExtra("notificationRoute", "/uploads?uploadId=" + android.net.Uri.encode(arguments.uploadId))
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }

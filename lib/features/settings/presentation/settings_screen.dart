@@ -298,16 +298,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.115',
+                      text: 'Corrige a abertura de notificações Android e preserva o destino do envio ou download.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.114',
                       text: 'Notificações agora abrem a build, o download ou o envio correto, inclusive após reabrir o app.',
                     ),
                     _ChangeNote(
                       version: '2.0.113',
                       text: 'Corrige teste da busca das Builds após a mudança para lupa, liberando novamente o pipeline de CI e APK.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.112',
-                      text: 'Compacta Builds e Downloads, melhora o botão APK e identifica arquivos e linhas de erro nos logs.',
                     ),
                   ],
                 ),

@@ -1,4 +1,12 @@
-# GitHub Manager 2.0.114
+# GitHub Manager 2.0.115
+
+## Correção da navegação de notificações 2.0.115
+
+- Corrige a falha dos workflows CI #104 e Android APK #105: 191 testes aprovados e um contrato Android incompatível com a alteração introduzida em 2.0.114.
+- Notificações de serviços em foreground voltam a abrir a MainActivity por `ACTION_MAIN`/`CATEGORY_LAUNCHER`, reutilizando a task existente com `CLEAR_TOP`/`SINGLE_TOP`.
+- Preserva a rota específica em `notificationRoute`, que aponta para o upload ou download selecionado, sem voltar à Home.
+- Amplia o teste de regressão para verificar tanto a reutilização da Activity quanto a navegação das transferências.
+- Versão canônica `2.0.115+200129`; a compilação e a navegação em aparelho físico exigem verificação na CI/Android.
 
 ## Notificações que abrem o evento 2.0.114
 

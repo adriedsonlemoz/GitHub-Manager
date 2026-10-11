@@ -34,8 +34,33 @@ void main() {
       expect(service, contains('Intent(context, MainActivity::class.java).apply'));
       expect(service, contains('action = Intent.ACTION_MAIN'));
       expect(service, contains('addCategory(Intent.CATEGORY_LAUNCHER)'));
+      expect(service, contains('putExtra("notificationRoute",'));
+      expect(service, contains('PendingIntent.FLAG_UPDATE_CURRENT'));
       expect(service, contains('Intent.FLAG_ACTIVITY_CLEAR_TOP'));
       expect(service, contains('Intent.FLAG_ACTIVITY_SINGLE_TOP'));
+      expect(service, isNot(contains('Intent.FLAG_ACTIVITY_NEW_TASK')));
     }
+  });
+
+  test('cada serviço preserva a rota específica ao reabrir a MainActivity', () {
+    final upload = File(
+      'android/app/src/main/kotlin/br/com/githubmanager/app/UploadForegroundService.kt',
+    ).readAsStringSync();
+    final download = File(
+      'android/app/src/main/kotlin/br/com/githubmanager/app/DownloadForegroundService.kt',
+    ).readAsStringSync();
+    expect(upload, contains('"/uploads?uploadId="'));
+    expect(upload, contains('android.net.Uri.encode(arguments.uploadId)'));
+    expect(download, contains('"/downloads?downloadId="'));
+    expect(download, contains('android.net.Uri.encode(arguments.downloadId)'));
+    // Request codes distintos evitam mistura de destinos entre os serviços.
+    expect(
+      upload,
+      contains('PendingIntent.getActivity(context, 9102, launch, flags)'),
+    );
+    expect(
+      download,
+      contains('PendingIntent.getActivity(context, 9202, launch, flags)'),
+    );
   });
 }

@@ -1,3 +1,11 @@
+## Atualização 2.0.115
+
+- CI #104 e Android APK #105: ambos apresentaram 191 testes aprovados e 1 falha no contrato `android_recents_task_contract_test.dart`.
+- Causa: ações personalizadas `OPEN_UPLOAD` / `OPEN_DOWNLOAD` substituíram `Intent.ACTION_MAIN` e `CATEGORY_LAUNCHER` ao adicionar navegação de notificações em 2.0.114.
+- Correção em `UploadForegroundService.kt` e `DownloadForegroundService.kt`: usar ACTION_MAIN + CATEGORY_LAUNCHER, preservando `notificationRoute` com o ID da transferência e `CLEAR_TOP` + `SINGLE_TOP`.
+- Testes de contrato ampliados para impedir regressão da task única e perda de rota.
+- Fonte canônica `2.0.115+200129`. Executar Flutter/Android na CI e validar os toques em aparelho real.
+
 ## Atualização 2.0.114
 
 - Corrigido roteamento de notificações locais e foreground Android (toque com app aberto, em segundo plano ou fechado).
@@ -47,7 +55,7 @@
 
 # GitHub Manager — handoff
 
-Estado atual: `2.0.112+200126`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.115+200129`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 ## Alterações 2.0.108
