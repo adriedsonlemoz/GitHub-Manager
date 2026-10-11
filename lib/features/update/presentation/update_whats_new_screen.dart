@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.107';
+  static const releaseNotesVersion = '2.0.109';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,17 +69,24 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.notes_rounded,
-                      title: 'Descrição completa na Home',
+                      icon: Icons.manage_search_rounded,
+                      title: 'Busca e histórico de Builds',
                       description:
-                          'Em Configurações > Página inicial, ative Mostrar descrição dos repositórios para ver todo o texto abaixo do nome de cada projeto, sem cortes de linhas ou caracteres.',
+                          'Alterne entre último commit e histórico recente, pesquise execuções e filtre por status, branch, workflow e período.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.tune_rounded,
-                      title: 'Visualização sob seu controle',
+                      icon: Icons.timer_outlined,
+                      title: 'Atualização inteligente e comparações',
                       description:
-                          'A opção começa desativada para manter os cartões compactos. Você pode ativar ou desativar quando quiser, e a escolha fica salva neste aparelho.',
+                          'Consultas adaptativas, horário real dos dados, duração de execuções e comparação com a tentativa anterior do mesmo workflow.',
+                    ),
+                    const SizedBox(height: 12),
+                    const _UpdateItem(
+                      icon: Icons.shield_outlined,
+                      title: 'Diagnóstico e APKs mais seguros',
+                      description:
+                          'Diagnóstico de falhas sob demanda; Releases ambíguas são identificadas e preservadas ao excluir uma build.',
                     ),
                   ],
                 ),

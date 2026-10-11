@@ -2,7 +2,6 @@ import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/features/builds/data/artifact_service.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
-import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 
 
@@ -82,8 +81,8 @@ class BuildBulkCleanupResult {
 /// O GitHub documenta que excluir um workflow run remove os artifacts ligados
 /// à execução. Mesmo assim, o serviço verifica a lista depois da exclusão e
 /// remove explicitamente qualquer artifact que ainda apareça. Releases são
-/// independentes do workflow run, então APKs de Release só são removidos quando
-/// conseguimos provar que a tag/target_commitish aponta para o mesmo commit.
+/// independentes do workflow run: mesmo SHA não identifica qual execução
+/// publicou um asset. Nunca apaga Releases automaticamente.
 class BuildCleanupService {
   BuildCleanupService(this._client, this._artifacts);
 
@@ -97,7 +96,6 @@ class BuildCleanupService {
   }) async {
     final warnings = <String>[];
     List<ActionArtifact> linkedArtifacts = const <ActionArtifact>[];
-    List<ReleaseAsset> linkedReleaseApks = const <ReleaseAsset>[];
 
     // Descobrimos os vínculos antes de apagar a execução, pois o endpoint
     // específico do run deixa de existir após a exclusão.
@@ -113,17 +111,9 @@ class BuildCleanupService {
       );
     }
 
+    // A associação por commit/versão pode ser compartilhada por mais de uma
+    // execução. Não usamos essa heurística em nenhuma ação destrutiva.
     onStage?.call(BuildCleanupStage.inspectingReleaseApks);
-    try {
-      linkedReleaseApks = await _artifacts.findReleaseApksForBuild(
-        repositoryFullName: repositoryFullName,
-        run: run,
-      );
-    } catch (error) {
-      warnings.add(
-        'Não foi possível conferir previamente APKs publicados em Release: ${_message(error)}',
-      );
-    }
 
     // Primeiro removemos a execução. Se isso falhar, nenhuma Release é tocada.
     onStage?.call(BuildCleanupStage.deletingRun);
@@ -134,7 +124,6 @@ class BuildCleanupService {
     final knownArtifactIds = linkedArtifacts.map((item) => item.id).toSet();
     final unresolvedArtifactIds = <int>{};
     var extraArtifactsRemoved = 0;
-    var removedReleaseApks = 0;
 
     // O GitHub deve remover os artifacts junto com o run. Fazemos uma
     // verificação adicional na coleção do repositório para cobrir atraso de
@@ -173,29 +162,14 @@ class BuildCleanupService {
             .length +
         extraArtifactsRemoved;
 
-    // Release assets não são apagados pelo GitHub quando o workflow run some.
-    // Removemos apenas APKs cuja Release foi ligada com segurança ao mesmo SHA.
+    // Releases continuam disponíveis e podem ser gerenciadas explicitamente
+    // na tela de APKs/Releases do repositório.
     onStage?.call(BuildCleanupStage.cleaningReleaseApks);
-    for (final asset in linkedReleaseApks) {
-      try {
-        await _artifacts.deleteReleaseAsset(
-          repositoryFullName: repositoryFullName,
-          assetId: asset.id,
-        );
-        removedReleaseApks++;
-      } catch (error) {
-        if (!_isNotFound(error)) {
-          warnings.add(
-            'A build foi excluída, mas o APK ${asset.name} da Release ${asset.tagName} não pôde ser removido: ${_message(error)}',
-          );
-        }
-      }
-    }
 
     return BuildCleanupResult(
       runId: run.id,
       artifactsRemoved: removedArtifacts,
-      releaseApksRemoved: removedReleaseApks,
+      releaseApksRemoved: 0,
       warnings: List<String>.unmodifiable(warnings),
     );
   }

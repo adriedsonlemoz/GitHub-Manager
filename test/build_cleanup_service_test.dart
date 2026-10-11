@@ -23,7 +23,7 @@ void main() {
         'run_attempt': 1,
       });
 
-  test('deleting build also removes linked Release APK', () async {
+  test('deleting build preserves Release APK even with same SHA', () async {
     final events = <String>[];
     final client = _FakeGitHubApiClient(events);
     final artifacts = _FakeArtifactService(client, events)
@@ -58,14 +58,10 @@ void main() {
     );
 
     expect(result.artifactsRemoved, 1);
-    expect(result.releaseApksRemoved, 1);
+    expect(result.releaseApksRemoved, 0);
     expect(result.hasWarnings, isFalse);
     expect(events, contains('delete-run:77'));
-    expect(events, contains('delete-release-asset:601'));
-    expect(
-      events.indexOf('delete-run:77'),
-      lessThan(events.indexOf('delete-release-asset:601')),
-    );
+    expect(events, isNot(contains('delete-release-asset:601')));
   });
 
   test('remaining artifact after run deletion is deleted explicitly', () async {

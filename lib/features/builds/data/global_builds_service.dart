@@ -5,22 +5,26 @@ import 'package:github_manager/features/repositories/domain/github_repository.da
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 
 class GlobalBuildsService {
-  GlobalBuildsService(this._repositoryService, this._gitService);
+  GlobalBuildsService(this._repositoryService, this._gitService, {DateTime Function()? clock})
+      : _clock = clock ?? DateTime.now;
 
   static const repositoryCacheLifetime = Duration(minutes: 10);
   static const fullRunsRefreshInterval = Duration(minutes: 1);
+  static const activeRunsRefreshInterval = Duration(seconds: 15);
 
   final RepositoryService _repositoryService;
   final RepositoryGitService _gitService;
+  final DateTime Function() _clock;
 
   List<GitHubRepository>? _repositoriesCache;
   DateTime? _repositoriesLoadedAt;
   DateTime? _lastFullRunsRefresh;
+  DateTime? _lastActiveRunsRefresh;
   GlobalBuildsSnapshot? _snapshot;
   Future<GlobalBuildsSnapshot>? _loadInFlight;
 
   Future<GlobalBuildsSnapshot> load({
-    int runsPerRepository = 8,
+    int runsPerRepository = 25,
     bool forceFull = false,
   }) {
     final running = _loadInFlight;
@@ -39,6 +43,7 @@ class GlobalBuildsService {
     _repositoriesCache = null;
     _repositoriesLoadedAt = null;
     _lastFullRunsRefresh = null;
+    _lastActiveRunsRefresh = null;
     _snapshot = null;
   }
 
@@ -46,7 +51,7 @@ class GlobalBuildsService {
     required int runsPerRepository,
     required bool forceFull,
   }) async {
-    final now = DateTime.now();
+    final now = _clock();
     final repositories = await _repositories(
       now: now,
       forceRefresh: forceFull,
@@ -64,12 +69,23 @@ class GlobalBuildsService {
       );
       final snapshot = _snapshotFrom(
         repositories: repositories,
-        entries: loaded.entries,
+        historyEntries: [
+          for (final repository in repositories)
+            if (loaded.failedRepositoryNames.contains(repository.fullName))
+              ...?previous?.historyEntries.where(
+                (entry) => entry.repository.fullName == repository.fullName,
+              )
+            else
+              ...loaded.entries.where(
+                (entry) => entry.repository.fullName == repository.fullName,
+              ),
+        ],
         unavailableRepositories: loaded.failedRepositoryNames.length,
-        loadedAt: now,
+        loadedAt: _clock(),
       );
       _snapshot = snapshot;
-      _lastFullRunsRefresh = now;
+      _lastFullRunsRefresh = _clock();
+      _lastActiveRunsRefresh = _lastFullRunsRefresh;
       return snapshot;
     }
 
@@ -77,9 +93,11 @@ class GlobalBuildsService {
         .where((entry) => entry.isRunning)
         .map((entry) => entry.repository.fullName)
         .toSet();
-    if (activeRepositoryNames.isEmpty) {
-      // A tela pede refresh a cada poucos segundos, mas sem execução ativa o
-      // serviço mantém o snapshot e só faz nova varredura global após 1 minuto.
+    if (activeRepositoryNames.isEmpty ||
+        (_lastActiveRunsRefresh != null &&
+            now.difference(_lastActiveRunsRefresh!) < activeRunsRefreshInterval)) {
+      // Sem build ativa, só há varredura global a cada minuto.
+      // Com build ativa, consultas são limitadas a uma a cada 15 segundos.
       return previous;
     }
 
@@ -95,7 +113,9 @@ class GlobalBuildsService {
     final failed = loaded.failedRepositoryNames;
 
     final merged = <GlobalBuildEntry>[
-      for (final entry in previous.entries)
+      for (final entry in previous.historyEntries.isEmpty
+          ? previous.entries
+          : previous.historyEntries)
         if (!activeRepositoryNames.contains(entry.repository.fullName) ||
             failed.contains(entry.repository.fullName))
           entry,
@@ -103,15 +123,16 @@ class GlobalBuildsService {
     ];
     final snapshot = _snapshotFrom(
       repositories: repositories,
-      entries: merged,
+      historyEntries: merged,
       unavailableRepositories: failed.isEmpty
           ? previous.unavailableRepositories
           : previous.unavailableRepositories > failed.length
               ? previous.unavailableRepositories
               : failed.length,
-      loadedAt: now,
+      loadedAt: _clock(),
     );
     _snapshot = snapshot;
+    _lastActiveRunsRefresh = _clock();
     return snapshot;
   }
 
@@ -171,7 +192,7 @@ class GlobalBuildsService {
           failed.add(result.repository.fullName);
           continue;
         }
-        for (final raw in _latestBuildSet(result.runs)) {
+        for (final raw in result.runs) {
           entries.add(
             GlobalBuildEntry(
               repository: result.repository,
@@ -212,22 +233,34 @@ class GlobalBuildsService {
 
   GlobalBuildsSnapshot _snapshotFrom({
     required List<GitHubRepository> repositories,
-    required List<GlobalBuildEntry> entries,
+    required List<GlobalBuildEntry> historyEntries,
     required int unavailableRepositories,
     required DateTime loadedAt,
   }) {
-    entries.sort((a, b) {
+    historyEntries.sort((a, b) {
       final aDate = a.date ?? DateTime.fromMillisecondsSinceEpoch(0);
       final bDate = b.date ?? DateTime.fromMillisecondsSinceEpoch(0);
       return bDate.compareTo(aDate);
     });
-    final repositoriesWithBuilds = entries
+    final latestByRepository = <String, List<GlobalBuildEntry>>{};
+    for (final entry in historyEntries) {
+      latestByRepository.putIfAbsent(entry.repository.fullName, () => []).add(entry);
+    }
+    final latestEntries = <GlobalBuildEntry>[
+      for (final runs in latestByRepository.values)
+        ..._latestBuildSet(runs.map((entry) => entry.run).toList()).map(
+          (run) => runs.firstWhere((entry) => entry.run.id == run.id),
+        ),
+    ]..sort((a, b) => (b.date ?? DateTime.fromMillisecondsSinceEpoch(0))
+        .compareTo(a.date ?? DateTime.fromMillisecondsSinceEpoch(0)));
+    final repositoriesWithBuilds = latestEntries
         .map((entry) => entry.repository.fullName)
         .toSet()
         .length;
 
     return GlobalBuildsSnapshot(
-      entries: List<GlobalBuildEntry>.unmodifiable(entries),
+      entries: List<GlobalBuildEntry>.unmodifiable(latestEntries),
+      historyEntries: List<GlobalBuildEntry>.unmodifiable(historyEntries),
       repositoryCount: repositories.length,
       repositoriesWithBuilds: repositoriesWithBuilds,
       unavailableRepositories: unavailableRepositories,

@@ -47,6 +47,7 @@ void main() {
     expect(find.text('repo'), findsOneWidget);
     expect(find.text('2 builds na versão mais recente'), findsOneWidget);
 
+    await tester.ensureVisible(find.byKey(const ValueKey('repository-build-owner/repo')));
     await tester.tap(find.byKey(const ValueKey('repository-build-owner/repo')));
     await tester.pumpAndSettle();
 

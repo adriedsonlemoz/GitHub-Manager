@@ -9,11 +9,14 @@ import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/apk_variant.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/builds/domain/global_build_entry.dart';
+import 'package:github_manager/features/builds/presentation/global_build_diagnostics.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
+import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
 import 'package:go_router/go_router.dart';
 
 enum _GlobalBuildFilter { all, running, success, failure }
+enum _BuildPeriod { all, sevenDays, thirtyDays, ninetyDays }
 
 class GlobalBuildsScreen extends ConsumerStatefulWidget {
   const GlobalBuildsScreen({super.key});
@@ -22,52 +25,186 @@ class GlobalBuildsScreen extends ConsumerStatefulWidget {
   ConsumerState<GlobalBuildsScreen> createState() => _GlobalBuildsScreenState();
 }
 
-class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
+class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen>
+    with WidgetsBindingObserver {
   _GlobalBuildFilter _filter = _GlobalBuildFilter.all;
+  _BuildPeriod _period = _BuildPeriod.all;
+  bool _showHistory = false;
+  String _query = '';
+  String? _branch;
+  String? _workflow;
+  bool _refreshing = false;
   Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _schedulePoll();
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _schedulePoll();
+      _refresh();
+    } else {
+      _pollTimer?.cancel();
+    }
   }
 
   void _schedulePoll() {
     _pollTimer?.cancel();
-    _pollTimer = Timer(const Duration(seconds: 6), () async {
+    if (!mounted) return;
+    final state = ref.read(globalBuildsProvider);
+    final running = state.asData?.value.runningCount ?? 0;
+    final seconds = running > 0 || state.isLoading ? 15 : 60;
+    _pollTimer = Timer(Duration(seconds: seconds), () async {
       if (!mounted) return;
-      try {
-        await _refresh();
-      } catch (_) {
-        // Mantém o último snapshot válido. O próximo ciclo tenta novamente.
-      }
+      await _refresh();
       if (mounted) _schedulePoll();
     });
   }
 
   Future<void> _refresh({bool forceFull = false}) async {
-    if (forceFull) {
-      ref.read(globalBuildsServiceProvider).invalidate();
+    if (_refreshing) return;
+    _refreshing = true;
+    try {
+      final service = ref.read(globalBuildsServiceProvider);
+      final before = ref.read(globalBuildsProvider).asData?.value;
+      final after = await service.load(forceFull: forceFull);
+      if (mounted && (forceFull || !identical(before, after))) {
+        ref.invalidate(globalBuildsProvider);
+      }
+    } catch (_) {
+      // Um erro temporário não apaga os dados previamente apresentados.
+      if (forceFull && mounted) {
+        showCenteredNotice(
+          context,
+          'Não foi possível atualizar agora. Dados anteriores preservados.',
+        );
+      }
+    } finally {
+      _refreshing = false;
     }
-    ref.invalidate(globalBuildsProvider);
-    await ref.read(globalBuildsProvider.future);
   }
 
   List<GlobalRepositoryBuildGroup> _filtered(GlobalBuildsSnapshot snapshot) {
-    return snapshot.groups.where((group) {
+    final source = _showHistory && snapshot.historyEntries.isNotEmpty
+        ? snapshot.historyEntries
+        : snapshot.entries;
+    final query = _query.trim().toLowerCase();
+    final days = switch (_period) {
+      _BuildPeriod.all => null,
+      _BuildPeriod.sevenDays => 7,
+      _BuildPeriod.thirtyDays => 30,
+      _BuildPeriod.ninetyDays => 90,
+    };
+    final since = days == null ? null : DateTime.now().subtract(Duration(days: days));
+    final filtered = source.where((entry) {
+      final run = entry.run;
+      if (_branch != null && entry.branch != _branch) return false;
+      if (_workflow != null && run.name != _workflow) return false;
+      if (since != null && (entry.date == null || entry.date!.isBefore(since))) {
+        return false;
+      }
+      if (query.isNotEmpty && ![
+        entry.repository.name,
+        entry.repository.fullName,
+        entry.branch,
+        run.name,
+        run.title,
+        run.headSha,
+        run.detectedVersion ?? '',
+        run.runNumber.toString(),
+      ].any((value) => value.toLowerCase().contains(query))) {
+        return false;
+      }
       return switch (_filter) {
         _GlobalBuildFilter.all => true,
-        _GlobalBuildFilter.running => group.isRunning,
-        _GlobalBuildFilter.success => group.isSuccess,
-        _GlobalBuildFilter.failure => group.isFailure,
+        _GlobalBuildFilter.running => entry.isRunning,
+        _GlobalBuildFilter.success => entry.isSuccess,
+        _GlobalBuildFilter.failure => entry.isFailure,
       };
     }).toList(growable: false);
+    return GlobalBuildsSnapshot.groupEntries(filtered);
+  }
+
+  void _showDiagnosis(GlobalBuildEntry entry, {BuildContext? sheetContext}) {
+    showDialog<void>(
+      context: sheetContext ?? context,
+      builder: (dialogContext) => GlobalBuildDiagnosisDialog(
+        entry: entry,
+        onOpenDetails: () {
+          Navigator.of(dialogContext).pop();
+          _openRun(entry, sheetContext: sheetContext);
+        },
+      ),
+    );
+  }
+
+  Widget _buildAdvancedFilters(GlobalBuildsSnapshot snapshot) {
+    final runs = snapshot.historyEntries.isNotEmpty
+        ? snapshot.historyEntries : snapshot.entries;
+    final branches = runs.map((entry) => entry.branch).toSet().toList()..sort();
+    final workflows = runs.map((entry) => entry.run.name).toSet().toList()..sort();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        SizedBox(
+          width: 142,
+          child: DropdownButtonFormField<String>(
+            key: const ValueKey('builds-branch-filter'),
+            value: branches.contains(_branch) ? _branch : null,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Branch', isDense: true),
+            items: [
+              const DropdownMenuItem(value: '', child: Text('Todas')),
+              ...branches.map((name) => DropdownMenuItem(value: name, child: Text(name, overflow: TextOverflow.ellipsis))),
+            ],
+            onChanged: (value) => setState(() => _branch = value == '' ? null : value),
+          ),
+        ),
+        SizedBox(
+          width: 168,
+          child: DropdownButtonFormField<String>(
+            key: const ValueKey('builds-workflow-filter'),
+            value: workflows.contains(_workflow) ? _workflow : null,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Workflow', isDense: true),
+            items: [
+              const DropdownMenuItem(value: '', child: Text('Todos')),
+              ...workflows.map((name) => DropdownMenuItem(value: name, child: Text(name, overflow: TextOverflow.ellipsis))),
+            ],
+            onChanged: (value) => setState(() => _workflow = value == '' ? null : value),
+          ),
+        ),
+        SizedBox(
+          width: 138,
+          child: DropdownButtonFormField<_BuildPeriod>(
+            key: const ValueKey('builds-period-filter'),
+            value: _period,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Período', isDense: true),
+            items: const [
+              DropdownMenuItem(value: _BuildPeriod.all, child: Text('Todos')),
+              DropdownMenuItem(value: _BuildPeriod.sevenDays, child: Text('7 dias')),
+              DropdownMenuItem(value: _BuildPeriod.thirtyDays, child: Text('30 dias')),
+              DropdownMenuItem(value: _BuildPeriod.ninetyDays, child: Text('90 dias')),
+            ],
+            onChanged: (value) => setState(() => _period = value ?? _BuildPeriod.all),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _downloadLogs(GlobalBuildEntry entry) async {
@@ -113,15 +250,9 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
       final candidates = <_GlobalApkCandidate>[
         ...releases.map(_GlobalApkCandidate.fromRelease),
       ];
-      final releaseVariants = releases
-          .map((asset) => ApkVariantInfo.fromName(asset.name).shortLabel)
-          .toSet();
-      for (final artifact in artifacts) {
-        final variant = ApkVariantInfo.fromName(artifact.name).shortLabel;
-        if (!releaseVariants.contains(variant)) {
-          candidates.add(_GlobalApkCandidate.fromArtifact(artifact));
-        }
-      }
+      // Assets de Release podem compartilhar o SHA com várias execuções.
+      // Não ocultar o Artifact específico da execução por ter a mesma ABI.
+      candidates.addAll(artifacts.map(_GlobalApkCandidate.fromArtifact));
 
       if (!mounted) return;
       if (candidates.isEmpty) {
@@ -139,8 +270,8 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
         final leftRank = apkRecommendationRank(left.name, supportedAbis);
         final rightRank = apkRecommendationRank(right.name, supportedAbis);
         if (leftRank != rightRank) return leftRank.compareTo(rightRank);
-        if (left.release != null && right.release == null) return -1;
-        if (left.release == null && right.release != null) return 1;
+        if (left.artifact != null && right.artifact == null) return -1;
+        if (left.artifact == null && right.artifact != null) return 1;
         return left.name.toLowerCase().compareTo(right.name.toLowerCase());
       });
 
@@ -165,7 +296,9 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
       }
       if (selected == null || !mounted) return;
       if (!await _confirmGlobalApkCompatibility(selected, deviceInfo)) return;
-      _startGlobalApkDownload(entry, selected, deviceInfo);
+      if (selected.release != null &&
+          !await _confirmReleaseAssociation(selected.release!)) return;
+      if (mounted) _startGlobalApkDownload(entry, selected, deviceInfo);
     } catch (_) {
       if (mounted) {
         showCenteredNotice(
@@ -174,6 +307,31 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
         );
       }
     }
+  }
+
+  Future<bool> _confirmReleaseAssociation(ReleaseAsset asset) async {
+    if (!mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('APK publicado em Release'),
+            content: Text(
+              'O arquivo ${asset.name} pertence à Release ${asset.tagName}. '
+              'O vínculo foi encontrado pelo commit/versão, não pelo ID da '
+              'execução. Outra build pode ter publicado este APK. Deseja baixá-lo?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Baixar Release'),
+              ),
+            ],
+          ),
+        ) ?? false;
   }
 
   Future<bool> _confirmGlobalApkCompatibility(
@@ -273,7 +431,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${group.buildCount} build${group.buildCount == 1 ? '' : 's'} da versão/commit mais recente • ${group.branch}',
+                        '${group.buildCount} execução(ões) nesta seleção • ${group.branch}',
                         style: Theme.of(sheetContext).textTheme.bodySmall,
                       ),
                     ],
@@ -287,8 +445,15 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (_, index) {
                       final entry = group.entries[index];
+                      final previous = group.entries.skip(index + 1).where(
+                        (item) => item.run.workflowId == entry.run.workflowId &&
+                            item.run.id != entry.run.id,
+                      );
                       return _RepositoryBuildRunCard(
                         entry: entry,
+                        previous: _showHistory && previous.isNotEmpty
+                            ? previous.first : null,
+                        onDiagnose: () => _showDiagnosis(entry, sheetContext: sheetContext),
                         onOpen: () => _openRun(entry, sheetContext: sheetContext),
                         onDownloadLogs: () => _downloadLogs(entry),
                         onDownloadApk: () => _downloadApk(entry),
@@ -365,6 +530,33 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
               children: [
                 _GlobalBuildSummary(snapshot: snapshot),
                 const SizedBox(height: 10),
+                TextField(
+                  key: const ValueKey('builds-search'),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search_rounded),
+                    border: OutlineInputBorder(),
+                    hintText: 'Buscar projeto, workflow, branch, versão ou SHA',
+                  ),
+                  onChanged: (value) => setState(() => _query = value),
+                ),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 6, children: [
+                  ChoiceChip(
+                    label: const Text('Último commit'),
+                    selected: !_showHistory,
+                    onSelected: (_) => setState(() => _showHistory = false),
+                  ),
+                  ChoiceChip(
+                    key: const ValueKey('builds-history'),
+                    label: const Text('Histórico recente'),
+                    selected: _showHistory,
+                    onSelected: (_) => setState(() => _showHistory = true),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+                _buildAdvancedFilters(snapshot),
+                const SizedBox(height: 8),
                 SizedBox(
                   height: 42,
                   child: ListView(
@@ -403,7 +595,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
                     child: Padding(
                       padding: EdgeInsets.all(20),
                       child: Text(
-                        'Nenhum repositório com build encontrado para este filtro. Projetos sem workflow não aparecem aqui.',
+                        'Nenhuma build corresponde aos filtros. Tente outro período, branch ou workflow.',
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -414,6 +606,7 @@ class _GlobalBuildsScreenState extends ConsumerState<GlobalBuildsScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: _GlobalRepositoryBuildCard(
                         group: group,
+                        showHistory: _showHistory,
                         onTap: () => _showRepositoryBuilds(group),
                       ),
                     ),
@@ -442,20 +635,26 @@ class _GlobalBuildSummary extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Última build de cada projeto',
+              'Builds dos repositórios',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 5),
             Text(
               '${snapshot.repositoryCount} projetos verificados • '
               '${snapshot.repositoriesWithBuilds} com builds • '
-              'atualização automática a cada 6 s',
+              'consulta dinâmica: 15 s (ativas) / 60 s (geral)',
               style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Dados consultados no GitHub em ${_formatTime(snapshot.loadedAt)} • '
+              '${snapshot.historyEntries.isEmpty ? snapshot.entries.length : snapshot.historyEntries.length} execuções recentes carregadas',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             if (snapshot.unavailableRepositories > 0) ...[
               const SizedBox(height: 5),
               Text(
-                '${snapshot.unavailableRepositories} projetos não puderam consultar Actions nesta atualização.',
+                '${snapshot.unavailableRepositories} projetos indisponíveis nesta consulta. Dados anteriores são preservados quando possível.',
                 style: TextStyle(color: scheme.onSurfaceVariant),
               ),
             ],
@@ -494,8 +693,10 @@ class _GlobalRepositoryBuildCard extends StatelessWidget {
   const _GlobalRepositoryBuildCard({
     required this.group,
     required this.onTap,
+    this.showHistory = false,
   });
 
+  final bool showHistory;
   final GlobalRepositoryBuildGroup group;
   final VoidCallback onTap;
 
@@ -533,7 +734,7 @@ class _GlobalRepositoryBuildCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '$count build${count == 1 ? '' : 's'} na versão mais recente',
+                      showHistory ? '$count ${count == 1 ? 'execução' : 'execuções'} no histórico' : '$count build${count == 1 ? '' : 's'} na versão mais recente',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -694,8 +895,12 @@ class _RepositoryBuildRunCard extends StatelessWidget {
     required this.onOpen,
     required this.onDownloadLogs,
     required this.onDownloadApk,
+    this.previous,
+    this.onDiagnose,
   });
 
+  final GlobalBuildEntry? previous;
+  final VoidCallback? onDiagnose;
   final GlobalBuildEntry entry;
   final VoidCallback onOpen;
   final VoidCallback onDownloadLogs;
@@ -748,17 +953,43 @@ class _RepositoryBuildRunCard extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${run.shortSha} • ${_formatDuration(run)} • tentativa ${run.runAttempt}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            if (previous != null) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _comparisonText(entry, previous!),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 6,
               children: [
+                if (onDiagnose != null)
+                  OutlinedButton.icon(
+                    key: ValueKey('diagnose-${run.id}'),
+                    onPressed: onDiagnose,
+                    icon: const Icon(Icons.bug_report_outlined, size: 18),
+                    label: Text(entry.isFailure ? 'Diagnóstico' : 'Etapas'),
+                  ),
                 OutlinedButton.icon(
                   key: ValueKey('logs-${run.id}'),
                   onPressed: onDownloadLogs,
                   icon: const Icon(Icons.receipt_long_outlined, size: 18),
                   label: const Text('Log'),
                 ),
-                const SizedBox(width: 8),
                 FilledButton.tonalIcon(
                   key: ValueKey('apk-${run.id}'),
                   onPressed: onDownloadApk,
@@ -835,4 +1066,39 @@ String _formatDate(DateTime? date) {
   final local = date.toLocal();
   String two(int value) => value.toString().padLeft(2, '0');
   return '${two(local.day)}/${two(local.month)} ${two(local.hour)}:${two(local.minute)}';
+}
+
+String _formatTime(DateTime date) {
+  final local = date.toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${two(local.day)}/${two(local.month)} ${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
+}
+
+Duration? _runDuration(RepositoryWorkflowRun run, {DateTime? now}) {
+  final start = run.startedAt ?? run.createdAt;
+  if (start == null) return null;
+  final end = run.isRunning ? (now ?? DateTime.now()) : run.updatedAt;
+  if (end == null || end.isBefore(start)) return null;
+  return end.difference(start);
+}
+
+String _formatDuration(RepositoryWorkflowRun run) {
+  final duration = _runDuration(run);
+  if (duration == null) return 'duração indisponível';
+  final hours = duration.inHours;
+  final minutes = duration.inMinutes.remainder(60);
+  final seconds = duration.inSeconds.remainder(60);
+  if (hours > 0) return '${hours}h ${minutes}min';
+  if (minutes > 0) return '${minutes}min ${seconds}s';
+  return '${seconds}s';
+}
+
+String _comparisonText(GlobalBuildEntry current, GlobalBuildEntry previous) {
+  final old = _runDuration(previous.run);
+  final newer = _runDuration(current.run);
+  final delta = old == null || newer == null ? null : newer.inSeconds - old.inSeconds;
+  final label = delta == null ? 'duração não comparável' :
+      delta == 0 ? 'mesma duração' :
+      delta > 0 ? '${delta}s mais lenta' : '${-delta}s mais rápida';
+  return 'Anterior: #${previous.run.runNumber} • ${_runStatus(previous.run.status, previous.run.conclusion).$2} • $label';
 }

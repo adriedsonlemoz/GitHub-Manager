@@ -12,7 +12,8 @@ void main() {
   test('poll curto reutiliza repositórios e consulta apenas projeto com build ativa', () async {
     final repositoryService = _CountingRepositoryService();
     final gitService = _CountingGitService();
-    final service = GlobalBuildsService(repositoryService, gitService);
+    var clock = DateTime.utc(2026, 10, 10, 12);
+    final service = GlobalBuildsService(repositoryService, gitService, clock: () => clock);
 
     final first = await service.load();
     expect(first.runningCount, 1);
@@ -20,6 +21,9 @@ void main() {
     expect(gitService.calls['owner/active'], 1);
     expect(gitService.calls['owner/done'], 1);
 
+    final throttled = await service.load();
+    expect(identical(first, throttled), isTrue);
+    clock = clock.add(const Duration(seconds: 16));
     final second = await service.load();
     expect(repositoryService.calls, 1, reason: 'lista de repositórios deve vir do cache');
     expect(gitService.calls['owner/active'], 2, reason: 'build ativa precisa ser atualizada');
@@ -40,6 +44,7 @@ void main() {
     expect(activeEntries, hasLength(1));
     expect(activeEntries.single.run.id, 10);
     expect(activeEntries.single.run.headSha, 'latest-sha');
+    expect(snapshot.historyEntries.where((e) => e.repository.fullName == _activeRepo.fullName), hasLength(2));
   });
 
 

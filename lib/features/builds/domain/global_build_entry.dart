@@ -65,6 +65,7 @@ class GlobalRepositoryBuildGroup {
 class GlobalBuildsSnapshot {
   const GlobalBuildsSnapshot({
     required this.entries,
+    this.historyEntries = const <GlobalBuildEntry>[],
     required this.repositoryCount,
     required this.repositoriesWithBuilds,
     required this.unavailableRepositories,
@@ -72,15 +73,24 @@ class GlobalBuildsSnapshot {
   });
 
   final List<GlobalBuildEntry> entries;
+  /// Todas as execuções recentes consultadas, inclusive commits anteriores.
+  final List<GlobalBuildEntry> historyEntries;
   final int repositoryCount;
   final int repositoriesWithBuilds;
   final int unavailableRepositories;
   final DateTime loadedAt;
 
-  List<GlobalRepositoryBuildGroup> get groups {
+  List<GlobalRepositoryBuildGroup> get groups => groupEntries(entries);
+
+  List<GlobalRepositoryBuildGroup> get historyGroups =>
+      groupEntries(historyEntries.isEmpty ? entries : historyEntries);
+
+  static List<GlobalRepositoryBuildGroup> groupEntries(
+    List<GlobalBuildEntry> source,
+  ) {
     final grouped = <String, List<GlobalBuildEntry>>{};
     final repositories = <String, GitHubRepository>{};
-    for (final entry in entries) {
+    for (final entry in source) {
       final key = entry.repository.fullName;
       repositories[key] = entry.repository;
       grouped.putIfAbsent(key, () => <GlobalBuildEntry>[]).add(entry);

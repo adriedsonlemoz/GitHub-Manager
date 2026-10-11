@@ -1,3 +1,23 @@
+## 2.0.109+200123 — 2026-10-10
+
+- aprimora a tela global de Builds com histórico recente de até 25 execuções por repositório, busca e filtros por status, branch, workflow e período;
+- permite comparar execuções anteriores do mesmo workflow, com status, duração aproximada e SHA;
+- adiciona diagnóstico/etapas sob demanda, sem consultar logs no polling, e apresenta a hora real da última consulta;
+- ajusta atualização global para intervalos mínimos de 15 s com builds ativas e 60 s para a varredura geral, preservando resultados anteriores quando há falhas parciais;
+- prioriza Artifacts vinculados à execução e avisa quando um APK de Release foi associado somente por commit/versão;
+- impede a remoção automática de APKs de Releases ao excluir builds, pois igualdade de SHA não prova a identidade da execução;
+- atualiza Novidades, documentação, testes e versionamento para `2.0.109+200123`.
+
+## 2.0.108+200122 — 2026-10-10
+
+- adiciona **Configurações > Aparência > Tela inteira** para alternar entre modo imersivo e barras de sistema visíveis;
+- mantém modo imersivo como preferência padrão para quem já utilizava o aplicativo;
+- persiste a escolha no banco local, aplica a alteração imediatamente e restaura a preferência após reabrir o aplicativo;
+- reaplica o modo após retorno ao primeiro plano e, quando apropriado, depois de fechar o teclado;
+- registra a limitação de modo imersivo sob targetSdk 35/36 e não enfraquece as configurações de compatibilidade do Android;
+- atualiza a tela de Novidades, o histórico das últimas três mudanças, README, VERSIONING, RELEASE, VALIDATION, handoff e testes;
+- incrementa `versionName` para `2.0.108` e `versionCode` para `200122`.
+
 ## 2.0.107+200121 — 2026-10-10
 
 - adiciona **Configurações > Página inicial > Mostrar descrição dos repositórios** com chave de ativação;

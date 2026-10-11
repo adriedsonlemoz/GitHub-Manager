@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/app/github_manager_app.dart';
 import 'package:github_manager/app/theme/app_theme_controller.dart';
 import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/persistence/local_database.dart';
+import 'package:github_manager/core/platform/system_ui_settings.dart';
 import 'package:github_manager/core/telemetry/app_telemetry_service.dart';
 import 'package:github_manager/features/update/application/startup_update_coordinator.dart';
 
@@ -23,7 +23,7 @@ void main() {
       runApp(const ProviderScope(child: GitHubManagerApp()));
 
       unawaited(
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky)
+        SystemUiSettings.instance.reapply()
             .catchError((Object error, StackTrace stackTrace) {
           _recordNonFatal('startup.system_ui', error, stackTrace);
         }),
@@ -81,10 +81,42 @@ void _recordNonFatal(
 final _nativeEngineLifecycleObserver = _NativeEngineLifecycleObserver();
 
 class _NativeEngineLifecycleObserver extends WidgetsBindingObserver {
+  bool _keyboardWasVisible = false;
+  Timer? _keyboardRestoreTimer;
+
+  @override
+  void didChangeMetrics() {
+    final keyboardVisible = WidgetsBinding.instance.platformDispatcher.views
+        .any((view) => view.viewInsets.bottom > 0);
+    if (keyboardVisible) {
+      _keyboardRestoreTimer?.cancel();
+    } else if (_keyboardWasVisible && SystemUiSettings.instance.value) {
+      // Android pode mostrar as barras enquanto o teclado está aberto e exige
+      // pelo menos 1 s após fechá-lo antes de aceitar modo imersivo de novo.
+      _keyboardRestoreTimer?.cancel();
+      _keyboardRestoreTimer = Timer(const Duration(milliseconds: 1250), () {
+        if (!SystemUiSettings.instance.value) return;
+        unawaited(
+          SystemUiSettings.instance.reapply().catchError(
+            (Object error, StackTrace stackTrace) =>
+                _recordNonFatal('keyboard.system_ui', error, stackTrace),
+          ),
+        );
+      });
+    }
+    _keyboardWasVisible = keyboardVisible;
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(AppTelemetryService.instance.importPendingNativeEngineLifecycle());
+      unawaited(
+        SystemUiSettings.instance.reapply().catchError(
+          (Object error, StackTrace stackTrace) =>
+              _recordNonFatal('lifecycle.system_ui', error, stackTrace),
+        ),
+      );
     }
   }
 }
@@ -98,6 +130,16 @@ Future<void> _initializeAfterFirstFrame() async {
         );
   } catch (error, stackTrace) {
     _recordNonFatal('startup.theme', error, stackTrace);
+  }
+
+  // Recupera o modo visual salvo, sem tornar a primeira renderização dependente
+  // de banco de dados. O modo imersivo permanece padrão na primeira instalação.
+  try {
+    await SystemUiSettings.instance.initialize().timeout(
+          const Duration(seconds: 3),
+        );
+  } catch (error, stackTrace) {
+    _recordNonFatal('startup.system_ui_settings', error, stackTrace);
   }
 
   StartupUpdateCoordinator.instance.start();

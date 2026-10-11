@@ -113,7 +113,7 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
         title: const Text('Excluir execução permanentemente?'),
         content: Text(
           '${_run.name} #${_run.runNumber} será removida do GitHub Actions. '
-          'Artifacts e APKs de Release vinculados a esta build também serão excluídos quando o vínculo com o mesmo commit puder ser confirmado. '
+          'Os artifacts da execução serão removidos. APKs publicados em Releases serão preservados, pois várias builds podem usar o mesmo commit. '
           'Esta ação não pode ser desfeita.',
         ),
         actions: [
@@ -144,8 +144,8 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
       showCenteredNotice(
         context,
         result.hasWarnings
-            ? 'Build excluída • $removed arquivo(s) vinculado(s) removido(s). Alguns itens ficaram pendentes; para excluir APKs de Release, o token precisa de Contents: write.'
-            : 'Build excluída • $removed artifact(s)/APK(s) vinculado(s) removido(s).',
+            ? 'Build excluída • $removed artifact(s) removido(s). Alguns itens não puderam ser conferidos. Releases preservadas.'
+            : 'Build excluída • $removed artifact(s) removido(s). Releases preservadas.',
       );
     } catch (error) {
       if (mounted) {
@@ -196,15 +196,9 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
       final candidates = <_RunApkCandidate>[
         ...releases.map(_RunApkCandidate.fromRelease),
       ];
-      final releaseVariantKeys = releases
-          .map((asset) => ApkVariantInfo.fromName(asset.name).shortLabel)
-          .toSet();
-      for (final artifact in artifacts) {
-        final key = ApkVariantInfo.fromName(artifact.name).shortLabel;
-        if (!releaseVariantKeys.contains(key)) {
-          candidates.add(_RunApkCandidate.fromArtifact(artifact));
-        }
-      }
+      // Uma Release associada pelo commit pode pertencer a outra execução.
+      // Nunca substituir/suprimir um Artifact vinculado ao run por sua ABI.
+      candidates.addAll(artifacts.map(_RunApkCandidate.fromArtifact));
 
       if (!mounted) return;
       if (candidates.isEmpty) {
@@ -239,8 +233,8 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
         final leftRank = apkRecommendationRank(left.name, supportedAbis);
         final rightRank = apkRecommendationRank(right.name, supportedAbis);
         if (leftRank != rightRank) return leftRank.compareTo(rightRank);
-        if (left.release != null && right.release == null) return -1;
-        if (left.release == null && right.release != null) return 1;
+        if (left.artifact != null && right.artifact == null) return -1;
+        if (left.artifact == null && right.artifact != null) return 1;
         return left.name.toLowerCase().compareTo(right.name.toLowerCase());
       });
 
@@ -265,12 +259,39 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
       }
       if (selected == null || !mounted) return;
       if (!await _confirmApkCompatibility(selected, deviceInfo)) return;
-      _startRunApkDownload(selected, deviceInfo);
+      if (selected.release != null &&
+          !await _confirmReleaseApkAssociation(selected.release!)) return;
+      if (mounted) _startRunApkDownload(selected, deviceInfo);
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
       if (mounted) setState(() => _working = false);
     }
+  }
+
+  Future<bool> _confirmReleaseApkAssociation(ReleaseAsset asset) async {
+    if (!mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Associação de Release não exclusiva'),
+            content: Text(
+              '${asset.name} foi encontrado na Release ${asset.tagName} pelo '
+              'commit/versão. Isso não comprova qual execução publicou o APK. '
+              'Deseja baixar este arquivo mesmo assim?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Baixar Release'),
+              ),
+            ],
+          ),
+        ) ?? false;
   }
 
   Future<bool> _confirmApkCompatibility(

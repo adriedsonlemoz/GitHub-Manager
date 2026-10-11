@@ -1,7 +1,24 @@
+## Atualização 2.0.109
+
+- Builds globais agora mantêm `entries` como última versão/commit e `historyEntries` como últimos 25 runs por repositório.
+- `GlobalBuildsService` tem relógio injetável para testes, cache global de 60 s e mínimo de 15 s para runs ativos.
+- A interface oferece pesquisa, filtros, histórico e diagnóstico de jobs somente sob demanda.
+- **Nunca apagar assets de Release apenas por igualdade de SHA:** o mesmo commit pode ter várias execuções. `BuildCleanupService` agora conserva esses assets e a UI alerta antes de baixá-los.
+- Versionamento `2.0.109+200123`.
+
 # GitHub Manager — handoff
 
-Estado atual: `2.0.107+200121`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.108+200122`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
+
+## Alterações 2.0.108
+
+- **Configurações > Aparência > Tela inteira** alterna modo imersivo (`immersiveSticky`) ou barras do Android visíveis (`edgeToEdge`);
+- `SystemUiSettings` é um singleton `ValueNotifier<bool>` com persistência no SQLite (`settings.fullscreen_enabled`) e preferência padrão ligada;
+- `main.dart` reaplica o modo no startup depois do primeiro frame e ao retomar o app, sem bloquear a splash Flutter, preservando a integração com engine em cache;
+- após fechamento do teclado, o modo imersivo é reaplicado com atraso superior a um segundo, devido às restrições Android;
+- Android com targetSdk 35+ pode impedir modos não edge-to-edge, e em 36+ os ignora. Não reduzir targetSdk nem prometer contorno;
+- atualizados `pubspec.yaml`, manifesto JSON, README, CHANGELOG, VERSIONING, RELEASE, VALIDATION, Novidades, últimos três registros e testes de contrato.
 
 ## Alterações 2.0.107
 

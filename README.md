@@ -1,4 +1,24 @@
-# GitHub Manager 2.0.107
+# GitHub Manager 2.0.109
+
+## Builds inteligentes 2.0.109
+
+- Visão por último commit e histórico recente com busca, filtros e comparação de execuções.
+- Atualização otimizada (15 s para builds ativas, 60 s para busca global) e horário real da consulta ao GitHub.
+- Diagnóstico/etapas sob demanda e duração aproximada de cada build.
+- Artifacts específicos da execução são priorizados; APKs de Release relacionados somente por commit pedem confirmação e **nunca são apagados automaticamente** ao excluir uma build.
+
+
+
+## Tela inteira configurável 2.0.108
+
+- em **Configurações > Aparência**, a opção **Tela inteira** liga ou desliga o modo imersivo;
+- ligada, usa `SystemUiMode.immersiveSticky`, mantendo o comportamento padrão das versões anteriores;
+- desligada, usa `SystemUiMode.edgeToEdge`, com as barras do Android visíveis e layout adaptado às áreas seguras;
+- a escolha é persistida em `settings.fullscreen_enabled` no banco SQLite local e é recuperada após o primeiro frame;
+- a preferência é reaplicada quando o app volta ao primeiro plano, inclusive com FlutterEngine preservado; após fechar o teclado, uma reaplicação tardia evita que o modo imersivo se perca;
+- **limitação do sistema:** Android/Flutter podem ignorar solicitações de modo imersivo ao usar targetSdk 35 sem migração, e não permitem optar por outros modos ao usar targetSdk 36 ou maior; o app não altera nem reduz o targetSdk para contornar isso.
+
+
 
 ## Descrições completas na Home 2.0.107
 
@@ -357,7 +377,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.107+200121`;
+- versão: `2.0.108+200122`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

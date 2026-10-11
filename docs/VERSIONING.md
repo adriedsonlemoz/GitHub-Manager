@@ -1,15 +1,21 @@
+### 2.0.109
+
+A 2.0.109+200123 amplia Builds com histórico recente, busca por projeto/branch/workflow/versão/SHA, filtros de status e período, comparação de execuções, duração e consulta de jobs/diagnóstico sob demanda. O polling global usa cache de 60 s e acompanha builds ativas a cada 15 s, mantendo horário efetivo da última consulta e preservando resultados quando possível. APKs de Release associados somente por commit são rotulados como ambíguos; a exclusão de builds preserva sempre os Releases. Testes e docs sincronizados.
+
 # Versionamento
 
 A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.107+200121`
+`version: 2.0.108+200122`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.108+200122` permite ligar ou desligar a tela inteira nas Configurações, preservando o modo imersivo como padrão e salvando a preferência local; Android recente pode restringir a alteração.
 
 A versão `2.0.107+200121` torna opcional a exibição da descrição completa dos repositórios na Home, com preferência local e atualização reativa dos cartões.
 
@@ -124,6 +130,10 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+### 2.0.108
+
+A 2.0.108 permite alternar o modo imersivo (`SystemUiMode.immersiveSticky`) e a visualização com barras de sistema (`SystemUiMode.edgeToEdge`). A escolha começa ativada, é persistida em `settings.fullscreen_enabled` e reaplicada ao iniciar/retomar a Activity sem atrasar o primeiro frame. Por limitações do Android e Flutter, a plataforma pode ignorar a solicitação de modo imersivo em targets recentes. `versionCode` sobe de `200121` para `200122`.
 
 ### 2.0.107
 

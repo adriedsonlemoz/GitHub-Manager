@@ -5,6 +5,7 @@ mixin _SettingsScreenActions on ConsumerState<SettingsScreen> {
   Map<String, String>? _apiSettings;
   bool? _buildNotificationsEnabled;
   bool? _automaticUploadRecoveryEnabled;
+  bool _updatingFullScreen = false;
 
   void initializeSettingsState() {
     _themeMode = AppThemeController.instance.value;
@@ -38,6 +39,24 @@ mixin _SettingsScreenActions on ConsumerState<SettingsScreen> {
     }
     if (mounted) {
       setState(() => _automaticUploadRecoveryEnabled = enabled);
+    }
+  }
+
+  Future<void> _setFullScreenEnabled(bool enabled) async {
+    if (_updatingFullScreen) return;
+    setState(() => _updatingFullScreen = true);
+    try {
+      await SystemUiSettings.instance.setEnabled(enabled);
+    } catch (_) {
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          'Não foi possível alterar ou salvar o modo de tela.',
+          kind: CenteredNoticeKind.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updatingFullScreen = false);
     }
   }
 

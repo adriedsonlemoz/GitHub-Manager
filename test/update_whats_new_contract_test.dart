@@ -81,7 +81,7 @@ void main() {
     expect(screen, contains("'Novidades da atualização'"));
     expect(screen, contains("ValueKey('whats_new_continue')"));
     expect(screen, contains("label: const Text('Continuar')"));
-    expect(screen, contains("title: 'Descrição completa na Home'"));
-    expect(screen, contains("title: 'Visualização sob seu controle'"));
+    expect(screen, contains("title: 'Modo de tela configurável'"));
+    expect(screen, contains("title: 'Sua escolha é preservada'"));
   });
 }

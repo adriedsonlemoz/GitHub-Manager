@@ -7,6 +7,7 @@ import 'package:github_manager/core/background/build_monitor_service.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/providers/core_providers.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
+import 'package:github_manager/core/platform/system_ui_settings.dart';
 import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/core/widgets/installed_version_banner.dart';
@@ -77,6 +78,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 ],
                 selected: {_themeMode},
                 onSelectionChanged: (value) => _setTheme(value.first),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: SystemUiSettings.instance,
+              builder: (context, fullScreenEnabled, _) => SwitchListTile(
+                secondary: const Icon(Icons.fullscreen_rounded),
+                title: const Text('Tela inteira'),
+                subtitle: const Text(
+                  'Quando ativada, tenta ocultar as barras do Android. '
+                  'Desative para manter as barras visíveis. '
+                  'Versões recentes do Android podem limitar o modo imersivo.',
+                ),
+                value: fullScreenEnabled,
+                onChanged: _updatingFullScreen ? null : _setFullScreenEnabled,
               ),
             ),
           ),
@@ -279,16 +297,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.109',
+                      text: 'Aprimora Builds com histórico, filtros, diagnóstico, duração, atualização inteligente e proteção de Releases.',
+                    ),
+                    _ChangeNote(
+                      version: '2.0.108',
+                      text: 'Permite alternar entre tela inteira e barras do Android visíveis, com preferência persistente.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.107',
-                      text: 'Adiciona uma opção na Home para exibir ou ocultar a descrição completa dos repositórios, com preferência salva localmente.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.106',
-                      text: 'Separa erros de build em uma janela explicativa e recomenda o APK correto pela arquitetura real do aparelho.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.105',
-                      text: 'Reorganiza os detalhes dos builds com resumo visual, diagnóstico compacto e metadados técnicos recolhidos.',
+                      text: 'Adiciona uma opção para mostrar a descrição completa dos repositórios na Home.',
                     ),
                   ],
                 ),
