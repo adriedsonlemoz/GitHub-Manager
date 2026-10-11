@@ -81,7 +81,7 @@ void main() {
     expect(screen, contains("'Novidades da atualização'"));
     expect(screen, contains("ValueKey('whats_new_continue')"));
     expect(screen, contains("label: const Text('Continuar')"));
-    expect(screen, contains("title: 'Modo de tela configurável'"));
-    expect(screen, contains("title: 'Sua escolha é preservada'"));
+    expect(screen, contains("title: 'Envio de ZIP mais objetivo'"));
+    expect(screen, contains("title: 'Diagnóstico de identificação'"));
   });
 }

@@ -297,16 +297,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.110',
+                      text: 'Simplifica a conferência do ZIP, adiciona diagnóstico copiável e melhora a identificação do nome de projetos Android.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.109',
-                      text: 'Aprimora Builds com histórico, filtros, diagnóstico, duração, atualização inteligente e proteção de Releases.',
+                      text: 'Aprimora Builds com histórico, filtros, diagnóstico, duração e proteção de Releases.',
                     ),
                     _ChangeNote(
                       version: '2.0.108',
                       text: 'Permite alternar entre tela inteira e barras do Android visíveis, com preferência persistente.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.107',
-                      text: 'Adiciona uma opção para mostrar a descrição completa dos repositórios na Home.',
                     ),
                   ],
                 ),

@@ -392,7 +392,6 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       repository: repository,
       repositoryInfo: repositoryInfo,
     );
-
     var buildPolicy = branchHasApkWorkflow == false
         ? ManagedUploadBuildPolicy.skipNoWorkflow
         : ManagedUploadBuildPolicy.automatic;
@@ -400,10 +399,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     return showDialog<_ConfirmZipResult>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-        titlePadding: const EdgeInsets.fromLTRB(16, 15, 16, 4),
-        contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        actionsPadding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         title: Text(check.blocked ? 'Risco alto detectado' : 'Conferir envio'),
         content: AdaptiveDialogBody(
           child: SingleChildScrollView(
@@ -411,28 +407,17 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ProjectVersionBanner(versionLabel: project.displayVersionLabel),
+                Text(
+                  project.identityLabel,
+                  style: Theme.of(dialogContext).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                Text(
+                  repository.fullName,
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
                 const SizedBox(height: 12),
-                _BuildSafetyRow(
-                  label: 'Projeto detectado',
-                  value: project.identityLabel,
-                  icon: Icons.inventory_2_outlined,
-                ),
-                _BuildSafetyRow(
-                  label: 'Identidade usada',
-                  value: check.identitySource,
-                  icon: Icons.fingerprint_rounded,
-                ),
-                _BuildSafetyRow(
-                  label: 'Versão do ZIP',
-                  value: project.displayVersionLabel ?? 'Não identificada',
-                  icon: Icons.new_releases_outlined,
-                ),
-                _BuildSafetyRow(
-                  label: 'Repositório aberto',
-                  value: repositoryInfo.projectName,
-                  icon: Icons.cloud_outlined,
-                ),
                 _BuildSafetyRow(
                   label: 'Branch de destino',
                   value: targetBranch.isProtected
@@ -448,110 +433,149 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                   ),
                 ),
                 _BuildSafetyRow(
-                  label: 'Versão no GitHub',
-                  value: repositoryInfo.displayVersionLabel ?? 'Não identificada',
-                  icon: Icons.history_rounded,
+                  label: 'Versão: GitHub → ZIP',
+                  value: '${repositoryInfo.versionLabel ?? 'Não identificada'}  →  ${project.versionLabel ?? 'Não identificada'}',
+                  icon: Icons.compare_arrows_rounded,
                 ),
-                _BuildSafetyRow(
-                  label: 'Prévia da sincronização',
-                  value: syncPreview == null
-                      ? 'Não disponível nesta tentativa'
-                      : '${syncPreview.createdCount} novos • ${syncPreview.modifiedCount} alterados • ${syncPreview.deletedCount} removidos',
-                  icon: Icons.difference_outlined,
-                  actionLabel: syncPreview == null ? null : 'Ver arquivos',
-                  onAction: syncPreview == null
-                      ? null
-                      : () => _showSyncPreview(dialogContext, syncPreview),
-                ),
-                if (rateLimit != null)
-                  _BuildSafetyRow(
-                    label: 'API GitHub',
-                    value: rateLimit.label,
-                    icon: Icons.speed_rounded,
+                if (project.version == null && project.inferredVersion != null)
+                  Text(
+                    'Pista do nome do ZIP: ${project.inferredVersion}. Não usada na comparação.',
+                    style: Theme.of(dialogContext).textTheme.bodySmall,
                   ),
-                if (project.applicationId?.isNotEmpty == true ||
-                    repositoryInfo.applicationId?.isNotEmpty == true)
-                  _BuildSafetyRow(
-                    label: 'Identidade Android',
-                    value:
-                        '${project.applicationId ?? 'não identificada'} → ${repositoryInfo.applicationId ?? 'não identificada'}',
-                    icon: Icons.android_rounded,
-                  ),
+                const SizedBox(height: 6),
+                _UploadSyncSummary(preview: syncPreview,
+                  onViewFiles: syncPreview == null
+                      ? null : () => _showSyncPreview(dialogContext, syncPreview)),
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: check.blocked
-                        ? Theme.of(context).colorScheme.errorContainer
+                        ? Theme.of(dialogContext).colorScheme.errorContainer
                         : check.warning
-                            ? Theme.of(context).colorScheme.tertiaryContainer
-                            : Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(4),
+                            ? Theme.of(dialogContext).colorScheme.tertiaryContainer
+                            : Theme.of(dialogContext).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(5),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        check.blocked
-                            ? Icons.block_rounded
-                            : check.warning
-                                ? Icons.warning_amber_rounded
-                                : Icons.verified_rounded,
-                      ),
+                      Icon(check.blocked
+                          ? Icons.block_rounded
+                          : check.warning
+                              ? Icons.warning_amber_rounded
+                              : Icons.verified_rounded),
                       const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          check.message,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      if (check.warning || check.blocked)
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          tooltip: 'Entender e corrigir este aviso',
-                          onPressed: () => _showBuildSafetyHelp(
-                            dialogContext,
-                            project,
-                            repositoryInfo,
-                            check,
-                          ),
-                          icon: const Icon(Icons.help_outline_rounded),
-                        ),
+                      Expanded(child: Text(check.message,
+                          style: const TextStyle(fontWeight: FontWeight.w700))),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  '${project.projectType} • ${project.fileCount} arquivos • ${project.folderCount} pastas',
+                if (check.warning || check.blocked ||
+                    repositoryInfo.metadataIssue != null ||
+                    repositoryInfo.nameSource == null)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _showBuildSafetyHelp(
+                        dialogContext, project, repositoryInfo, check,
+                        repository: repository,
+                        branch: targetBranch.name,
+                      ),
+                      icon: const Icon(Icons.build_outlined),
+                      label: const Text('Diagnosticar / Como corrigir'),
+                    ),
+                  ),
+                if (syncPreview != null && syncPreview.deletedCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 7),
+                    child: Text(
+                      'Atenção: ${syncPreview.deletedCount} arquivo(s) serão removidos. Confira a prévia.',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(dialogContext).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 5),
+                ExpansionTile(
+                  key: const ValueKey('upload_technical_details'),
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: const EdgeInsets.only(bottom: 8),
+                  title: const Text('Detalhes técnicos e diagnóstico'),
+                  leading: const Icon(Icons.info_outline_rounded),
+                  children: [
+                    _BuildSafetyRow(
+                      label: 'Projeto detectado',
+                      value: project.identityLabel,
+                      icon: Icons.inventory_2_outlined,
+                    ),
+                    _BuildSafetyRow(
+                      label: 'Identidade usada',
+                      value: check.identitySource,
+                      icon: Icons.fingerprint_rounded,
+                    ),
+                    _BuildSafetyRow(
+                      label: 'Fonte do nome remoto',
+                      value: repositoryInfo.nameSource ?? 'Nome do repositório (alternativa)',
+                      icon: Icons.text_fields_rounded,
+                    ),
+                    _BuildSafetyRow(
+                      label: 'Versão do ZIP',
+                      value: project.displayVersionLabel ?? 'Não identificada',
+                      icon: Icons.new_releases_outlined,
+                    ),
+                    _BuildSafetyRow(
+                      label: 'Versão no GitHub',
+                      value: repositoryInfo.displayVersionLabel ?? 'Não identificada',
+                      icon: Icons.history_rounded,
+                    ),
+                    if (project.applicationId?.isNotEmpty == true ||
+                        repositoryInfo.applicationId?.isNotEmpty == true)
+                      _BuildSafetyRow(
+                        label: 'Identidade Android',
+                        value: '${project.applicationId ?? 'não identificada'} → ${repositoryInfo.applicationId ?? 'não identificada'}',
+                        icon: Icons.android_rounded,
+                      ),
+                    _BuildSafetyRow(
+                      label: 'Conteúdo do ZIP',
+                      value: '${project.projectType} • ${project.fileCount} arquivos • ${project.folderCount} pastas',
+                      icon: Icons.folder_zip_outlined,
+                    ),
+                    if (rateLimit != null)
+                      _BuildSafetyRow(
+                        label: 'API GitHub',
+                        value: rateLimit.label,
+                        icon: Icons.speed_rounded,
+                      ),
+                    Text(
+                      project.hasWorkflowFiles
+                          ? 'O ZIP contém workflows do GitHub Actions. Workflows existentes que não vierem no ZIP permanecem protegidos contra remoção acidental.'
+                          : branchHasApkWorkflow == true
+                              ? 'Workflow de APK detectado nesta branch.'
+                              : branchHasApkWorkflow == false
+                                  ? 'Esta branch não possui workflow de APK. O envio pode terminar sem build.'
+                                  : 'A presença de workflow de APK será verificada após o envio.',
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _showBuildSafetyHelp(
+                        dialogContext, project, repositoryInfo, check,
+                        repository: repository,
+                        branch: targetBranch.name,
+                      ),
+                      icon: const Icon(Icons.help_outline_rounded),
+                      label: const Text('Abrir diagnóstico completo'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Destino: ${repository.fullName} → ${targetBranch.name}',
-                ),
-                const SizedBox(height: 10),
-                Builder(
-                  builder: (context) {
-                    final message = project.hasWorkflowFiles
-                        ? 'O ZIP contém workflow do GitHub Actions. Depois do envio, o GitHub Manager verificará se existe uma build de APK compatível. Workflows existentes que não vierem no ZIP continuam protegidos contra remoção acidental.'
-                        : branchHasApkWorkflow == false
-                            ? 'Este projeto não possui workflow de build de APK nesta branch. Isso é normal para projetos que não precisam ser compilados pelo GitHub Actions: os arquivos serão atualizados e o envio terminará como sucesso, sem falso erro de build.'
-                            : branchHasApkWorkflow == true
-                                ? 'Foi detectado um workflow de build de APK nesta branch. Depois do envio, o GitHub Manager verificará ou iniciará a build normalmente.'
-                                : 'O envio sincroniza os arquivos do projeto com o ZIP. Se esta branch não tiver workflow de build compatível, o envio será concluído normalmente sem tratar isso como erro.';
-                    return Text(message);
-                  },
-                ),
-                const SizedBox(height: 8),
                 if (branchHasApkWorkflow == false)
                   const ListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                     leading: Icon(Icons.code_rounded),
                     title: Text('Build não utilizada neste projeto'),
-                    subtitle: Text(
-                      'O GitHub Manager enviará os arquivos sem tentar executar GitHub Actions.',
-                    ),
+                    subtitle: Text('Os arquivos serão enviados sem iniciar GitHub Actions.'),
                   )
                 else
                   StatefulBuilder(
@@ -559,19 +583,12 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                       value: buildPolicy == ManagedUploadBuildPolicy.automatic,
-                      onChanged: (value) {
-                        setBuildState(() {
-                          buildPolicy = value == true
-                              ? ManagedUploadBuildPolicy.automatic
-                              : ManagedUploadBuildPolicy.skipByUser;
-                        });
-                      },
+                      onChanged: (value) => setBuildState(() {
+                        buildPolicy = value == true
+                            ? ManagedUploadBuildPolicy.automatic
+                            : ManagedUploadBuildPolicy.skipByUser;
+                      }),
                       title: const Text('Iniciar build após o envio'),
-                      subtitle: Text(
-                        branchHasApkWorkflow == true
-                            ? 'Workflow de APK detectado nesta branch.'
-                            : 'Se houver um workflow de APK compatível após o envio, o GitHub Manager tentará executá-lo.',
-                      ),
                     ),
                   ),
               ],
@@ -589,21 +606,11 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                     final forced = await showDialog<bool>(
                       context: dialogContext,
                       builder: (confirmContext) => AlertDialog(
-                        insetPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 16,
-                        ),
-                        titlePadding:
-                            const EdgeInsets.fromLTRB(16, 15, 16, 4),
-                        contentPadding:
-                            const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                        actionsPadding:
-                            const EdgeInsets.fromLTRB(10, 2, 10, 10),
                         title: const Text('Forçar envio para este repositório?'),
                         content: Text(
-                          'Foram encontrados identificadores fortes divergentes. '
-                          'O ZIP será sincronizado em ${repository.fullName} → ${targetBranch.name} '
-                          'e poderá substituir ou remover arquivos atuais. Continue somente se este destino estiver correto.',
+                          'Identificadores fortes divergentes. O ZIP será sincronizado em '
+                          '${repository.fullName} → ${targetBranch.name} e poderá substituir '
+                          'ou remover arquivos existentes. Confira o destino.',
                         ),
                         actions: [
                           TextButton(
@@ -619,28 +626,17 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                       ),
                     );
                     if (forced == true && dialogContext.mounted) {
-                      Navigator.pop(
-                        dialogContext,
-                        _ConfirmZipResult.submit(buildPolicy),
-                      );
+                      Navigator.pop(dialogContext,
+                          _ConfirmZipResult.submit(buildPolicy));
                     }
                   }
-                : () => Navigator.pop(
-                      dialogContext,
-                      _ConfirmZipResult.submit(buildPolicy),
-                    ),
-            icon: Icon(
-              check.blocked || check.warning
-                  ? Icons.warning_amber_rounded
-                  : Icons.cloud_upload_outlined,
-            ),
-            label: Text(
-              check.blocked
-                  ? 'Revisar e enviar'
-                  : check.warning
-                      ? 'Enviar mesmo assim'
-                      : 'Enviar versão',
-            ),
+                : () => Navigator.pop(dialogContext,
+                      _ConfirmZipResult.submit(buildPolicy)),
+            icon: Icon(check.blocked || check.warning
+                ? Icons.warning_amber_rounded : Icons.cloud_upload_outlined),
+            label: Text(check.blocked
+                ? 'Revisar e enviar'
+                : check.warning ? 'Enviar mesmo assim' : 'Enviar versão'),
           ),
         ],
       ),
@@ -720,68 +716,82 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     BuildContext parentContext,
     ZipProjectPreview project,
     RepositoryProjectInfo repositoryInfo,
-    ProjectSafetyCheck check,
-  ) async {
-    final zipVersion = project.displayVersionLabel ?? 'não identificada';
-    final githubVersion = repositoryInfo.displayVersionLabel ?? 'não identificada';
-
+    ProjectSafetyCheck check, {
+    required GitHubRepository repository,
+    required String branch,
+  }) async {
+    final guidance = UploadIdentificationDiagnosis.guidance(
+      project: project,
+      remote: repositoryInfo,
+      repository: repository,
+      check: check,
+    );
+    final report = UploadIdentificationDiagnosis.report(
+      project: project,
+      remote: repositoryInfo,
+      repository: repository,
+      branch: branch,
+      check: check,
+    );
     await showDialog<void>(
       context: parentContext,
       builder: (helpContext) => AlertDialog(
-        title: const Text('Como corrigir este aviso?'),
+        title: const Text('Diagnóstico de identificação'),
         content: AdaptiveDialogBody(
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  check.versionComparison == ProjectVersionComparison.unknown
-                      ? 'A identidade do projeto tem sinais compatíveis, mas pelo menos uma das versões não foi encontrada em uma fonte confiável.'
-                      : 'O GitHub Manager encontrou uma diferença que merece conferência antes do envio.',
-                ),
-                const SizedBox(height: 12),
+                const Text('O que foi encontrado',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
                 _BuildSafetyRow(
-                  label: 'Versão no ZIP',
-                  value: zipVersion,
+                  label: 'ZIP • ${project.identityLabel}',
+                  value: project.displayVersionLabel ?? 'Versão interna não identificada',
                   icon: Icons.folder_zip_outlined,
                 ),
                 _BuildSafetyRow(
-                  label: 'Versão no GitHub',
-                  value: githubVersion,
+                  label: 'GitHub • ${repositoryInfo.projectName}',
+                  value: repositoryInfo.displayVersionLabel ?? 'Versão não identificada na branch',
                   icon: Icons.cloud_outlined,
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Para a comparação funcionar com segurança, mantenha a versão em um arquivo do próprio projeto:',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                _BuildSafetyRow(
+                  label: 'Origem do nome remoto',
+                  value: repositoryInfo.nameSource ?? 'Nome do repositório (alternativa)',
+                  icon: Icons.text_fields_outlined,
                 ),
                 const SizedBox(height: 8),
-                const Text('• Node/JavaScript: campo "version" do package.json.'),
-                const Text('• Flutter: campo "version" do pubspec.yaml.'),
-                const Text('• Android/Kotlin: versionName e versionCode no app/build.gradle(.kts).'),
-                const Text('• Godot: config/version no project.godot.'),
-                const Text('• Python: campo version no pyproject.toml.'),
-                const Text('• Rust: campo version no Cargo.toml.'),
-                const Text('• Projetos compatíveis: github-manager.json, app_identity.json, MANIFEST.json, arquivo VERSION ou VERSION= em manager.sh.'),
-                const SizedBox(height: 10),
-                const Text(
-                  'Se não houver metadado interno, o GitHub Manager pode mostrar uma versão inferida do nome do ZIP apenas como pista. Para comparação segura, prefira uma das fontes internas acima.',
-                ),
+                const Text('Como corrigir / O que conferir',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                ...guidance.asMap().entries.map((entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text('${entry.key + 1}. ${entry.value}'),
+                    )),
               ],
             ),
           ),
         ),
         actions: [
-          TextButton(
+          TextButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: report));
+              if (helpContext.mounted) {
+                showCenteredNotice(helpContext, 'Diagnóstico copiado (sem token).');
+              }
+            },
+            icon: const Icon(Icons.copy_rounded),
+            label: const Text('Copiar diagnóstico'),
+          ),
+          FilledButton(
             onPressed: () => Navigator.pop(helpContext),
-            child: const Text('Entendi'),
+            child: const Text('Fechar'),
           ),
         ],
       ),
     );
   }
-
 
   void _downloadProjectZip(
     GitHubRepository repository,

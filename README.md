@@ -1,4 +1,13 @@
-# GitHub Manager 2.0.109
+# GitHub Manager 2.0.110
+
+## Conferência compacta e diagnóstico de projetos 2.0.110
+
+- Confirmação de ZIP apresenta destino, branch, versão remota → ZIP, contagem de alterações e alertas de identidade ou remoção de arquivos.
+- Metadados da API, detalhes técnicos, rótulos de identidade e instruções de workflows ficam recolhidos; **Ver arquivos** continua disponível.
+- **Diagnosticar / Como corrigir** fornece instruções específicas para versões ausentes, identidade divergente ou nome desconhecido e permite **Copiar diagnóstico** sem token.
+- Na Home e nos detalhes, quando não houver nome explícito, projetos Android podem obter o nome exibido de `android:label` no `AndroidManifest.xml` e `strings.xml`.
+- `nameSource` e `metadataIssue` distinguem nome inferido por alternativa e falha de consulta; a branch, o pré-check de permissão e a confirmação extra de identidade divergente permanecem.
+- Consulte `docs/IDENTIFICACAO_E_ENVIO.md` para um guia técnico.
 
 ## Builds inteligentes 2.0.109
 

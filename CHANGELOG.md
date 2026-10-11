@@ -1,3 +1,12 @@
+## 2.0.110+200124 — 2026-10-10
+
+- compacta a confirmação de envio de ZIP com destino, branch, comparação de versões e contagem de arquivos; mantém prévia de arquivos e avisos de exclusão;
+- move metadados de identidade, origem da versão, API e explicação do workflow para seção expansível;
+- acrescenta diagnóstico contextual e relatório copiável (sem credenciais) para versão ausente, nome não identificado e conflitos de identidade;
+- resolve nomes Android a partir do Manifest e de `strings.xml` na Home e no detalhe quando não há nome mais confiável, independentemente da versão já encontrada;
+- preserva confirmação reforçada para identidade divergente, proteção dos workflows e checagem de permissões;
+- sincroniza README, VERSIONING, Configurações, Novidades, documentação, testes e versionCode `200124`.
+
 ## 2.0.109+200123 — 2026-10-10
 
 - aprimora a tela global de Builds com histórico recente de até 25 execuções por repositório, busca e filtros por status, branch, workflow e período;

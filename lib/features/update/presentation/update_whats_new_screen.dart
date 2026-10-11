@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.109';
+  static const releaseNotesVersion = '2.0.110';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,26 +69,26 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.manage_search_rounded,
-                      title: 'Busca e histórico de Builds',
+                      icon: Icons.cloud_upload_outlined,
+                      title: 'Envio de ZIP mais objetivo',
                       description:
-                          'Alterne entre último commit e histórico recente, pesquise execuções e filtre por status, branch, workflow e período.',
+                          'Confirmação mostra destino, branch, versões e arquivos alterados. Informações técnicas ficam recolhidas.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.timer_outlined,
-                      title: 'Atualização inteligente e comparações',
+                      icon: Icons.rule_folder_outlined,
+                      title: 'Diagnóstico de identificação',
                       description:
-                          'Consultas adaptativas, horário real dos dados, duração de execuções e comparação com a tentativa anterior do mesmo workflow.',
+                          'Avisos específicos para versão e nome não identificados, com orientações e opção de copiar diagnóstico sem credenciais.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.shield_outlined,
-                      title: 'Diagnóstico e APKs mais seguros',
+                      icon: Icons.android_rounded,
+                      title: 'Nomes Android reconhecidos',
                       description:
-                          'Diagnóstico de falhas sob demanda; Releases ambíguas são identificadas e preservadas ao excluir uma build.',
+                          'Quando não há nome em metadados explícitos, consulta android:label no Manifest e no strings.xml.',
                     ),
-                  ],
+                ],
                 ),
               ),
               const SizedBox(height: 16),

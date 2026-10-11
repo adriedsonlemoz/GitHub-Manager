@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:github_manager/features/repositories/data/android_project_name_resolver.dart';
+
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
@@ -50,6 +52,7 @@ class RepositoryProjectInfoService {
       var projectName = repository.name;
       String? version;
       String? versionSource;
+      String? nameSource;
 
       final metadataFile = const [
         'github-manager.json',
@@ -74,6 +77,7 @@ class RepositoryProjectInfoService {
               final android = map['android'];
               if (candidateName is String && candidateName.trim().isNotEmpty) {
                 projectName = candidateName.trim();
+                nameSource = metadataFile;
               }
               if (candidateVersion is String && candidateVersion.trim().isNotEmpty) {
                 version = candidateVersion.trim().split('+').first;
@@ -93,7 +97,7 @@ class RepositoryProjectInfoService {
         }
       }
 
-      if (version == null && names.containsKey('pubspec.yaml')) {
+      if ((version == null || projectName == repository.name) && names.containsKey('pubspec.yaml')) {
         final raw = await readPath('pubspec.yaml');
         if (raw != null) {
           final yamlName = RegExp(r'^name:\s*([^\s#]+)', multiLine: true)
@@ -106,15 +110,16 @@ class RepositoryProjectInfoService {
               ?.trim();
           if (projectName == repository.name && yamlName?.isNotEmpty == true) {
             projectName = _humanize(yamlName!);
+            nameSource = 'pubspec.yaml';
           }
-          if (yamlVersion?.isNotEmpty == true) {
+          if (version == null && yamlVersion?.isNotEmpty == true) {
             version = yamlVersion!.split('+').first;
             versionSource = 'pubspec.yaml';
           }
         }
       }
 
-      if (version == null && names.containsKey('project.godot')) {
+      if ((version == null || projectName == repository.name) && names.containsKey('project.godot')) {
         final raw = await readPath('project.godot');
         if (raw != null) {
           final godotName = RegExp(r'^config/name\s*=\s*"([^"]+)"', multiLine: true)
@@ -123,8 +128,9 @@ class RepositoryProjectInfoService {
               .firstMatch(raw)?.group(1)?.trim();
           if (projectName == repository.name && godotName?.isNotEmpty == true) {
             projectName = godotName!;
+            nameSource = 'project.godot';
           }
-          if (godotVersion?.isNotEmpty == true) {
+          if (version == null && godotVersion?.isNotEmpty == true) {
             version = godotVersion;
             versionSource = 'project.godot';
           }
@@ -149,7 +155,7 @@ class RepositoryProjectInfoService {
         }
       }
 
-      if (version == null && names.containsKey('package.json')) {
+      if ((version == null || projectName == repository.name) && names.containsKey('package.json')) {
         final raw = await readPath('package.json');
         if (raw != null) {
           try {
@@ -160,8 +166,9 @@ class RepositoryProjectInfoService {
               final candidateVersion = map['version'];
               if (projectName == repository.name && candidateName is String) {
                 projectName = _humanize(candidateName);
+                nameSource = 'package.json';
               }
-              if (candidateVersion is String && candidateVersion.trim().isNotEmpty) {
+              if (version == null && candidateVersion is String && candidateVersion.trim().isNotEmpty) {
                 version = candidateVersion.trim();
                 versionSource = 'package.json';
               }
@@ -212,14 +219,31 @@ class RepositoryProjectInfoService {
         }
       }
 
+      // Manifest/strings só são consultados quando não existe um nome mais
+      // confiável; nunca inferir identidade forte apenas de um rótulo visual.
+      if (projectName == repository.name) {
+        final androidName = await _androidDisplayName(
+          rootNames: names.keys.toSet(),
+          readPath: readPath,
+        );
+        if (androidName != null) {
+          projectName = androidName;
+          nameSource = 'AndroidManifest.xml / strings.xml';
+        }
+      }
+
       return RepositoryProjectInfo(
         projectName: projectName,
         version: version,
         versionSource: versionSource,
+        nameSource: nameSource,
         technologies: [if (repository.language?.isNotEmpty == true) repository.language!],
       );
-    } on AppException {
+    } on AppException catch (error) {
       return RepositoryProjectInfo(
+        metadataIssue: error.httpStatus == 404
+            ? 'A branch não possui conteúdo acessível (pode estar vazia, inexistente ou sem permissão). Confira a branch e o acesso.'
+            : 'Falha ao consultar os metadados desta branch (conexão, permissão ou API GitHub).',
         projectName: repository.name,
         version: null,
         technologies: [if (repository.language?.isNotEmpty == true) repository.language!],
@@ -255,6 +279,7 @@ class RepositoryProjectInfoService {
       String projectName = repository.name;
       String? version;
       String? versionSource;
+      String? nameSource;
       String? packageName;
       String? applicationId;
       int? versionCode;
@@ -305,6 +330,7 @@ class RepositoryProjectInfoService {
               final android = map['android'];
               if (candidateName is String && candidateName.trim().isNotEmpty) {
                 projectName = candidateName.trim();
+                nameSource = metadataFile;
               }
               if (candidateVersion?.isNotEmpty == true) {
                 version = candidateVersion;
@@ -360,6 +386,7 @@ class RepositoryProjectInfoService {
               ?.trim();
           if (projectName == repository.name && yamlName?.isNotEmpty == true) {
             projectName = _humanize(yamlName!);
+            nameSource = 'pubspec.yaml';
           }
           packageName ??= yamlName;
           if (yamlVersion?.isNotEmpty == true) {
@@ -376,7 +403,7 @@ class RepositoryProjectInfoService {
         }
       }
 
-      if (version == null && names.containsKey('project.godot')) {
+      if ((version == null || projectName == repository.name) && names.containsKey('project.godot')) {
         final raw = await readRoot('project.godot');
         if (raw != null) {
           final godotName = RegExp(r'^config/name\s*=\s*"([^"]+)"', multiLine: true)
@@ -385,8 +412,9 @@ class RepositoryProjectInfoService {
               .firstMatch(raw)?.group(1)?.trim();
           if (projectName == repository.name && godotName?.isNotEmpty == true) {
             projectName = godotName!;
+            nameSource = 'project.godot';
           }
-          if (godotVersion?.isNotEmpty == true) {
+          if (version == null && godotVersion?.isNotEmpty == true) {
             version = godotVersion;
             versionSource = 'project.godot';
           }
@@ -422,6 +450,7 @@ class RepositoryProjectInfoService {
               final candidateVersion = map['version'];
               if (projectName == repository.name && candidateName is String) {
                 projectName = _humanize(candidateName);
+                nameSource = 'package.json';
               }
               if (version == null && candidateVersion is String) {
                 version = candidateVersion.trim();
@@ -501,6 +530,32 @@ class RepositoryProjectInfoService {
         }
       }
 
+      if (projectName == repository.name) {
+        final androidName = await _androidDisplayName(
+          rootNames: names.keys.toSet(),
+          readPath: (path) async {
+            try {
+              final response = await _client.get<Map<String, dynamic>>(
+                '/repos/${repository.fullName}/contents/${path.split('/').map(Uri.encodeComponent).join('/')}',
+                queryParameters: {'ref': resolvedBranch},
+              );
+              final data = response.data ?? const <String, dynamic>{};
+              if (data['encoding'] != 'base64') return null;
+              final encoded = (data['content'] as String? ?? '').replaceAll('\n', '');
+              return encoded.isEmpty
+                  ? null
+                  : utf8.decode(base64.decode(encoded), allowMalformed: true);
+            } catch (_) {
+              return null;
+            }
+          },
+        );
+        if (androidName != null) {
+          projectName = androidName;
+          nameSource = 'AndroidManifest.xml / strings.xml';
+        }
+      }
+
       final technologies = <String>[...metadataTechnologies];
       if (names.containsKey('pubspec.yaml')) {
         technologies.add('Flutter');
@@ -549,14 +604,45 @@ class RepositoryProjectInfoService {
         applicationId: applicationId,
         versionCode: versionCode,
         versionSource: versionSource,
+        nameSource: nameSource,
       );
-    } on AppException {
+    } on AppException catch (error) {
       return RepositoryProjectInfo(
+        metadataIssue: error.httpStatus == 404
+            ? 'A branch não possui conteúdo acessível (pode estar vazia, inexistente ou sem permissão). Confira a branch e o acesso.'
+            : 'Falha ao consultar os metadados desta branch (conexão, permissão ou API GitHub).',
         projectName: repository.name,
         version: null,
         technologies: [if (repository.language != null) repository.language!],
       );
     }
+  }
+
+  static Future<String?> _androidDisplayName({
+    required Set<String> rootNames,
+    required Future<String?> Function(String path) readPath,
+  }) async {
+    final modules = <String>[
+      if (rootNames.contains('pubspec.yaml') && rootNames.contains('android'))
+        'android/app',
+      if (rootNames.contains('app')) 'app',
+      if (!rootNames.contains('pubspec.yaml') && rootNames.contains('android'))
+        'android/app',
+    ];
+    for (final module in modules) {
+      final manifest = await readPath('$module/src/main/AndroidManifest.xml');
+      if (manifest == null) continue;
+      // Evitar outro GET quando o Manifest contém um rótulo literal.
+      final direct = AndroidProjectNameResolver.fromManifest(manifest);
+      if (direct != null) return direct;
+      final resources = await readPath('$module/src/main/res/values/strings.xml');
+      final resolved = AndroidProjectNameResolver.fromManifest(
+        manifest,
+        stringsXml: resources,
+      );
+      if (resolved != null) return resolved;
+    }
+    return null;
   }
 
   static String? _versionFromJsonMap(Map<String, dynamic> map) {

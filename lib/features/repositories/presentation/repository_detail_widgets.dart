@@ -746,3 +746,74 @@ class _RepositoryErrorView extends StatelessWidget {
     );
   }
 }
+
+/// Resumo dos arquivos que serão efetivamente sincronizados.
+class _UploadSyncSummary extends StatelessWidget {
+  const _UploadSyncSummary({required this.preview, required this.onViewFiles});
+
+  final ProjectSyncPreview? preview;
+  final VoidCallback? onViewFiles;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final sync = preview;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Alterações no repositório',
+              style: TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          if (sync == null)
+            const Text('Prévia indisponível nesta tentativa. Confira o destino antes do envio.')
+          else ...[
+            Row(children: [
+              Expanded(child: _UploadCount(value: sync.createdCount,
+                  caption: 'Novos', color: scheme.primary)),
+              Expanded(child: _UploadCount(value: sync.modifiedCount,
+                  caption: 'Alterados', color: scheme.onSurface)),
+              Expanded(child: _UploadCount(value: sync.deletedCount,
+                  caption: 'Removidos',
+                  color: sync.deletedCount > 0 ? scheme.error : scheme.onSurface)),
+            ]),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onViewFiles,
+                icon: const Icon(Icons.list_alt_outlined, size: 18),
+                label: const Text('Ver arquivos'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _UploadCount extends StatelessWidget {
+  const _UploadCount({required this.value, required this.caption,
+      required this.color});
+  final int value;
+  final String caption;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$value', style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: color, fontWeight: FontWeight.w800,
+              )),
+          Text(caption, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      );
+}

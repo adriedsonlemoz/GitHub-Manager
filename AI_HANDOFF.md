@@ -1,3 +1,11 @@
+## Atualização 2.0.110
+
+- Confirmação de ZIP compacta: branch, GitHub → ZIP, resumo de mudanças, alertas e checkbox de build. Detalhes técnicos em `ExpansionTile` com diagnóstico acessível.
+- `UploadIdentificationDiagnosis` gera orientações específicas e relatório copiável sem tokens nem cabeçalhos HTTP. `ProjectSafetyCheck` continua responsável pela decisão de segurança.
+- `AndroidProjectNameResolver` usa `xml` para extrair `android:label` literal ou `@string` em `strings.xml`, sem transformar nome visual em identidade forte.
+- `RepositoryProjectInfo` expõe `nameSource` e `metadataIssue`. `loadSummary` e `load` resolvem o nome mesmo quando a versão já veio dos metadados.
+- Versão `2.0.110+200124`, testes e docs em sincronia. Flutter/Dart SDK ainda não instalado neste ambiente; não alegar compilação aprovada.
+
 ## Atualização 2.0.109
 
 - Builds globais agora mantêm `entries` como última versão/commit e `historyEntries` como últimos 25 runs por repositório.
@@ -8,7 +16,7 @@
 
 # GitHub Manager — handoff
 
-Estado atual: `2.0.108+200122`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.110+200124`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
 
 ## Alterações 2.0.108

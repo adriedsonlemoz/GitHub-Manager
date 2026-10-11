@@ -1,3 +1,7 @@
+### 2.0.110
+
+A 2.0.110+200124 simplifica a confirmação de envio de ZIP, permite expandir informações técnicas e copiar um diagnóstico contextual de nome/versão/identidade sem credenciais. Projetos Android podem usar o `android:label` do Manifest/strings como nome visual quando não houver metadados melhores. Mantém avisos de remoção, troca de branch e confirmação extra para identidades incompatíveis.
+
 ### 2.0.109
 
 A 2.0.109+200123 amplia Builds com histórico recente, busca por projeto/branch/workflow/versão/SHA, filtros de status e período, comparação de execuções, duração e consulta de jobs/diagnóstico sob demanda. O polling global usa cache de 60 s e acompanha builds ativas a cada 15 s, mantendo horário efetivo da última consulta e preservando resultados quando possível. APKs de Release associados somente por commit são rotulados como ambíguos; a exclusão de builds preserva sempre os Releases. Testes e docs sincronizados.
@@ -8,7 +12,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.108+200122`
+`version: 2.0.110+200124`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

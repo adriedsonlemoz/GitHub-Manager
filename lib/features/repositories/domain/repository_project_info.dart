@@ -7,6 +7,8 @@ class RepositoryProjectInfo {
     this.applicationId,
     this.versionCode,
     this.versionSource,
+    this.nameSource,
+    this.metadataIssue,
   });
 
   final String projectName;
@@ -16,6 +18,10 @@ class RepositoryProjectInfo {
   final String? applicationId;
   final int? versionCode;
   final String? versionSource;
+  /// Fonte do nome exibido; quando ausente, foi usado o nome do GitHub.
+  final String? nameSource;
+  /// Falha de consulta distinta de metadados simplesmente ausentes.
+  final String? metadataIssue;
 
   String? get versionLabel {
     final value = version?.trim();
