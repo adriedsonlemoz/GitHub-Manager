@@ -1,4 +1,13 @@
-# GitHub Manager 2.0.106
+# GitHub Manager 2.0.107
+
+## Descrições completas na Home 2.0.107
+
+- em **Configurações > Página inicial**, a opção **Mostrar descrição dos repositórios** controla se os cartões da Home incluem a descrição cadastrada no GitHub;
+- quando ativada, a descrição é exibida abaixo do nome do repositório, com quebra de linha e sem truncamento de texto ou limite artificial de linhas;
+- ao desativar, a Home mantém os cartões compactos como antes, sem remover a descrição do repositório no GitHub;
+- o ajuste é salvo no banco local e aplicado automaticamente às listas que usam `RepositoryCard`;
+- a opção começa **desativada** até o usuário habilitá-la.
+
 
 ## Builds explicados e APK certo para o aparelho 2.0.106
 
@@ -348,7 +357,7 @@ A detecção reconhece `app/build.gradle.kts` e `app/build.gradle`, extraindo `v
 
 ## Identidade oficial
 
-- versão: `2.0.106+200120`;
+- versão: `2.0.107+200121`;
 - package Dart: `github_manager`;
 - applicationId/namespace: `br.com.githubmanager.app`;
 - assinatura oficial própria e permanente;

@@ -58,6 +58,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget build(BuildContext context) {
     final profile = ref.watch(githubProfileProvider);
     final api = _apiSettings;
+    final descriptionPreference = ref.watch(showRepositoryDescriptionsProvider);
     return Scaffold(
       bottomNavigationBar: const AppMainNavigation(selectedIndex: 4),
       appBar: AppBar(title: const Text('Configurações')),
@@ -88,8 +89,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               subtitle: const Text(
                 'Exibir o texto completo da descrição abaixo do nome de cada repositório na Home, sem cortar linhas ou caracteres.',
               ),
-              value: ref.watch(showRepositoryDescriptionsProvider).valueOrNull ?? false,
-              onChanged: ref.watch(showRepositoryDescriptionsProvider).isLoading
+              value: descriptionPreference.asData?.value ?? false,
+              onChanged: descriptionPreference.isLoading
                   ? null
                   : _setShowRepositoryDescriptions,
             ),
@@ -278,16 +279,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.107',
+                      text: 'Adiciona uma opção na Home para exibir ou ocultar a descrição completa dos repositórios, com preferência salva localmente.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.106',
                       text: 'Separa erros de build em uma janela explicativa e recomenda o APK correto pela arquitetura real do aparelho.',
                     ),
                     _ChangeNote(
                       version: '2.0.105',
                       text: 'Reorganiza os detalhes dos builds com resumo visual, diagnóstico compacto e metadados técnicos recolhidos.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.104',
-                      text: 'Move Novidades para uma rota opaca após startup estável e impede sua abertura automática durante reanexo do FlutterEngine.',
                     ),
                   ],
                 ),

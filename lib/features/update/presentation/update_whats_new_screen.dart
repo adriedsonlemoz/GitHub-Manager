@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.106';
+  static const releaseNotesVersion = '2.0.107';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,24 +69,17 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.manage_search_rounded,
-                      title: 'Erros de build mais fáceis de entender',
+                      icon: Icons.notes_rounded,
+                      title: 'Descrição completa na Home',
                       description:
-                          'A execução mostra só um resumo curto. Ver erros abre uma janela própria com o que aconteceu, onde ocorreu, causa identificada ou possível causa e como corrigir.',
+                          'Em Configurações > Página inicial, ative Mostrar descrição dos repositórios para ver todo o texto abaixo do nome de cada projeto, sem cortes de linhas ou caracteres.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.android_rounded,
-                      title: 'APK certo para esta execução',
+                      icon: Icons.tune_rounded,
+                      title: 'Visualização sob seu controle',
                       description:
-                          'O botão APK agora procura arquivos ligados à build selecionada e, quando existem várias opções, mostra versão, arquitetura, tamanho e origem antes do download.',
-                    ),
-                    const SizedBox(height: 12),
-                    const _UpdateItem(
-                      icon: Icons.phone_android_rounded,
-                      title: 'Arquitetura detectada automaticamente',
-                      description:
-                          'O Android informa as ABIs suportadas sem permissão especial. O GitHub Manager recomenda a variante compatível e avisa antes de baixar um APK de arquitetura diferente.',
+                          'A opção começa desativada para manter os cartões compactos. Você pode ativar ou desativar quando quiser, e a escolha fica salva neste aparelho.',
                     ),
                   ],
                 ),

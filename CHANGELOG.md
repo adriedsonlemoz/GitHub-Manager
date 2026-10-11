@@ -1,3 +1,13 @@
+## 2.0.107+200121 — 2026-10-10
+
+- adiciona **Configurações > Página inicial > Mostrar descrição dos repositórios** com chave de ativação;
+- ao habilitar, exibe a descrição completa fornecida pelo GitHub em cada cartão da Home, sem `maxLines` e sem cortes por caracteres;
+- preserva a lista compacta quando desabilitada e mantém a opção desativada por padrão;
+- salva a preferência no banco local existente e sincroniza o valor via Riverpod entre Configurações e cards;
+- ajusta o acesso a `AsyncValue` para a API do Riverpod 3, sem depender de `valueOrNull`;
+- atualiza **Novidades da atualização**, histórico das três mudanças, documentação e testes de regressão;
+- avança `versionName` para `2.0.107` e `versionCode` Android para `200121`.
+
 ## 2.0.106+200120 — 2026-09-26
 
 - substitui o diagnóstico longo embutido nos detalhes da execução por um resumo compacto com **Ver erros**;

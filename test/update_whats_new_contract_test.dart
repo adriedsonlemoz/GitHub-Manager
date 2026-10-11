@@ -81,7 +81,7 @@ void main() {
     expect(screen, contains("'Novidades da atualização'"));
     expect(screen, contains("ValueKey('whats_new_continue')"));
     expect(screen, contains("label: const Text('Continuar')"));
-    expect(screen, contains("title: 'Erros de build mais fáceis de entender'"));
-    expect(screen, contains("title: 'Arquitetura detectada automaticamente'"));
+    expect(screen, contains("title: 'Descrição completa na Home'"));
+    expect(screen, contains("title: 'Visualização sob seu controle'"));
   });
 }

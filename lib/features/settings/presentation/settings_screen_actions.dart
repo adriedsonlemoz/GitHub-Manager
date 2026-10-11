@@ -47,6 +47,7 @@ mixin _SettingsScreenActions on ConsumerState<SettingsScreen> {
         enabled,
         database: ref.read(localDatabaseProvider),
       );
+      if (!mounted) return;
       ref.invalidate(showRepositoryDescriptionsProvider);
     } catch (_) {
       if (!mounted) return;

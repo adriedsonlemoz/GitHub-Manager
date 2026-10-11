@@ -28,7 +28,8 @@ class RepositoryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final showDescription = ref.watch(showRepositoryDescriptionsProvider).valueOrNull ?? false;
+    final showDescription =
+        ref.watch(showRepositoryDescriptionsProvider).asData?.value ?? false;
     final description = repository.description?.trim() ?? '';
     final info = readOnly ? null : ref.watch(repositoryProjectSummaryProvider(repository));
     final projectName = info?.maybeWhen(

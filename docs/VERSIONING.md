@@ -4,12 +4,14 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.106+200120`
+`version: 2.0.107+200121`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
 - cada APK futuro precisa usar versionCode maior;
 - versões oficiais não usam o sufixo `alpha`.
+
+A versão `2.0.107+200121` torna opcional a exibição da descrição completa dos repositórios na Home, com preferência local e atualização reativa dos cartões.
 
 A versão `2.0.106+200120` separa erros de build em uma janela própria, relaciona APKs à execução correta e recomenda a variante compatível com as ABIs informadas pelo Android.
 
@@ -122,6 +124,10 @@ A 2.0.91 corrige a falha de viewport do teste de seleção de branch observada n
 
 
 
+
+### 2.0.107
+
+A 2.0.107 reintroduz as descrições dos repositórios na Home como opção do usuário. O texto recebido da API GitHub aparece por inteiro quando habilitado, sem corte de linhas; por padrão a Home permanece compacta. A preferência fica no banco SQLite local e é observada via Riverpod. O `versionCode` Android sobe de `200120` para `200121` para permitir atualização sobre a versão anterior.
 
 ### 2.0.106
 

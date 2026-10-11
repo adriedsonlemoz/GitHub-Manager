@@ -1,7 +1,17 @@
 # GitHub Manager — handoff
 
-Estado atual: `2.0.106+200120`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
+Estado atual: `2.0.107+200121`. Dados remotos do GitHub não usam mais cache persistente: repositórios, descrições, perfil e permissões são consultados diretamente; Acompanhados salva apenas os nomes escolhidos e reconsulta a API; snapshots legados são apagados no startup. Providers remotos usam autoDispose.
 
+
+## Alterações 2.0.107
+
+- **Configurações > Página inicial** passa a oferecer `Mostrar descrição dos repositórios`, inicialmente desligado;
+- `RepositoryDescriptionSettings` persiste o booleano `settings.show_repository_descriptions` no `LocalDatabase` compartilhado;
+- `showRepositoryDescriptionsProvider` disponibiliza a preferência ao `RepositoryCard` e à tela de configurações;
+- `RepositoryCard` apresenta a descrição do GitHub sem limite de linhas nem de caracteres quando a preferência está ativa;
+- o valor é alterado por `settings_screen_actions.dart`, com invalidação do provider para atualização da interface;
+- usar `asData?.value`, e **não** `valueOrNull`, para compatibilidade com `flutter_riverpod` 3.x;
+- atualizados versão, README, CHANGELOG, VERSIONING, RELEASE, VALIDATION, novidades e testes de contrato para `2.0.107+200121`.
 
 ## Alterações 2.0.106
 
