@@ -298,16 +298,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.120',
+                      text: 'Neutraliza o CI antigo preservado pelo upload incremental e corrige os 2 testes dos logs #109 e #108.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.119',
-                      text: 'Corrige os 3 testes da CI #107 e Android APK #108; esclarece a exclusão do CI remoto.',
+                      text: 'Alinha testes da tela de Builds às informações de execução exibidas.',
                     ),
                     _ChangeNote(
                       version: '2.0.118',
-                      text: 'Retira o workflow CI duplicado do projeto, mantendo os testes do APK.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.117',
-                      text: 'Corrige os indicadores de status de Builds para passar na análise estática.', 
+                      text: 'Centraliza a análise e os testes nos workflows Android.',
                     ),
                   ],
                 ),

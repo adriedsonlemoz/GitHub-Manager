@@ -1,51 +1,19 @@
-name: GitHub Manager CI
+# Compatibilidade com importadores incrementais: ao enviar este ZIP, este
+# arquivo substitui o CI antigo que permaneceu no GitHub após a versão 2.0.118.
+# Não executa em push/pull_request e nunca agenda runner, mesmo manualmente.
+# Quando possível, exclua definitivamente este arquivo da branch main.
+name: GitHub Manager CI (legado desativado)
 
 on:
-  push:
-    branches: ["**"]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  verify:
-    name: Analisar e testar
+  legacy-disabled:
+    name: CI antiga desativada
+    if: ${{ false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.1
-
-      - name: Flutter 3.47.1
-        uses: subosito/flutter-action@v2.23.0
-        with:
-          flutter-version: "3.47.1"
-          channel: stable
-          cache: true
-          pub-cache: true
-
-      - name: Dependências
-        run: flutter pub get --enforce-lockfile
-
-      - name: Validar versão canônica
-        run: bash tool/check_version_sync.sh
-
-      - name: Verificar formatação sem alterar fontes
-        run: |
-          if ! dart format --output=none --set-exit-if-changed lib test; then
-            echo "::warning::Há arquivos pendentes de formatação, mas a CI não altera o código antes da análise e dos testes."
-          fi
-
-      - name: Analisar código
-        timeout-minutes: 3
-        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
-
-      - name: Executar testes
-        timeout-minutes: 3
-        run: flutter test --no-pub
+      - run: echo 'CI legada desativada; utilize GitHub Manager Android APK.'

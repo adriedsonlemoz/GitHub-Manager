@@ -1,6 +1,12 @@
 # Exclusão efetiva da CI antiga no GitHub
 
-O arquivo `.github/workflows/ci.yml` não existe desde o pacote 2.0.118, mas **pode continuar no GitHub** quando a atualização de arquivos for incremental. Os logs CI #107 e Android APK #108 da versão 2.0.118 mostram que o CI ainda existia no checkout; um arquivo ausente no ZIP não é uma instrução de exclusão.
+O arquivo `.github/workflows/ci.yml` foi omitido nos ZIPs 2.0.118 e 2.0.119, mas **continuou ativo no GitHub** porque o envio incremental preserva workflows ausentes do pacote. Os logs CI #107 e Android APK #108 e, posteriormente, CI #108 e Android APK #109 confirmaram o problema. O ZIP 2.0.120 inclui propositalmente um substituto **inativo** para sobrescrever a versão remota antiga.
+
+## Alternativa sem exclusão: substituição automática no upload do ZIP 2.0.120
+
+Se a exclusão remota por integração não for permitida (HTTP 403), envie o ZIP 2.0.120 pelo GitHub Manager para a branch `main`. O arquivo `ci.yml` incluído no ZIP substitui a definição antiga, conserva apenas `workflow_dispatch` e impede execução com `if: ${{ false }}`. Assim, **o CI antigo deixa de executar nos próximos pushes**. O teste de contrato aceita este estado inativo ou a remoção real, mas rejeita os triggers antigos.
+
+A exclusão definitiva continua preferível. Após remover o arquivo no GitHub, o próximo envio do **mesmo ZIP 2.0.120** pode recriá-lo, pois agora ele está presente no pacote. Para manter a exclusão definitiva, remova também `ci.yml` dos ZIPs enviados posteriormente e não reenvie esta versão. O contrato de testes aceita a ausência do arquivo.
 
 ## Remover pela interface GitHub
 

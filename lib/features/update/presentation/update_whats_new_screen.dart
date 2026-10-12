@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.119';
+  static const releaseNotesVersion = '2.0.120';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,21 +69,21 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
+                      icon: Icons.rule_folder_outlined,
+                      title: 'CI duplicada desativada',
+                      description: 'O pacote inclui uma versão inativa do ci.yml para substituir o workflow antigo preservado pelos envios incrementais.',
+                    ),
+                    const SizedBox(height: 12),
+                    const _UpdateItem(
                       icon: Icons.fact_check_outlined,
-                      title: 'Correção dos testes da tela de Builds',
-                      description: 'Os testes reconhecem a execução GitHub separada da versão, sem exigir o formato antigo de título.', 
+                      title: 'Testes de workflow corrigidos',
+                      description: 'Os contratos aceitam a exclusão definitiva ou a desativação verificada, mas continuam reprovando o CI antigo ativo.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.verified_user_outlined,
-                      title: 'Verificações mantidas no APK',
-                      description: 'O workflow Android APK continua analisando código e executando os testes antes de compilar.', 
-                    ),
-                    const SizedBox(height: 12),
-                    const _UpdateItem(
-                      icon: Icons.info_outline_rounded,
-                      title: 'Exclusão do CI antigo',
-                      description: 'Remover ci.yml apenas do ZIP pode não apagar o arquivo do GitHub. Confirme a exclusão na branch principal.', 
+                      icon: Icons.verified_outlined,
+                      title: 'Validação do APK mantida',
+                      description: 'Os workflows Android APK e Release continuam com análise de código, testes e validação antes da compilação.',
                     ),
                   ],
                 ),

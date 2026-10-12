@@ -1,4 +1,12 @@
-# GitHub Manager 2.0.119
+# GitHub Manager 2.0.120
+
+## Correção da CI duplicada (Android APK #109 / CI #108) — 2.0.120
+
+Os dois workflows da versão 2.0.119 interromperam o build após **201 testes aprovados e 2 falhas**: o `test/workflow_log_naming_contract_test.dart` detectou que `.github/workflows/ci.yml` permanecia ativo no checkout GitHub, apesar de não existir no ZIP. O sincronizador incremental protege arquivos de `.github/workflows/` de exclusão implícita.
+
+**Correção aplicável com o GitHub Manager atual:** este ZIP inclui `.github/workflows/ci.yml` como *substituto inativo*, com somente `workflow_dispatch` e job `if: ${{ false }}`. Ao enviar pela opção de atualizar projeto, o arquivo sobrescreve o CI antigo sem pedir exclusão remota. Não há triggers `push` ou `pull_request`, logo não executa CI duplicada. Os testes reprovam qualquer ci.yml ainda ativo, mas aceitam a ausência do arquivo ou o stub desativado. Os workflows `android-apk.yml` e `android-release.yml` continuam realizando análise/testes/compilação.
+
+**Limite:** a desativação só acontece após o ZIP ser enviado com êxito para a branch correta. Excluir definitivamente o ci.yml remoto continua sendo a solução mais limpa; instruções em `docs/CI_LEGACY_REMOVAL.md`. A tentativa de exclusão por integração GitHub recebeu HTTP 403, sem modificar o arquivo remoto.
 
 ## Correção de testes de Builds e CI — 2.0.119
 

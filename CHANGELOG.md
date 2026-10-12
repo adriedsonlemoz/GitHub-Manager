@@ -1,3 +1,12 @@
+## 2.0.120+200134 — 2026-10-12
+
+- Corrige o bloqueio simultâneo de Android APK #109 e CI #108 (201 testes aprovados, 2 falhas) provocado por `.github/workflows/ci.yml` **ainda presente e ativo no GitHub**.
+- Inclui um `ci.yml` de compatibilidade: somente disparo manual, com job `if: ${{ false }}`, sem `push`/`pull_request`, para substituir o CI remoto quando o ZIP for enviado incrementalmente.
+- Atualiza `workflow_log_naming_contract_test.dart` para aceitar workflow ausente ou stub inerte, mas continuar reprovando CI antigo ativo e verificar permissões mínimas.
+- Mantém análise/testes e compilação nos workflows Android APK e Release; nenhum dado nem arquivo de usuário é apagado automaticamente.
+- Versão e Android versionCode `2.0.120+200134`; README, VERSIONING, notas de release, validações, Novidades, Configurações e AI_HANDOFF sincronizados.
+- Exclusão definitiva remota requer permissão de workflows; a integração retornou HTTP 403. Não houve build Flutter/Gradle local.
+
 ## 2.0.119+200133 — 2026-10-12
 
 - Corrige três falhas comuns aos workflows Android APK #108 e CI #107 (200 testes aprovados, 3 falhas), ocorridas na v2.0.118.

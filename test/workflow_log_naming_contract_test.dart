@@ -2,15 +2,33 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+/// O checkout pode manter ci.yml após um ZIP incremental. Só aceitamos
+/// ausência real OU a configuração de migração que não dispara em push/PR
+/// nem executa job quando acionada manualmente.
+void expectLegacyCiDormantOrRemoved() {
+  final legacy = File('.github/workflows/ci.yml');
+  if (!legacy.existsSync()) return;
+  final definition = legacy.readAsStringSync();
+  expect(
+    definition,
+    contains('name: GitHub Manager CI (legado desativado)'),
+    reason: 'O CI antigo ainda está ativo. Envie ci.yml desativado deste ZIP '
+        'para substituir o arquivo remoto, ou exclua-o no GitHub.',
+  );
+  expect(
+    definition,
+    contains('on:\n  workflow_dispatch:\n\npermissions:\n  contents: read\n\njobs:\n'),
+  );
+  expect(definition, isNot(contains('\n  push:')));
+  expect(definition, isNot(contains('\n  pull_request:')));
+  expect(definition, isNot(contains('\n  schedule:')));
+  expect(definition, contains(r'if: ${{ false }}'));
+  expect(definition, contains('contents: read'));
+}
+
 void main() {
   test('workflows usam nomes estáveis para a saída de logs', () {
-    expect(
-      File('.github/workflows/ci.yml').existsSync(),
-      isFalse,
-      reason: 'O workflow antigo ainda está no checkout. Exclua '
-          '.github/workflows/ci.yml do repositório GitHub; omitir do ZIP '
-          'não garante exclusão pelo importador incremental.',
-    );
+    expectLegacyCiDormantOrRemoved();
     expect(
       File('.github/workflows/android-apk.yml').readAsLinesSync().first,
       'name: GitHub Manager Android APK',
@@ -40,13 +58,7 @@ void main() {
     );
   });
   test('APK e Release mantêm análise e testes sem workflow CI duplicado', () {
-    expect(
-      File('.github/workflows/ci.yml').existsSync(),
-      isFalse,
-      reason: 'O workflow antigo ainda está no checkout. Exclua '
-          '.github/workflows/ci.yml do repositório GitHub; omitir do ZIP '
-          'não garante exclusão pelo importador incremental.',
-    );
+    expectLegacyCiDormantOrRemoved();
     for (final workflowPath in [
       '.github/workflows/android-apk.yml',
       '.github/workflows/android-release.yml',
