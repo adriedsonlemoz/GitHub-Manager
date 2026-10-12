@@ -1,3 +1,13 @@
+## 2.0.116+200130 — 2026-10-12
+
+- Substitui listas repetitivas de variantes nas Builds, detalhes das execuções e Releases por uma seleção guiada, com opção sugerida e alternativas claras. A compatibilidade por nome é explicitamente estimada.
+- Distingue versionName/versionCode do número da execução GitHub Actions; gera e lê sob demanda metadados opcionais do workflow vinculados ao runId e ao commit.
+- Diagnóstico conserva mensagens originais e oferece orientações por erro, abrir arquivo no commit e copiar diagnóstico.
+- Mantém a confirmação para APK de Release sem vínculo inequívoco, sem excluir os artifacts existentes, e preserva as funções anteriores.
+- Confere a estrutura APK e as bibliotecas nativas reais após o download, antes de salvar o arquivo, sem inferir assinatura/SDK mínimo.
+- Notificações de builds incluem a versão provável quando identificada, mantendo o contador da execução separado.
+- Acrescenta testes de seleção, manifestos e diagnóstico. Flutter/Android precisam de verificação na CI.
+
 ## 2.0.115+200129 — 2026-10-11
 
 - Corrige o único teste que impedia a CI #104 e o Android APK #105: contrato de lançamento da MainActivity a partir das notificações nativas (191 testes aprovados, 1 falha).

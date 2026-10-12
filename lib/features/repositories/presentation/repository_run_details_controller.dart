@@ -196,9 +196,11 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
       }
 
       List<ActionArtifact> artifacts = const [];
+      List<ActionArtifact> allRunArtifacts = const [];
       List<ReleaseAsset> releases = const [];
       try {
-        artifacts = (await artifactsFuture)
+        allRunArtifacts = await artifactsFuture;
+        artifacts = allRunArtifacts
             .where((artifact) => artifact.likelyContainsApk && !artifact.expired)
             .toList(growable: false);
       } catch (_) {
@@ -211,8 +213,6 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
       } catch (_) {
         failedSources++;
       }
-      if (mounted) setState(() => _lookingForApks = false);
-
       final candidates = <_RunApkCandidate>[
         ...releases.map(_RunApkCandidate.fromRelease),
       ];
@@ -222,6 +222,7 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
 
       if (!mounted) return;
       if (candidates.isEmpty) {
+        setState(() => _lookingForApks = false);
         final openAll = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
@@ -255,6 +256,14 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
       if (failedSources > 0) {
         showCenteredNotice(context, 'Uma fonte de APKs não respondeu; exibindo os arquivos encontrados.');
       }
+      final manifest = await service.loadBuildManifest(
+        repositoryFullName: widget.repositoryFullName,
+        runId: _run.id,
+        commitSha: _run.headSha,
+        knownArtifacts: allRunArtifacts,
+      );
+      if (!mounted) return;
+      setState(() => _lookingForApks = false);
       final supportedAbis = deviceInfo?.supportedAbis ?? const <String>[];
       candidates.sort((left, right) {
         final leftRank = apkRecommendationRank(left.name, supportedAbis);
@@ -265,25 +274,27 @@ mixin _RunDetailsStateController on ConsumerState<_RunDetailsSheet> {
         return left.name.toLowerCase().compareTo(right.name.toLowerCase());
       });
 
-      _RunApkCandidate? selected;
-      if (candidates.length == 1) {
-        selected = candidates.first;
-      } else {
-        final bestRank = apkRecommendationRank(candidates.first.name, supportedAbis);
-        final recommendedName = bestRank < 100 ? candidates.first.name : null;
-        selected = await showModalBottomSheet<_RunApkCandidate>(
-          context: context,
-          showDragHandle: true,
-          isScrollControlled: true,
-          useSafeArea: true,
-          builder: (sheetContext) => _RunApkPickerSheet(
-            run: _run,
-            candidates: candidates,
-            deviceInfo: deviceInfo,
-            recommendedName: recommendedName,
-          ),
-        );
-      }
+      final selected = await showSmartApkPicker<_RunApkCandidate>(
+        context: context,
+        project: widget.repositoryFullName.split('/').last,
+        runNumber: _run.runNumber,
+        version: _run.detectedVersion,
+        deviceInfo: deviceInfo,
+        manifest: manifest,
+        options: [
+          for (final candidate in candidates)
+            SmartApkOption(
+              value: candidate,
+              name: candidate.name,
+              bytes: candidate.sizeBytes,
+              source: candidate.originLabel(_run.runNumber),
+              exactRun: candidate.artifact != null,
+              declaredAbi: candidate.artifact == null ? null :
+                ([...?(manifest?.apks)].where((apk) => apk.fileName == candidate.name)
+                  .map((apk) => apk.abi).firstOrNull),
+            ),
+        ],
+      );
       if (selected == null || !mounted) return;
       if (!await _confirmApkCompatibility(selected, deviceInfo)) return;
       if (selected.release != null &&

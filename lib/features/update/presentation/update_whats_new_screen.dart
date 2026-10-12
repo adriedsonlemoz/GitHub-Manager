@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.115';
+  static const releaseNotesVersion = '2.0.116';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.notifications_active_outlined,
-                      title: 'Notificações mais confiáveis',
-                      description: 'Toques em envios e downloads voltam para a mesma tela Android, mantendo o destino da transferência.',
+                      title: 'Escolha guiada de APKs',
+                      description: 'Opção sugerida em destaque, alternativas compactas e aviso explícito de que a arquitetura estimada pelo nome precisa ser validada.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.play_circle_outline_rounded,
-                      title: 'Navegação preservada',
-                      description: 'O identificador do evento continua acompanhando a notificação, mesmo com o aplicativo em segundo plano.',
+                      title: 'Versão e execução sem confusão',
+                      description: 'A versão do aplicativo é separada do número da execução; o workflow gera um manifesto verificável pelo ID e commit.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.notifications_none_rounded,
-                      title: 'Testes de regressão reforçados',
-                      description: 'Os contratos verificam abertura da Activity e as rotas específicas de Envios e Downloads.',
+                      title: 'Erros com contexto e orientação',
+                      description: 'Diagnóstico de falhas apresenta caminho, linha, ação de copiar e link seguro para o arquivo no commit da execução.',
                     ),
                   ],
                 ),

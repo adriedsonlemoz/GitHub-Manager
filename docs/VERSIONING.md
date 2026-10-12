@@ -1,3 +1,7 @@
+### 2.0.116
+
+A versão 2.0.116+200130 distingue execução GitHub Actions da versão real do app, adiciona seleção guiada de APK, diagnósticos úteis de arquivo/linha e metadados build-info.json opcionais gerados pelo workflow Android APK. A ABI lida pelo nome é hipótese; manifests do workflow não substituem inspeção do arquivo baixado. Veja `docs/RELEASE_2.0.116.md`.
+
 ### 2.0.114
 
 A 2.0.114+200128 corrige a navegação dos toques em notificações de Builds, Downloads e Envios. Cada aviso leva ao registro/execução relevante. Builds antigas são consultadas diretamente pelo ID; eventos legados permanecem compatíveis e canais distinguem falhas de conclusões normais. A tela de Novidades não deve competir com a abertura causada por notificação.
@@ -28,7 +32,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.115+200129`
+`version: 2.0.116+200130`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

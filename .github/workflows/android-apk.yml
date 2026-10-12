@@ -142,6 +142,41 @@ jobs:
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "size_mib=$MIB" >> "$GITHUB_OUTPUT"
 
+      - name: Gerar identidade verificável da execução
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          VERSION_NAME: ${{ steps.package.outputs.version_name }}
+          VERSION_CODE: ${{ steps.package.outputs.version_code }}
+          APK_FILE: ${{ steps.package.outputs.file }}
+        run: |
+          python3 - <<'PYMANIFEST'
+          import hashlib, json, os, pathlib
+          file_name = os.environ['APK_FILE']
+          apk = pathlib.Path('dist') / file_name
+          if not apk.is_file():
+              raise SystemExit('APK não encontrado para manifest')
+          with apk.open('rb') as stream:
+              checksum = hashlib.file_digest(stream, 'sha256').hexdigest()
+          manifest = {
+              'schema': 1,
+              'run_id': int(os.environ['RUN_ID']),
+              'commit_sha': os.environ['COMMIT_SHA'],
+              'version_name': os.environ['VERSION_NAME'],
+              'version_code': int(os.environ['VERSION_CODE']),
+              'application_id': 'br.com.githubmanager.app',
+              'apks': [{
+                  'file_name': file_name,
+                  'abi': 'universal',
+                  'size_bytes': apk.stat().st_size,
+                  'sha256': checksum,
+              }],
+          }
+          pathlib.Path('dist/build-info.json').write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PYMANIFEST
+
       - name: Publicar APK
         uses: actions/upload-artifact@v7.0.1
         with:
@@ -149,6 +184,14 @@ jobs:
           path: dist/${{ steps.package.outputs.file }}
           # APK direto: evita ZIP externo/compressão adicional e acelera o download.
           archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publicar metadados da execução
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: build-info-${{ github.run_id }}
+          path: dist/build-info.json
           if-no-files-found: error
           retention-days: 14
 

@@ -1,3 +1,11 @@
+# Atualização 2.0.116+200130
+
+- Fonte: 2.0.115+200129.
+- Novos arquivos: smart_apk_picker.dart, build_manifest.dart, build_diagnostic_advice.dart.
+- Workflow gera `build-info.json` opcional como artifact separado `build-info-<run_id>`. A leitura confere runId/commit.
+- O seletor nunca valida ABI de bytes remotos; apenas estimativa pelo nome até conferência no Android.
+- CI/Flutter/análise Dart e testes em aparelhos pendentes neste ambiente.
+
 ## Atualização 2.0.115
 
 - CI #104 e Android APK #105: ambos apresentaram 191 testes aprovados e 1 falha no contrato `android_recents_task_contract_test.dart`.

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:github_manager/core/platform/platform_actions.dart';
+import 'package:github_manager/features/builds/domain/build_diagnostic_advice.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/features/builds/domain/global_build_entry.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
@@ -32,7 +35,7 @@ class _GlobalBuildDiagnosisDialogState
     );
     final failed = jobs.where((job) => job.failed).toList(growable: false);
     final diagnoses = <RepositoryWorkflowFailure>[];
-    for (final job in failed.take(2)) {
+    for (final job in failed.take(6)) {
       try {
         final diagnosis = await service.loadWorkflowFailure(
           repositoryFullName: widget.entry.repository.fullName,
@@ -91,11 +94,33 @@ class _GlobalBuildDiagnosisDialogState
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     SelectableText(item.message),
+                    const SizedBox(height: 6),
+                    Text(BuildDiagnosticAdvice.fromMessage(item.message).title,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text(BuildDiagnosticAdvice.fromMessage(item.message).action,
+                        style: Theme.of(context).textTheme.bodySmall),
                     if (item.location != null) ...[
                       const SizedBox(height: 4),
                       SelectableText('Arquivo: ${item.location!.path}'
                           '${item.location!.line == null ? '' : ':${item.location!.line}'} '
                           '(${item.location!.source})'),
+                      Wrap(spacing: 8, children: [
+                        if (item.location!.githubUrl(widget.entry.repository.fullName,
+                            widget.entry.run.headSha) != null)
+                          TextButton.icon(
+                            onPressed: () => PlatformActions.openUri(
+                              item.location!.githubUrl(widget.entry.repository.fullName,
+                                  widget.entry.run.headSha)!),
+                            icon: const Icon(Icons.code_rounded),
+                            label: const Text('Abrir arquivo no commit'),
+                          ),
+                        TextButton.icon(
+                          onPressed: () => Clipboard.setData(ClipboardData(text:
+                              '${item.location!.path}:${item.location!.line ?? 1}\n${item.message}')),
+                          icon: const Icon(Icons.copy_rounded),
+                          label: const Text('Copiar diagnóstico'),
+                        ),
+                      ]),
                     ],
                     if (item.logContext.isNotEmpty) ...[
                       const SizedBox(height: 6),

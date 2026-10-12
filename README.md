@@ -1,12 +1,14 @@
-# GitHub Manager 2.0.115
+# GitHub Manager 2.0.116
 
-## Correção da navegação de notificações 2.0.115
+## Escolha de APK e identidade da Build 2.0.116
+
+A escolha de APKs nas Builds, detalhes de execução e Releases usa uma interface comum com sugestão conservadora, alternativas, avisos de compatibilidade e detalhes técnicos. A versão real não é o número da execução. O workflow Android APK pode publicar `build-info.json` como artifact separado para informar a versão e o SHA da execução. Veja `docs/RELEASE_2.0.116.md` e `docs/BUILD_INFO_PROTOCOL.md`.
 
 - Corrige a falha dos workflows CI #104 e Android APK #105: 191 testes aprovados e um contrato Android incompatível com a alteração introduzida em 2.0.114.
 - Notificações de serviços em foreground voltam a abrir a MainActivity por `ACTION_MAIN`/`CATEGORY_LAUNCHER`, reutilizando a task existente com `CLEAR_TOP`/`SINGLE_TOP`.
 - Preserva a rota específica em `notificationRoute`, que aponta para o upload ou download selecionado, sem voltar à Home.
 - Amplia o teste de regressão para verificar tanto a reutilização da Activity quanto a navegação das transferências.
-- Versão canônica `2.0.115+200129`; a compilação e a navegação em aparelho físico exigem verificação na CI/Android.
+- Versão canônica `2.0.116+200130`; a compilação e a navegação em aparelho físico exigem verificação na CI/Android.
 
 ## Notificações que abrem o evento 2.0.114
 

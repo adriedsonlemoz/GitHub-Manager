@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/network/github_api_client.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
+import 'package:github_manager/features/builds/domain/build_manifest.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/builds/domain/release_asset_group.dart';
 import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
@@ -87,6 +89,57 @@ class ArtifactService {
       if (raw.length < 100) break;
     }
     return List<ActionArtifact>.unmodifiable(artifacts);
+  }
+
+  /// Busca sob demanda, somente quando a pessoa abre a seleção do APK.
+  /// O artifact de metadados é um ZIP pequeno e separado do artifact do APK.
+  Future<BuildManifest?> loadBuildManifest({
+    required String repositoryFullName,
+    required int runId,
+    required String commitSha,
+    List<ActionArtifact>? knownArtifacts,
+  }) async {
+    final artifacts = knownArtifacts ?? await listArtifactsForRun(
+      repositoryFullName: repositoryFullName,
+      runId: runId,
+    );
+    final available = artifacts.where((item) => !item.expired &&
+        (item.name == 'build-info' || item.name.startsWith('build-info-')) &&
+        item.sizeBytes < 1024 * 1024 && item.id > 0).toList();
+    if (available.isEmpty) return null;
+    final temporary = await getTemporaryDirectory();
+    final download = File(p.join(temporary.path,
+        'gm-build-info-$runId-${DateTime.now().microsecondsSinceEpoch}.zip'));
+    try {
+      await _client.downloadRedirectedFile(
+        '/repos/$repositoryFullName/actions/artifacts/${available.first.id}/zip',
+        download.path,
+      );
+      if (!await download.exists() || await download.length() > 2 * 1024 * 1024) {
+        return null;
+      }
+      final input = InputFileStream(download.path);
+      try {
+        final zip = ZipDecoder().decodeStream(input, verify: true);
+        for (final entry in zip) {
+          if (!entry.isFile || entry.name != 'build-info.json' ||
+              entry.size > 128 * 1024) continue;
+          final bytes = entry.readBytes();
+          if (bytes == null) return null;
+          final parsed = jsonDecode(utf8.decode(bytes)) as Object?;
+          return BuildManifest.parse(parsed,
+              expectedRunId: runId, expectedCommit: commitSha);
+        }
+      } finally {
+        input.closeSync();
+      }
+    } on Exception {
+      // Metadados são opcionais: o seletor continua funcionando sem eles.
+      return null;
+    } finally {
+      try { if (await download.exists()) await download.delete(); } catch (_) {}
+    }
+    return null;
   }
 
   Future<void> deleteArtifact({

@@ -56,6 +56,7 @@ abstract final class AppNotificationService {
     required String workflowName,
     required int? runNumber,
     required String conclusion,
+    String? version,
     String? branch,
   }) async {
     await initialize();
@@ -80,12 +81,14 @@ abstract final class AppNotificationService {
         category: AndroidNotificationCategory.status,
       ),
     );
-    final number = runNumber == null ? '' : ' #$runNumber';
+    final number = runNumber == null ? '' : ' • execução #$runNumber';
+    final appVersion = version == null || version.trim().isEmpty
+        ? '' : ' • versão provável ${version.trim()}';
     try {
       await _notifications.show(
         id: id & 0x7fffffff,
         title: title,
-        body: '$repository • $workflowName$number $status. '
+        body: '$repository$appVersion • $workflowName$number $status. '
             'Toque para ver a execução.',
         notificationDetails: details,
         payload: NotificationDestination.forBuild(

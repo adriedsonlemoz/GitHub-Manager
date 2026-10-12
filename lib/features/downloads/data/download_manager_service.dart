@@ -12,6 +12,7 @@ import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/apk_variant.dart';
 import 'package:github_manager/features/downloads/domain/managed_download.dart';
+import 'package:github_manager/features/downloads/domain/apk_package_inspector.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -837,6 +838,18 @@ class DownloadManagerService {
     ManagedDownload item,
     File source,
   ) async {
+    if (item.type == ManagedDownloadType.apk) {
+      item.failureStage = 'verificar_estrutura_apk';
+      final inspection = await ApkPackageInspection.inspect(source);
+      item.inspectedAbis = inspection.nativeAbis;
+      if (inspection.nativeAbis.isNotEmpty && item.preferredAbis.isNotEmpty &&
+          !inspection.nativeAbis.any(item.preferredAbis.contains)) {
+        throw const FormatException(
+          'O APK contém bibliotecas nativas incompatíveis com as ABIs informadas '
+          'pelo aparelho. Escolha a variante adequada.',
+        );
+      }
+    }
     item.failureStage = 'salvar_downloads';
     final projectFolder = _projectFolderName(item.repositoryFullName);
     Future<String> publish() => PlatformActions.publishToDownloads(

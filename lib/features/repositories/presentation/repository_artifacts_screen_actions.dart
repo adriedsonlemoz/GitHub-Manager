@@ -339,80 +339,21 @@ mixin _RepositoryArtifactsScreenActions on ConsumerState<RepositoryArtifactsScre
         if (leftRank != rightRank) return leftRank.compareTo(rightRank);
         return left.name.toLowerCase().compareTo(right.name.toLowerCase());
       });
-    final bestRank = apkRecommendationRank(assets.first.name, supportedAbis);
-    final recommendedId = bestRank < 100 ? assets.first.id : null;
-
-    final selected = await showModalBottomSheet<ReleaseAsset>(
+    final selected = await showSmartApkPicker<ReleaseAsset>(
       context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                group.version == null
-                    ? 'Escolha o APK'
-                    : 'APKs da versão ${group.version}',
-                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                deviceInfo == null
-                    ? 'Escolha a arquitetura desejada. Universal funciona em várias arquiteturas e normalmente é maior.'
-                    : 'Seu aparelho usa ${deviceInfo.primaryAbi}. O APK específico compatível é recomendado quando disponível; Universal continua útil para compartilhar.',
-                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 460),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: assets.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final asset = assets[index];
-                    final variant = ApkVariantInfo.fromName(asset.name);
-                    final recommended = asset.id == recommendedId;
-                    final compatible = deviceInfo == null ||
-                        variant.isCompatibleWith(deviceInfo.supportedAbis);
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        child: Icon(
-                          compatible
-                              ? Icons.android_rounded
-                              : Icons.warning_amber_rounded,
-                        ),
-                      ),
-                      title: Text(
-                        variant.label,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        '${variant.description}\n${asset.name} • ${_RepositoryArtifactsScreenState._formatBytes(asset.sizeBytes)}',
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: recommended
-                          ? const Chip(label: Text('Recomendado'))
-                          : const Icon(Icons.chevron_right_rounded),
-                      onTap: () => Navigator.pop(sheetContext, asset),
-                    );
-                  },
-                ),
-              ),
-            ],
+      project: widget.repositoryFullName.split('/').last,
+      runNumber: 0,
+      version: group.version,
+      deviceInfo: deviceInfo,
+      options: [
+        for (final asset in assets)
+          SmartApkOption(
+            value: asset,
+            name: asset.name,
+            bytes: asset.sizeBytes,
+            source: 'Release ${asset.tagName}',
           ),
-        ),
-      ),
+      ],
     );
     if (selected != null && mounted) {
       if (deviceInfo != null &&

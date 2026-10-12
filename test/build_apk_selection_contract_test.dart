@@ -8,9 +8,9 @@ void main() {
       'lib/features/builds/presentation/global_builds_screen.dart',
     ).readAsStringSync();
 
-    expect(source, contains('class _GlobalApkPickerSheet'));
-    expect(source, contains("'APKs disponíveis'"));
-    expect(source, contains("'Recomendado'"));
+    expect(source, contains('showSmartApkPicker<_GlobalApkCandidate>'));
+    expect(source, contains('SmartApkOption('));
+    expect(File('lib/features/builds/presentation/smart_apk_picker.dart').readAsStringSync(), contains('Baixar opção sugerida'));
     expect(source, contains('apkRecommendationRank'));
     expect(source, contains('getAndroidDeviceInfo'));
     expect(source, isNot(contains('releaseApks.first')));

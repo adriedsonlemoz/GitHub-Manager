@@ -22,6 +22,7 @@ class ManagedDownload {
     this.artifactId,
     this.preferredAbi,
     this.preferredAbis = const <String>[],
+    this.inspectedAbis = const <String>[],
     this.localPath,
     this.workingPath,
     this.startedAt,
@@ -49,6 +50,7 @@ class ManagedDownload {
   int? artifactId;
   String? preferredAbi;
   final List<String> preferredAbis;
+  List<String> inspectedAbis;
   String? localPath;
   String? workingPath;
   DateTime? startedAt;
@@ -133,7 +135,8 @@ class ManagedDownload {
       'Status: $statusLabel',
       if (repositoryFullName != null) 'Repositório: $repositoryFullName',
       if (preferredAbi?.isNotEmpty == true) 'ABI preferida: $preferredAbi',
-      if (preferredAbis.isNotEmpty) 'ABIs compatíveis: ${preferredAbis.join(', ')}',
+      if (preferredAbis.isNotEmpty) 'ABIs do aparelho: ${preferredAbis.join(', ')}',
+      if (inspectedAbis.isNotEmpty) 'ABIs presentes no APK baixado: ${inspectedAbis.join(', ')}',
       if (sourceEndpoint != null) 'Endpoint: $sourceEndpoint',
       if (workingPath != null) 'Arquivo parcial: preservado para retomada',
       if (httpStatus != null) 'HTTP: $httpStatus',
@@ -170,6 +173,7 @@ class ManagedDownload {
     bytesPerSecond = 0;
     estimatedSecondsRemaining = null;
     errorMessage = null;
+    inspectedAbis = const <String>[];
     errorCode = null;
     failureStage = null;
     httpStatus = null;
@@ -188,6 +192,7 @@ class ManagedDownload {
         'artifactId': artifactId,
         'preferredAbi': preferredAbi,
         'preferredAbis': preferredAbis,
+        'inspectedAbis': inspectedAbis,
         'localPath': localPath,
         'workingPath': workingPath,
         'startedAt': startedAt?.toIso8601String(),
@@ -226,6 +231,11 @@ class ManagedDownload {
       artifactId: (json['artifactId'] as num?)?.toInt(),
       preferredAbi: json['preferredAbi']?.toString(),
       preferredAbis: (json['preferredAbis'] as List?)
+              ?.map((value) => value.toString())
+              .where((value) => value.isNotEmpty)
+              .toList(growable: false) ??
+          const <String>[],
+      inspectedAbis: (json['inspectedAbis'] as List?)
               ?.map((value) => value.toString())
               .where((value) => value.isNotEmpty)
               .toList(growable: false) ??

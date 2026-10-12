@@ -8,6 +8,7 @@ import 'package:github_manager/core/persistence/local_database.dart';
 import 'package:github_manager/core/security/secure_storage_service.dart';
 import 'package:github_manager/core/telemetry/app_telemetry_service.dart';
 import 'package:github_manager/features/repositories/data/repository_service.dart';
+import 'package:github_manager/features/repositories/domain/repository_git_models.dart';
 import 'package:workmanager/workmanager.dart';
 
 const _buildMonitorTask = 'github_manager_build_monitor';
@@ -243,6 +244,7 @@ class BuildMonitorService {
             repository: repository.fullName,
             workflowName: workflowName,
             runNumber: runNumber,
+            version: RepositoryWorkflowRun.fromJson(run).detectedVersion,
             conclusion: conclusion,
             branch: run['head_branch'] as String?,
           );
@@ -266,6 +268,7 @@ class BuildMonitorService {
     required String workflowName,
     required int? runNumber,
     required String conclusion,
+    String? version,
     String? branch,
   }) =>
       AppNotificationService.showBuildResult(
@@ -273,6 +276,7 @@ class BuildMonitorService {
         repository: repository,
         workflowName: workflowName,
         runNumber: runNumber,
+        version: version,
         conclusion: conclusion,
         branch: branch,
       );

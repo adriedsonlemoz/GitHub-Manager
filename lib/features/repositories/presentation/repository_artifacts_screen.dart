@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github_manager/core/errors/app_exception.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
+import 'package:github_manager/features/builds/presentation/smart_apk_picker.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/apk_variant.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';

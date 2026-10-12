@@ -61,7 +61,12 @@ void main() {
     expect(controller, contains('listArtifactsForRun'));
     expect(controller, contains('findReleaseApksForBuild'));
     expect(controller, contains('apkRecommendationRank'));
-    expect(widgets, contains("'APKs disponíveis'"));
-    expect(widgets, contains("'Recomendado'"));
+    expect(controller, contains('showSmartApkPicker<_RunApkCandidate>'));
+    final picker = File(
+      'lib/features/builds/presentation/smart_apk_picker.dart',
+    ).readAsStringSync();
+    expect(picker, contains("'APKs disponíveis'"));
+    expect(picker, contains('Baixar opção sugerida'));
+    expect(widgets, contains('class _RunApkCandidate'));
   });
 }
