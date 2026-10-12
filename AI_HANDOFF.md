@@ -1,3 +1,18 @@
+# Atualização 2.0.118+200132
+
+- Pedido: remover a CI separada e redundante, preservando os testes dos workflows de compilação.
+- Removido apenas `.github/workflows/ci.yml`. `android-apk.yml` e `android-release.yml` continuam com análise, testes, versão, assinatura e validações relevantes.
+- O teste `workflow_log_naming_contract_test.dart` passou a exigir a ausência de ci.yml e as verificações presentes nas duas pipelines de APK.
+- Verificar branch protection: status `Analisar e testar` pode precisar ser retirado/substituído nas regras do repositório.
+- Testes Flutter/Android e instalação no aparelho pendentes, SDK indisponível localmente.
+
+# Atualização 2.0.117+200131
+
+- Fonte: 2.0.116+200130; log: GitHub Manager CI #106.
+- `flutter analyze` interrompido por `_RunStatusIcon` e `_JobIcon` indefinidos em `repository_run_details.dart` (linhas 64 e 259). Ambos implementados em `repository_run_details_widgets.dart`, mesmo conjunto de `part` de `repository_actions_screen.dart`.
+- Teste de contrato adicionado para presença dos dois widgets, sua integração e estados de status.
+- Executar `bash tool/check_version_sync.sh`, `flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings`, `flutter test --no-pub` e Android APK no GitHub Actions. Sem Flutter/Dart no ambiente local, não há validação dinâmica.
+
 # Atualização 2.0.116+200130
 
 - Fonte: 2.0.115+200129.

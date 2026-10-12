@@ -298,16 +298,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.118',
+                      text: 'Remove o workflow CI duplicado e mantém análise, testes e segurança no Android APK e Release.',
+                    ),
+                    _ChangeNote(
+                      version: '2.0.117',
+                      text: 'Corrige os ícones de status nas Builds que bloqueavam o flutter analyze.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.116',
                       text: 'Novo seletor orientado de APKs, versão real separada da execução e diagnóstico de builds com arquivo e linha.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.115',
-                      text: 'Corrige a abertura de notificações Android e preserva o destino do envio ou download.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.114',
-                      text: 'Notificações agora abrem a build, o download ou o envio correto, inclusive após reabrir o app.',
                     ),
                   ],
                 ),

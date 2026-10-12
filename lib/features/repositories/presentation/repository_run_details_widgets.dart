@@ -1,5 +1,90 @@
 part of 'repository_actions_screen.dart';
 
+// Indicadores usados tanto no cabeçalho da execução quanto nos jobs.
+// As conclusões só são interpretadas após o status chegar a "completed".
+class _RunStatusIcon extends StatelessWidget {
+  const _RunStatusIcon({required this.run});
+
+  final RepositoryWorkflowRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final IconData icon;
+    final Color color;
+    if (run.isRunning) {
+      icon = Icons.sync_rounded;
+      color = scheme.primary;
+    } else {
+      switch (run.conclusion) {
+        case 'success':
+          icon = Icons.check_circle_rounded;
+          color = Colors.green.shade600;
+        case 'failure':
+        case 'timed_out':
+          icon = Icons.error_rounded;
+          color = scheme.error;
+        case 'cancelled':
+          icon = Icons.cancel_outlined;
+          color = scheme.onSurfaceVariant;
+        case 'skipped':
+          icon = Icons.skip_next_rounded;
+          color = scheme.onSurfaceVariant;
+        default:
+          icon = Icons.help_outline_rounded;
+          color = scheme.onSurfaceVariant;
+      }
+    }
+    return Tooltip(
+      message: _RepositoryActionsScreenState._statusLabel(run),
+      child: Icon(icon, size: 22, color: color),
+    );
+  }
+}
+
+class _JobIcon extends StatelessWidget {
+  const _JobIcon({required this.job});
+
+  final RepositoryWorkflowJob job;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final IconData icon;
+    final Color color;
+    if (job.status != 'completed') {
+      icon = job.status == 'in_progress'
+          ? Icons.sync_rounded
+          : Icons.schedule_rounded;
+      color = scheme.primary;
+    } else {
+      switch (job.conclusion) {
+        case 'success':
+          icon = Icons.check_circle_rounded;
+          color = Colors.green.shade600;
+        case 'failure':
+        case 'timed_out':
+          icon = Icons.error_rounded;
+          color = scheme.error;
+        case 'cancelled':
+          icon = Icons.cancel_outlined;
+          color = scheme.onSurfaceVariant;
+        case 'skipped':
+          icon = Icons.skip_next_rounded;
+          color = scheme.onSurfaceVariant;
+        default:
+          icon = Icons.help_outline_rounded;
+          color = scheme.onSurfaceVariant;
+      }
+    }
+    return Tooltip(
+      message: _RepositoryActionsScreenState._jobStatus(job),
+      child: Icon(icon, size: 22, color: color),
+    );
+  }
+}
+
+
 class _RunActionButton extends StatelessWidget {
   const _RunActionButton({
     required this.icon,

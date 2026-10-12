@@ -4,10 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('workflows usam nomes estáveis para a saída de logs', () {
-    expect(
-      File('.github/workflows/ci.yml').readAsLinesSync().first,
-      'name: GitHub Manager CI',
-    );
+    expect(File('.github/workflows/ci.yml').existsSync(), isFalse);
     expect(
       File('.github/workflows/android-apk.yml').readAsLinesSync().first,
       'name: GitHub Manager Android APK',
@@ -36,13 +33,21 @@ void main() {
       contains("runTitle: '\${entry.run.name}-\${entry.run.runNumber}'"),
     );
   });
-  test('CI verifica formatação sem modificar o código que será testado', () {
-    final ci = File('.github/workflows/ci.yml').readAsStringSync();
-
-    expect(
-      ci,
-      contains('dart format --output=none --set-exit-if-changed lib test'),
-    );
-    expect(ci, isNot(contains('dart format lib test\n')));
+  test('APK e Release mantêm análise e testes sem workflow CI duplicado', () {
+    expect(File('.github/workflows/ci.yml').existsSync(), isFalse);
+    for (final workflowPath in [
+      '.github/workflows/android-apk.yml',
+      '.github/workflows/android-release.yml',
+    ]) {
+      final workflow = File(workflowPath).readAsStringSync();
+      expect(workflow, contains('bash tool/check_version_sync.sh'));
+      expect(workflow, contains('flutter analyze --no-pub'));
+      expect(workflow, contains('flutter test --no-pub'));
+      expect(workflow, contains('flutter build apk --release --no-pub'));
+    }
+    final apk = File('.github/workflows/android-apk.yml').readAsStringSync();
+    final release = File('.github/workflows/android-release.yml').readAsStringSync();
+    expect(apk, contains('Validar APK, assinatura e compatibilidade'));
+    expect(release, contains('Verificar APK e certificado oficial'));
   });
 }

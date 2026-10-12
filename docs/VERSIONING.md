@@ -1,3 +1,11 @@
+### 2.0.118
+
+A versão 2.0.118+200132 remove o workflow CI separado, mantendo análise Dart, testes Flutter, assinatura e build nos workflows de APK e Release. Os checks exigidos por regras de branch devem ser ajustados no GitHub se ainda apontarem para o job removido. Veja `docs/RELEASE_2.0.118.md`.
+
+### 2.0.117
+
+A versão 2.0.117+200131 corrige as duas referências a widgets ausentes no detalhe das execuções de Builds, responsáveis pela interrupção de `flutter analyze` na CI #106. Os ícones de execução e jobs voltam a distinguir status e permanecem na mesma biblioteca Dart. Inclui teste de contrato e documentação; execução real da CI continua pendente. Veja `docs/RELEASE_2.0.117.md`.
+
 ### 2.0.116
 
 A versão 2.0.116+200130 distingue execução GitHub Actions da versão real do app, adiciona seleção guiada de APK, diagnósticos úteis de arquivo/linha e metadados build-info.json opcionais gerados pelo workflow Android APK. A ABI lida pelo nome é hipótese; manifests do workflow não substituem inspeção do arquivo baixado. Veja `docs/RELEASE_2.0.116.md`.
@@ -32,7 +40,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.116+200130`
+`version: 2.0.118+200132`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

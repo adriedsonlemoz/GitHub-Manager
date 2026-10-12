@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.116';
+  static const releaseNotesVersion = '2.0.118';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,21 +69,21 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.notifications_active_outlined,
-                      title: 'Escolha guiada de APKs',
-                      description: 'Opção sugerida em destaque, alternativas compactas e aviso explícito de que a arquitetura estimada pelo nome precisa ser validada.',
+                      icon: Icons.fact_check_outlined,
+                      title: 'Menos execuções duplicadas',
+                      description: 'Removido o workflow CI separado. O Android APK continua analisando e testando o aplicativo antes de compilar.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.play_circle_outline_rounded,
-                      title: 'Versão e execução sem confusão',
-                      description: 'A versão do aplicativo é separada do número da execução; o workflow gera um manifesto verificável pelo ID e commit.',
+                      icon: Icons.verified_user_outlined,
+                      title: 'Proteções preservadas',
+                      description: 'Os workflows Android APK e Android Release continuam validando código, testes, versão e integridade do APK.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.notifications_none_rounded,
-                      title: 'Erros com contexto e orientação',
-                      description: 'Diagnóstico de falhas apresenta caminho, linha, ação de copiar e link seguro para o arquivo no commit da execução.',
+                      icon: Icons.info_outline_rounded,
+                      title: 'Atenção às regras do repositório',
+                      description: 'Caso a branch exija o check antigo “Analisar e testar”, atualize a regra de proteção no GitHub.',
                     ),
                   ],
                 ),

@@ -1,3 +1,20 @@
+## 2.0.118+200132 — 2026-10-12
+
+- Remove o workflow separado `.github/workflows/ci.yml` que duplicava análise e testes do Android APK em pushes na branch principal.
+- Mantém `flutter analyze`, `flutter test` e validação de versão nos workflows Android APK e Android Release, sem alterar a assinatura, integridade dos APKs nem notificações do aplicativo.
+- Atualiza o teste de contrato para verificar que o CI separado não existe e que os dois workflows Android preservam as etapas essenciais.
+- Sincroniza versão, README, VERSIONING, Novidades, Configurações, notas de release e `versionCode` 200132.
+- Atenção: regras de proteção de branches podem exigir atualização se ainda dependerem do antigo check `Analisar e testar`.
+- Testes Flutter e compilação Android não executados localmente.
+
+## 2.0.117+200131 — 2026-10-12
+
+- Corrige os dois erros de `undefined_method` registrados na CI #106 (`flutter analyze`): `_RunStatusIcon` e `_JobIcon` em `repository_run_details.dart`, linhas 64 e 259.
+- Implementa ambos os ícones no arquivo `repository_run_details_widgets.dart` (mesma biblioteca Dart `part of`), distinguindo execução, sucesso, falha, cancelamento e jobs ignorados com cores, ícones e tooltips.
+- Acrescenta teste de regressão dos componentes e mantém o seletor de APKs, os metadados de build, as notificações e a navegação anteriores.
+- Sincroniza README, VERSIONING, Configurações, Novidades, notas de release e `versionCode` 200131.
+- Flutter/Dart indisponíveis localmente: compilação e execução dos testes continuam pendentes de CI.
+
 ## 2.0.116+200130 — 2026-10-12
 
 - Substitui listas repetitivas de variantes nas Builds, detalhes das execuções e Releases por uma seleção guiada, com opção sugerida e alternativas claras. A compatibilidade por nome é explicitamente estimada.
