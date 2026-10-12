@@ -1,3 +1,11 @@
+## 2.0.119+200133 — 2026-10-12
+
+- Corrige três falhas comuns aos workflows Android APK #108 e CI #107 (200 testes aprovados, 3 falhas), ocorridas na v2.0.118.
+- Atualiza `global_builds_screen_test.dart` para verificar `Android APK • execução #78` e `Verificação do Projeto (CI) • execução #78`, como a interface atual apresenta, sem confundir execução com versão.
+- Mantém o contrato que exige ausência de `.github/workflows/ci.yml` no checkout, mas agora explica o motivo da falha e a exclusão necessária: o upload incremental de ZIP pode preservar arquivos remotos ausentes no ZIP.
+- A remoção do CI redundante deve ser efetivada no repositório GitHub além da remoção no ZIP; os workflows Android APK e Release permanecem responsáveis por análise, testes e build.
+- Sincroniza README, docs/VERSIONING, Novidades, Configurações, notas da versão e `versionCode 200133`. Flutter e Android não foram compilados localmente.
+
 ## 2.0.118+200132 — 2026-10-12
 
 - Remove o workflow separado `.github/workflows/ci.yml` que duplicava análise e testes do Android APK em pushes na branch principal.

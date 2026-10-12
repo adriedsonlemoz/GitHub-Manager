@@ -1,4 +1,11 @@
-# GitHub Manager 2.0.118
+# GitHub Manager 2.0.119
+
+## Correção de testes de Builds e CI — 2.0.119
+
+Os workflows Android APK #108 e CI #107 identificaram três falhas de testes, não erros da compilação. O teste da tela de Builds procurava um rótulo antigo (`Android APK • #78`), embora a versão atual use `Android APK • execução #78`. Os testes foram alinhados ao texto existente na interface.
+
+**Atenção à remoção da CI antiga:** a versão 2.0.118 já não incluía `.github/workflows/ci.yml` no ZIP, mas o arquivo permaneceu no repositório GitHub porque o envio incremental não apaga necessariamente arquivos ausentes no pacote. Exclua explicitamente `.github/workflows/ci.yml` na branch `main` antes de validar a versão. Instruções em `docs/CI_LEGACY_REMOVAL.md`. Os workflows `android-apk.yml` e `android-release.yml` continuam com análise e testes.
+
 
 ## Workflow CI independente removido — 2.0.118
 

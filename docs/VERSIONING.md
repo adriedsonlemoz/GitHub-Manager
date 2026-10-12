@@ -1,3 +1,7 @@
+### 2.0.119
+
+A versão 2.0.119+200133 corrige o teste visual desatualizado da Central de Builds e documenta por que a CI #107 ainda encontrou o workflow `ci.yml`: o arquivo havia sido retirado do ZIP, mas não do GitHub. É necessário excluí-lo explicitamente do repositório. A análise, os testes e o build do APK seguem preservados nos dois workflows Android. Veja `docs/RELEASE_2.0.119.md` e `docs/CI_LEGACY_REMOVAL.md`.
+
 ### 2.0.118
 
 A versão 2.0.118+200132 remove o workflow CI separado, mantendo análise Dart, testes Flutter, assinatura e build nos workflows de APK e Release. Os checks exigidos por regras de branch devem ser ajustados no GitHub se ainda apontarem para o job removido. Veja `docs/RELEASE_2.0.118.md`.
@@ -40,7 +44,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.118+200132`
+`version: 2.0.119+200133`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

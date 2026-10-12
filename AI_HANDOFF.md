@@ -1,3 +1,12 @@
+# Atualização 2.0.119+200133
+
+- Logs analisados: GitHub Manager CI #107 e Android APK #108, ambos v2.0.118, 200 testes aprovados e 3 reprovados.
+- `global_builds_screen_test.dart` foi alinhado ao texto atual: `Android APK • execução #78` e `Verificação do Projeto (CI) • execução #78`.
+- Dois testes de `workflow_log_naming_contract_test.dart` exigem ausência do CI local e agora orientam a remover o arquivo remoto; o repositório GitHub ainda contém `.github/workflows/ci.yml`, embora não exista no ZIP da v2.0.118.
+- Para não executar a CI separada, excluir `.github/workflows/ci.yml` da branch `main` via GitHub UI ou `git rm`, além de remover do ZIP. O ZIP atualizado continua sem CI, com análise/testes preservados no APK e na Release.
+- README, CHANGELOG, VERSIONING, tela Novidades, últimas três mudanças, notas de release e versionCode sincronizados.
+- Não foi possível executar `flutter test`, `flutter analyze` ou compilar Android localmente.
+
 # Atualização 2.0.118+200132
 
 - Pedido: remover a CI separada e redundante, preservando os testes dos workflows de compilação.

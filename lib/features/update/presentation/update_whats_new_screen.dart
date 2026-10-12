@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.118';
+  static const releaseNotesVersion = '2.0.119';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.fact_check_outlined,
-                      title: 'Menos execuções duplicadas',
-                      description: 'Removido o workflow CI separado. O Android APK continua analisando e testando o aplicativo antes de compilar.',
+                      title: 'Correção dos testes da tela de Builds',
+                      description: 'Os testes reconhecem a execução GitHub separada da versão, sem exigir o formato antigo de título.', 
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.verified_user_outlined,
-                      title: 'Proteções preservadas',
-                      description: 'Os workflows Android APK e Android Release continuam validando código, testes, versão e integridade do APK.',
+                      title: 'Verificações mantidas no APK',
+                      description: 'O workflow Android APK continua analisando código e executando os testes antes de compilar.', 
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.info_outline_rounded,
-                      title: 'Atenção às regras do repositório',
-                      description: 'Caso a branch exija o check antigo “Analisar e testar”, atualize a regra de proteção no GitHub.',
+                      title: 'Exclusão do CI antigo',
+                      description: 'Remover ci.yml apenas do ZIP pode não apagar o arquivo do GitHub. Confirme a exclusão na branch principal.', 
                     ),
                   ],
                 ),

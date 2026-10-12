@@ -51,8 +51,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('repository-build-owner/repo')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Android APK • #78'), findsOneWidget);
-    expect(find.text('Verificação do Projeto (CI) • #78'), findsOneWidget);
+    // A execução não é o número da versão. O layout atual a exibe na
+    // segunda linha; uma versão identificada pode ocupar a primeira.
+    expect(find.textContaining('Android APK • execução #78'), findsOneWidget);
+    expect(
+      find.textContaining('Verificação do Projeto (CI) • execução #78'),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('logs-987')), findsOneWidget);
     expect(find.byKey(const ValueKey('apk-987')), findsOneWidget);
 

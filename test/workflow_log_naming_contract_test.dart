@@ -4,7 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('workflows usam nomes estáveis para a saída de logs', () {
-    expect(File('.github/workflows/ci.yml').existsSync(), isFalse);
+    expect(
+      File('.github/workflows/ci.yml').existsSync(),
+      isFalse,
+      reason: 'O workflow antigo ainda está no checkout. Exclua '
+          '.github/workflows/ci.yml do repositório GitHub; omitir do ZIP '
+          'não garante exclusão pelo importador incremental.',
+    );
     expect(
       File('.github/workflows/android-apk.yml').readAsLinesSync().first,
       'name: GitHub Manager Android APK',
@@ -34,7 +40,13 @@ void main() {
     );
   });
   test('APK e Release mantêm análise e testes sem workflow CI duplicado', () {
-    expect(File('.github/workflows/ci.yml').existsSync(), isFalse);
+    expect(
+      File('.github/workflows/ci.yml').existsSync(),
+      isFalse,
+      reason: 'O workflow antigo ainda está no checkout. Exclua '
+          '.github/workflows/ci.yml do repositório GitHub; omitir do ZIP '
+          'não garante exclusão pelo importador incremental.',
+    );
     for (final workflowPath in [
       '.github/workflows/android-apk.yml',
       '.github/workflows/android-release.yml',
