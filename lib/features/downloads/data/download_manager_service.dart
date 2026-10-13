@@ -11,6 +11,7 @@ import 'package:github_manager/core/notifications/app_notification_service.dart'
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/apk_variant.dart';
+import 'package:github_manager/features/downloads/data/download_speed_meter.dart';
 import 'package:github_manager/features/downloads/domain/managed_download.dart';
 import 'package:github_manager/features/downloads/domain/apk_package_inspector.dart';
 import 'package:path/path.dart' as p;
@@ -25,7 +26,7 @@ class DownloadManagerService {
   final _controller = StreamController<List<ManagedDownload>>.broadcast();
   final List<ManagedDownload> _items = [];
   final Map<String, CancelToken> _cancelTokens = {};
-  final Map<String, _ProgressSample> _progressSamples = {};
+  final Map<String, DownloadSpeedMeter> _progressSamples = {};
   DateTime? _lastForegroundUpdate;
   int _sequence = 0;
 
@@ -417,25 +418,12 @@ class DownloadManagerService {
         ..sourceEndpoint = endpoint
         ..receivedBytes = resumeFrom;
       _markStarted(item, initialBytes: resumeFrom);
-      final onProgress = (int received, int total) =>
-          _updateProgress(item, received, total);
-      if (endpoint.contains('/releases/assets/')) {
-        await _client.downloadReleaseAssetFile(
-          endpoint,
-          partialFile.path,
-          cancelToken: cancelToken,
-          onReceiveProgress: onProgress,
-          resumeFrom: resumeFrom,
-        );
-      } else {
-        await _client.downloadRedirectedFile(
-          endpoint,
-          partialFile.path,
-          cancelToken: cancelToken,
-          onReceiveProgress: onProgress,
-          resumeFrom: resumeFrom,
-        );
-      }
+      await _downloadGithubWithRecovery(
+        endpoint,
+        partialFile,
+        item: item,
+        cancelToken: cancelToken,
+      );
       if (item.status == ManagedDownloadStatus.cancelled) return;
       completedFile = await partialFile.rename(completedFile.path);
       partialFile = null;
@@ -463,6 +451,85 @@ class DownloadManagerService {
       await _persistHistory();
       await _syncDownloadForegroundService();
     }
+  }
+
+  // Cada nova tentativa obtém outra URL assinada do GitHub e usa o tamanho
+  // efetivamente gravado em disco. Não repete erros definitivos (401/403/404).
+  Future<void> _downloadGithubWithRecovery(
+    String endpoint,
+    File partialFile, {
+    required ManagedDownload item,
+    required CancelToken cancelToken,
+  }) async {
+    for (var attempt = 0; attempt < 3; attempt++) {
+      if (cancelToken.isCancelled) return;
+      final offset = await partialFile.exists() ? await partialFile.length() : 0;
+      try {
+        final onProgress = (int received, int total) =>
+            _updateProgress(item, received, total);
+        if (endpoint.contains('/releases/assets/')) {
+          await _client.downloadReleaseAssetFile(
+            endpoint,
+            partialFile.path,
+            cancelToken: cancelToken,
+            onReceiveProgress: onProgress,
+            resumeFrom: offset,
+          );
+        } else {
+          await _client.downloadRedirectedFile(
+            endpoint,
+            partialFile.path,
+            cancelToken: cancelToken,
+            onReceiveProgress: onProgress,
+            resumeFrom: offset,
+          );
+        }
+        return;
+      } catch (error) {
+        if (cancelToken.isCancelled || attempt == 2 ||
+            !_isRecoverableDownloadError(error)) {
+          rethrow;
+        }
+        // Breve espera com checagem de cancelamento, sem requisições paralelas.
+        for (var step = 0; step < (attempt + 1) * 4; step++) {
+          if (cancelToken.isCancelled) return;
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        }
+      }
+    }
+  }
+
+  static bool _isRecoverableDownloadError(Object error) {
+    if (error is DownloadFailureException) {
+      return const {
+        'DOWNLOAD_NETWORK',
+        'DOWNLOAD_INTERRUPTED',
+        'DOWNLOAD_INCOMPLETE',
+        'DOWNLOAD_TEMP_URL_EXPIRED',
+        'DOWNLOAD_HTTP_408',
+        'DOWNLOAD_HTTP_500',
+        'DOWNLOAD_HTTP_502',
+        'DOWNLOAD_HTTP_503',
+        'DOWNLOAD_HTTP_504',
+      }.contains(error.technicalCode);
+    }
+    if (error is SocketException ||
+        error is HttpException ||
+        error is TimeoutException) {
+      return true;
+    }
+    if (error is DioException) {
+      if (CancelToken.isCancel(error)) return false;
+      final status = error.response?.statusCode;
+      if (status != null) {
+        return const {408, 500, 502, 503, 504}.contains(status);
+      }
+      return error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout;
+    }
+    return false;
   }
 
   Future<String?> _firstZipEntryName(File file) async {
@@ -532,13 +599,11 @@ class DownloadManagerService {
         ..sourceEndpoint = endpoint
         ..receivedBytes = resumeFrom;
       _markStarted(item, initialBytes: resumeFrom);
-      await _client.downloadRedirectedFile(
+      await _downloadGithubWithRecovery(
         endpoint,
-        downloadedFile.path,
+        downloadedFile,
+        item: item,
         cancelToken: cancelToken,
-        resumeFrom: resumeFrom,
-        onReceiveProgress: (received, total) =>
-            _updateProgress(item, received, total),
       );
       if (item.status == ManagedDownloadStatus.cancelled) return;
 
@@ -767,7 +832,7 @@ class DownloadManagerService {
       ..responseMessage = null
       ..bytesPerSecond = 0
       ..estimatedSecondsRemaining = null;
-    _progressSamples[item.id] = _ProgressSample(now, initialBytes, 0);
+    _progressSamples[item.id] = DownloadSpeedMeter(now, initialBytes);
     _emit();
     unawaited(_persistHistory());
     unawaited(AppNotificationService.requestPermission());
@@ -776,31 +841,25 @@ class DownloadManagerService {
 
   void _updateProgress(ManagedDownload item, int received, int total) {
     final now = DateTime.now();
-    final previous = _progressSamples[item.id];
-    var speed = item.bytesPerSecond;
-    if (previous != null) {
-      final elapsedMicros = now.difference(previous.at).inMicroseconds;
-      final deltaBytes = received - previous.bytes;
-      if (elapsedMicros > 0 && deltaBytes >= 0) {
-        final instantaneous = deltaBytes / (elapsedMicros / 1000000);
-        speed = previous.smoothedSpeed <= 0
-            ? instantaneous
-            : (previous.smoothedSpeed * 0.7) + (instantaneous * 0.3);
-      }
-    }
+    // Os contadores continuam exatos, mas não redesenhamos a tela a cada
+    // pacote recebido (podem ser centenas por segundo em Wi-Fi rápido).
     item
       ..receivedBytes = received
-      ..totalBytes = total
-      ..bytesPerSecond = speed;
-    if (total > received && speed > 1) {
-      item.estimatedSecondsRemaining = ((total - received) / speed).ceil();
-    } else {
-      item.estimatedSecondsRemaining = null;
-    }
-    _progressSamples[item.id] = _ProgressSample(now, received, speed);
+      ..totalBytes = total;
+    final sample = _progressSamples[item.id];
+    if (sample == null) return;
+    final finished = total > 0 && received >= total;
+    if (!sample.shouldRefresh(now, finished: finished)) return;
+
+    final speed = sample.record(now, received);
+    item.bytesPerSecond = speed;
+    item.estimatedSecondsRemaining = total > received && speed > 1
+        ? ((total - received) / speed).ceil()
+        : null;
     _emit();
     final last = _lastForegroundUpdate;
-    if (last == null || now.difference(last) >= const Duration(milliseconds: 500)) {
+    if (last == null ||
+        now.difference(last) >= const Duration(milliseconds: 500)) {
       _lastForegroundUpdate = now;
       unawaited(_syncDownloadForegroundService());
     }
@@ -922,6 +981,20 @@ class DownloadManagerService {
         ..failureStage = error.stage
         ..httpStatus = error.httpStatus
         ..responseMessage = _cleanTechnicalMessage(error.apiMessage);
+      _notifyDownloadFailure(item);
+      return;
+    }
+
+    if (error is SocketException ||
+        error is HttpException ||
+        error is TimeoutException ||
+        error is DioException) {
+      item
+        ..errorMessage =
+            'A conexão foi interrompida. O arquivo parcial foi preservado para tentar novamente.'
+        ..errorCode = 'DOWNLOAD_NETWORK'
+        ..failureStage = fallbackStage
+        ..responseMessage = _cleanTechnicalMessage(error.toString());
       _notifyDownloadFailure(item);
       return;
     }
@@ -1208,10 +1281,3 @@ class DownloadManagerService {
   }
 }
 
-class _ProgressSample {
-  const _ProgressSample(this.at, this.bytes, this.smoothedSpeed);
-
-  final DateTime at;
-  final int bytes;
-  final double smoothedSpeed;
-}

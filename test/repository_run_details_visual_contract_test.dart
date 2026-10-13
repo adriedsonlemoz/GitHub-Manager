@@ -10,6 +10,9 @@ void main() {
 
     expect(widgets, contains("'Resumo'"));
     expect(widgets, contains('class _RunSummaryTile'));
+    expect(widgets, contains('class _RunEventBranchTile'));
+    expect(widgets, contains('class _RunCompactInfo'));
+    expect(widgets, contains("label: 'Mensagem'"));
     expect(widgets, contains("'Evento'"));
     expect(widgets, contains("'Branch'"));
     expect(widgets, contains("'Duração'"));

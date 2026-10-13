@@ -1,3 +1,11 @@
+## 2.0.121+200135 — 2026-10-12
+
+- Agrupa Evento + Branch em cartão horizontal responsivo no resumo da build; preserva mensagem de commit recolhida em Detalhes técnicos.
+- Suaviza medição da velocidade dos downloads com média temporal de 5 segundos e limita atualizações visuais a ~350 ms, reduzindo pressão na renderização durante transferência de APKs grandes.
+- Releases e Artifacts recuperam interrupções transitórias com até duas reconexões e revalidação de URL assinada, retomando pelos bytes persistidos em disco quando HTTP Range é aceito.
+- Impede anexar Range 206 incompatível e identifica encerramento prematuro em transferências com comprimento conhecido. Falhas definitivas de autenticação/permissão não geram retentativas.
+- Mantém proteção de workflow legado da 2.0.120, inspeção de APK/ABI e metadados. Documentação e histórico sincronizados; build Android pendente.
+
 ## 2.0.120+200134 — 2026-10-12
 
 - Corrige o bloqueio simultâneo de Android APK #109 e CI #108 (201 testes aprovados, 2 falhas) provocado por `.github/workflows/ci.yml` **ainda presente e ativo no GitHub**.

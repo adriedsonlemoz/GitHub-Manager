@@ -409,6 +409,19 @@ class GitHubApiClient {
     required String stage,
   }) async {
     final acceptedResume = response.statusCode == 206 && requestedResumeFrom > 0;
+    final contentRangeHeader = response.headers.value('content-range');
+    // Não concatene segmentos de posições diferentes: isso corrompe o APK.
+    if (acceptedResume &&
+        (contentRangeHeader == null ||
+            !contentRangeHeader.startsWith('bytes $requestedResumeFrom-'))) {
+      throw DownloadFailureException(
+        'O servidor respondeu com um intervalo incompatível com o arquivo parcial.',
+        code: 'DOWNLOAD_RESUME_INVALID',
+        endpoint: endpoint,
+        stage: 'retomar_download',
+        httpStatus: response.statusCode,
+      );
+    }
     final startingBytes = acceptedResume ? requestedResumeFrom : 0;
     final file = File(savePath);
     final sink = file.openWrite(
@@ -438,6 +451,22 @@ class GitHubApiClient {
         onReceiveProgress?.call(received, total);
       }
       await sink.flush();
+      if (total >= 0 && received < total) {
+        throw DownloadFailureException(
+          'O servidor encerrou a transferência antes de enviar o arquivo completo.',
+          code: 'DOWNLOAD_INCOMPLETE',
+          endpoint: endpoint,
+          stage: stage,
+        );
+      }
+      if (total >= 0 && received > total) {
+        throw DownloadFailureException(
+          'O servidor enviou mais bytes do que o comprimento declarado.',
+          code: 'DOWNLOAD_OVERSIZED',
+          endpoint: endpoint,
+          stage: stage,
+        );
+      }
     } finally {
       await sink.close();
     }

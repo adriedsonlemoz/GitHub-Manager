@@ -1,3 +1,7 @@
+### 2.0.121
+
+A versão 2.0.121+200135 compacta Evento/Branch no resumo das execuções, mantém a mensagem de commit recolhida e melhora downloads grandes por média móvel, atualização visual limitada, novas tentativas de rede com retomada e checagens HTTP de integridade. Veja `docs/RELEASE_2.0.121.md`.
+
 ### 2.0.120
 
 A versão 2.0.120+200134 disponibiliza um arquivo de compatibilidade `.github/workflows/ci.yml` **inativo**. O arquivo substitui a antiga CI ainda preservada pela sincronização incremental: não tem `push` nem `pull_request` e usa job `if: ${{ false }}`. Os testes agora exigem ausência do CI ou sua configuração inerte, nunca uma CI duplicada ativa. APK e Release preservam análise e testes. Consulte `docs/RELEASE_2.0.120.md`.
@@ -48,7 +52,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.120+200134`
+`version: 2.0.121+200135`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

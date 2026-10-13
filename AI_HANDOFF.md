@@ -1,4 +1,11 @@
-# Atualização 2.0.120+200134
+# Atualização 2.0.121+200135
+
+- Interface de Builds: Evento + Branch combinados em um cartão, com mensagem do commit somente nos Detalhes técnicos.
+- Downloads: média móvel de velocidade (~5 s), limite de atualização visual (~350 ms), reconexão automática limitada a duas tentativas extras de Releases e Artifacts com recuperação por HTTP Range.
+- GitHub API: verifica Content-Range de 206 e encerramento antes do Content-Length conhecido; preserva inspeção de APK.
+- Revisão: executar os testes e a compilação no GitHub Actions; validar desempenho em Wi-Fi real e arquivos grandes. Nenhum dado de terceiros ou token deve ser incluído em logs.
+
+# Histórico 2.0.120+200134
 
 - Logs recebidos: Android APK #109 e CI #108; 201 testes aprovados, 2 falhas no `workflow_log_naming_contract_test.dart` porque a branch main ainda contém `ci.yml` ativo.
 - Conferida a presença remota via GitHub; tentativa de exclusão via integração bloqueada em HTTP 403 (recurso inacessível para a integração).

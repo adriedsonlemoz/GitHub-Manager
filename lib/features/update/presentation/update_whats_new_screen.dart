@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.120';
+  static const releaseNotesVersion = '2.0.121';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,21 +69,21 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.rule_folder_outlined,
-                      title: 'CI duplicada desativada',
-                      description: 'O pacote inclui uma versão inativa do ci.yml para substituir o workflow antigo preservado pelos envios incrementais.',
+                      icon: Icons.view_agenda_outlined,
+                      title: 'Resumo de builds mais compacto',
+                      description: 'Evento e Branch aparecem no mesmo cartão. A mensagem do commit fica recolhida em Detalhes técnicos.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.fact_check_outlined,
-                      title: 'Testes de workflow corrigidos',
-                      description: 'Os contratos aceitam a exclusão definitiva ou a desativação verificada, mas continuam reprovando o CI antigo ativo.',
+                      icon: Icons.speed_rounded,
+                      title: 'Velocidade de download mais estável',
+                      description: 'Média dos últimos segundos e menos atualizações da interface, sem alterar artificialmente a velocidade real da conexão.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.verified_outlined,
-                      title: 'Validação do APK mantida',
-                      description: 'Os workflows Android APK e Release continuam com análise de código, testes e validação antes da compilação.',
+                      icon: Icons.downloading_rounded,
+                      title: 'Retomada e integridade de APK',
+                      description: 'Falhas temporárias permitem até duas reconexões. O app verifica transferências incompletas e não junta intervalos incompatíveis.',
                     ),
                   ],
                 ),

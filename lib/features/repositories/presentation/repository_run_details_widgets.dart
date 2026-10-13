@@ -178,6 +178,12 @@ class _RunInformationCard extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 9),
+          // Evento e branch dividem um único cartão para economizar altura.
+          _RunEventBranchTile(
+            event: '${_eventLabel(run.event)} • tentativa ${run.runAttempt}',
+            branch: run.branch.trim().isEmpty ? '-' : run.branch,
+          ),
+          const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
               final tileWidth = constraints.maxWidth >= 340
@@ -187,23 +193,6 @@ class _RunInformationCard extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  SizedBox(
-                    width: tileWidth,
-                    child: _RunSummaryTile(
-                      icon: Icons.bolt_rounded,
-                      label: 'Evento',
-                      value:
-                          '${_eventLabel(run.event)} • tentativa ${run.runAttempt}',
-                    ),
-                  ),
-                  SizedBox(
-                    width: tileWidth,
-                    child: _RunSummaryTile(
-                      icon: Icons.account_tree_outlined,
-                      label: 'Branch',
-                      value: run.branch.trim().isEmpty ? '-' : run.branch,
-                    ),
-                  ),
                   SizedBox(
                     width: tileWidth,
                     child: _RunSummaryTile(
@@ -224,23 +213,6 @@ class _RunInformationCard extends StatelessWidget {
               );
             },
           ),
-          if (run.commitMessage.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Mensagem do commit',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              run.commitMessage.trim(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
           if (apkOutcome != null) ...[
             const SizedBox(height: 10),
             _RunOutcomeBanner(text: apkOutcome),
@@ -278,6 +250,11 @@ class _RunInformationCard extends StatelessWidget {
                         label: 'Commit',
                         value: run.shortSha.isEmpty ? '-' : run.shortSha,
                       ),
+                      if (run.commitMessage.trim().isNotEmpty)
+                        _InfoLine(
+                          label: 'Mensagem',
+                          value: run.commitMessage.trim(),
+                        ),
                       _InfoLine(
                         label: 'Criada',
                         value: _RepositoryActionsScreenState._formatDate(
@@ -384,6 +361,112 @@ class _RunInformationCard extends StatelessWidget {
         value.contains('upload') ||
         value.contains('publicar') ||
         value.contains('release');
+  }
+}
+
+// Um cartão compacto com duas informações, sem repetir bordas e espaços.
+class _RunEventBranchTile extends StatelessWidget {
+  const _RunEventBranchTile({required this.event, required this.branch});
+
+  final String event;
+  final String branch;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: .42),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 270;
+          final eventCell = _RunCompactInfo(
+            icon: Icons.bolt_rounded,
+            label: 'Evento',
+            value: event,
+          );
+          final branchCell = _RunCompactInfo(
+            icon: Icons.account_tree_outlined,
+            label: 'Branch',
+            value: branch,
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                eventCell,
+                const SizedBox(height: 7),
+                branchCell,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 3, child: eventCell),
+              const SizedBox(width: 8),
+              Container(
+                height: 32,
+                width: 1,
+                color: scheme.outlineVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(flex: 2, child: branchCell),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RunCompactInfo extends StatelessWidget {
+  const _RunCompactInfo({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 17, color: scheme.onSurfaceVariant),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              Text(
+                value,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
