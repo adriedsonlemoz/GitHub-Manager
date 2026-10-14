@@ -1,3 +1,11 @@
+# Atualização 2.0.123+200137
+
+- Fonte: ZIP 2.0.122+200136, logs Android APK #112.
+- A análise Flutter interrompeu o workflow após cinco erros `argument_type_not_assignable` em `test/static_web_project_detection_test.dart` (linhas 10–14): `ArchiveFile` requer dados `List<int>`, mas eram `String`.
+- Os arquivos de teste passam por `utf8.encode()` e usam `bytes.length` em `ArchiveFile`, removido operador `!` em `ZipEncoder().encode()`.
+- Acrescentado teste de site HTML isolado. Preservadas as melhorias web/Builds/downloads anteriores.
+- Versionamento `2.0.123+200137`. Necessário executar `flutter analyze`, `flutter test` e `assemble` no GitHub Actions; SDK Flutter/Dart indisponível localmente.
+
 # Atualização 2.0.122+200136
 
 - Identificação de projetos: adicionada heurística para **site estático/portfólio** em ZIPs e repositórios, usando `index.html`, `styles.css`, `app.js`, `README.md`, `vercel.json`, `netlify.toml`, `_headers` e `_redirects`.

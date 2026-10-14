@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.122';
+  static const releaseNotesVersion = '2.0.123';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.view_agenda_outlined,
-                      title: 'Resumo das builds em 4 blocos',
-                      description: 'Evento, Branch, Tempo e Etapas cabem na mesma linha quando houver espaço, reduzindo altura e rolagem.',
+                      title: 'Compilação corrigida',
+                      description: 'Corrigidos os cinco erros de tipos no teste de detecção de sites estáticos que bloqueavam o Android APK #112.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.language_rounded,
-                      title: 'Projetos web melhor identificados',
-                      description: 'ZIPs e repositórios com HTML, CSS, JavaScript e Vercel agora podem ser reconhecidos como site estático/portfólio.',
+                      title: 'Identificação web preservada',
+                      description: 'A detecção de HTML, CSS, JavaScript e portfólios da versão anterior permanece disponível.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.downloading_rounded,
-                      title: 'Downloads continuam otimizados',
-                      description: 'A estabilidade de velocidade e a retomada automática de APKs da versão anterior foram preservadas.',
+                      title: 'Builds e downloads mantidos',
+                      description: 'Mantidos os quatro cartões compactos no resumo da build e a retomada de downloads de APK.',
                     ),
                   ],
                 ),

@@ -1,4 +1,12 @@
-# GitHub Manager 2.0.122
+# GitHub Manager 2.0.123
+
+## Correção da análise Dart (Android APK #112) — 2.0.123
+
+- O workflow do APK #112 falhou na etapa `flutter analyze`, antes de executar testes ou compilar o APK, por cinco erros `argument_type_not_assignable` em `test/static_web_project_detection_test.dart`.
+- O construtor `ArchiveFile` exige bytes (`List<int>`), não `String`: o teste agora cria cada arquivo usando `utf8.encode()`, informa o tamanho dos bytes reais e usa `ZipEncoder().encode()` sem `!` desnecessário.
+- Adicionado teste de regressão para um projeto web mínimo com apenas `index.html` na raiz.
+- Foram preservadas a detecção de projetos web da 2.0.122, os quatro cartões compactos no resumo de Builds e as otimizações de downloads da 2.0.121.
+- Validação Flutter/Android continua pendente de execução na CI.
 
 ## Resumo de Builds mais denso e projetos web reconhecidos — 2.0.122
 

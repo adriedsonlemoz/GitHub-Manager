@@ -298,16 +298,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.123',
+                      text: 'Corrige os 5 erros de tipos na análise Dart do APK #112, preservando sites estáticos, layout compacto e downloads.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.122',
                       text: 'Reconhece melhor projetos web/portfólio e compacta o resumo das builds em 4 blocos na mesma linha quando possível.',
                     ),
                     _ChangeNote(
-                      version: '2.0.120',
-                      text: 'Neutraliza o CI antigo preservado pelo upload incremental e corrige os 2 testes dos logs #109 e #108.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.119',
-                      text: 'Alinha testes da tela de Builds às informações de execução exibidas.',
+                      version: '2.0.121',
+                      text: 'Melhora estabilidade de downloads, velocidade e retomada de transferências interrompidas.',
                     ),
                   ],
                 ),

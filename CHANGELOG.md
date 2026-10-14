@@ -1,3 +1,11 @@
+## 2.0.123+200137 — 2026-10-14
+
+- Corrige os 5 erros `argument_type_not_assignable` apontados no Android APK #112 em `test/static_web_project_detection_test.dart`. `ArchiveFile` passa a receber `List<int>` obtido por `utf8.encode`, com comprimento calculado pelos bytes.
+- Remove operador `!` desnecessário após `ZipEncoder().encode()`, eliminando o warning introduzido no mesmo teste.
+- Acrescenta teste de regressão para ZIP com `index.html` isolado; preserva detecção de portfólio estático HTML/CSS/JS.
+- Mantém interface compacta dos 4 cartões em Builds, retomada de download e os demais recursos da 2.0.122. Atualiza versionName/versionCode e documentação.
+- O log do APK #112 encerrou em `flutter analyze`; testes e build Android ainda não foram executados para esta versão.
+
 ## 2.0.122+200136 — 2026-10-14
 
 - Reconhece melhor projetos de site estático/portfólio em ZIPs e repositórios, usando pistas como `index.html`, `styles.css`, `app.js`, `README.md` e `vercel.json`.

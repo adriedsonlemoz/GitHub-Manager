@@ -1,3 +1,7 @@
+### 2.0.123
+
+A versão `2.0.123+200137` corrige cinco incompatibilidades `String` → `List<int>` no teste de projeto web estático que bloquearam o Android APK #112. Remove `!` desnecessário e preserva as melhorias da 2.0.122. Veja `docs/RELEASE_2.0.123.md`.
+
 ### 2.0.122
 
 A versão 2.0.122+200136 amplia a identificação de projetos web/portfólio, infere nome por `README.md` ou `index.html` quando apropriado e compacta o resumo de Builds para exibir Evento, Branch, Tempo e Etapas em uma única linha quando houver espaço. Veja `docs/RELEASE_2.0.122.md`.
@@ -52,7 +56,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.122+200136`
+`version: 2.0.123+200137`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
