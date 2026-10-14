@@ -159,6 +159,10 @@ class _RunInformationCard extends StatelessWidget {
     final stages = steps.isEmpty
         ? 'Aguardando dados do GitHub'
         : '${steps.length} total • $success ok${failed > 0 ? ' • $failed falha' : ''}${skipped > 0 ? ' • $skipped ignoradas' : ''}';
+    final compactEvent = '${_eventLabel(run.event)} • t${run.runAttempt}';
+    final compactStages = steps.isEmpty
+        ? '--'
+        : '${steps.length} • $success✓${failed > 0 ? ' • $failed✗' : ''}${skipped > 0 ? ' • $skipped↷' : ''}';
 
     return Container(
       width: double.infinity,
@@ -178,37 +182,44 @@ class _RunInformationCard extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 9),
-          // Evento e branch dividem um único cartão para economizar altura.
-          _RunEventBranchTile(
-            event: '${_eventLabel(run.event)} • tentativa ${run.runAttempt}',
-            branch: run.branch.trim().isEmpty ? '-' : run.branch,
-          ),
-          const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
-              final tileWidth = constraints.maxWidth >= 340
-                  ? (constraints.maxWidth - 8) / 2
-                  : constraints.maxWidth;
+              final columns = constraints.maxWidth >= 320 ? 4 : 2;
+              final spacing = 6.0;
+              final tileWidth =
+                  (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+              final items = [
+                _RunSummaryTile(
+                  icon: Icons.bolt_rounded,
+                  label: columns == 4 ? 'Evento' : 'Evento',
+                  value: compactEvent,
+                  compact: columns == 4,
+                ),
+                _RunSummaryTile(
+                  icon: Icons.account_tree_outlined,
+                  label: 'Branch',
+                  value: run.branch.trim().isEmpty ? '-' : run.branch,
+                  compact: columns == 4,
+                ),
+                _RunSummaryTile(
+                  icon: Icons.timer_outlined,
+                  label: columns == 4 ? 'Tempo' : 'Duração',
+                  value: duration,
+                  compact: columns == 4,
+                ),
+                _RunSummaryTile(
+                  icon: Icons.fact_check_outlined,
+                  label: 'Etapas',
+                  value: columns == 4 ? compactStages : stages,
+                  compact: columns == 4,
+                ),
+              ];
               return Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: spacing,
+                runSpacing: spacing,
                 children: [
-                  SizedBox(
-                    width: tileWidth,
-                    child: _RunSummaryTile(
-                      icon: Icons.timer_outlined,
-                      label: 'Duração',
-                      value: duration,
-                    ),
-                  ),
-                  SizedBox(
-                    width: tileWidth,
-                    child: _RunSummaryTile(
-                      icon: Icons.fact_check_outlined,
-                      label: 'Etapas',
-                      value: stages,
-                    ),
-                  ),
+                  for (final item in items)
+                    SizedBox(width: tileWidth, child: item),
                 ],
               );
             },
@@ -364,160 +375,60 @@ class _RunInformationCard extends StatelessWidget {
   }
 }
 
-// Um cartão compacto com duas informações, sem repetir bordas e espaços.
-class _RunEventBranchTile extends StatelessWidget {
-  const _RunEventBranchTile({required this.event, required this.branch});
-
-  final String event;
-  final String branch;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: .42),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 270;
-          final eventCell = _RunCompactInfo(
-            icon: Icons.bolt_rounded,
-            label: 'Evento',
-            value: event,
-          );
-          final branchCell = _RunCompactInfo(
-            icon: Icons.account_tree_outlined,
-            label: 'Branch',
-            value: branch,
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                eventCell,
-                const SizedBox(height: 7),
-                branchCell,
-              ],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 3, child: eventCell),
-              const SizedBox(width: 8),
-              Container(
-                height: 32,
-                width: 1,
-                color: scheme.outlineVariant,
-              ),
-              const SizedBox(width: 8),
-              Expanded(flex: 2, child: branchCell),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _RunCompactInfo extends StatelessWidget {
-  const _RunCompactInfo({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 17, color: scheme.onSurfaceVariant),
-        const SizedBox(width: 5),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              Text(
-                value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _RunSummaryTile extends StatelessWidget {
   const _RunSummaryTile({
     required this.icon,
     required this.label,
     required this.value,
+    this.compact = false,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      constraints: const BoxConstraints(minHeight: 64),
-      padding: const EdgeInsets.all(9),
+      constraints: BoxConstraints(minHeight: compact ? 58 : 64),
+      padding: EdgeInsets.all(compact ? 7 : 9),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(alpha: .42),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              Icon(icon, size: compact ? 15 : 18, color: scheme.onSurfaceVariant),
+              SizedBox(width: compact ? 4 : 7),
+              Expanded(
+                child: Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w800,
+                        fontSize: compact ? 10.5 : null,
                       ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+              ),
+            ],
+          ),
+          SizedBox(height: compact ? 3 : 4),
+          Text(
+            value,
+            maxLines: compact ? 3 : 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: compact ? 11.5 : null,
+                  height: compact ? 1.18 : null,
                 ),
-              ],
-            ),
           ),
         ],
       ),

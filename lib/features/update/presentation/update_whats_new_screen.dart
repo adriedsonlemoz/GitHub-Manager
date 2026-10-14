@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.121';
+  static const releaseNotesVersion = '2.0.122';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.view_agenda_outlined,
-                      title: 'Resumo de builds mais compacto',
-                      description: 'Evento e Branch aparecem no mesmo cartão. A mensagem do commit fica recolhida em Detalhes técnicos.',
+                      title: 'Resumo das builds em 4 blocos',
+                      description: 'Evento, Branch, Tempo e Etapas cabem na mesma linha quando houver espaço, reduzindo altura e rolagem.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.speed_rounded,
-                      title: 'Velocidade de download mais estável',
-                      description: 'Média dos últimos segundos e menos atualizações da interface, sem alterar artificialmente a velocidade real da conexão.',
+                      icon: Icons.language_rounded,
+                      title: 'Projetos web melhor identificados',
+                      description: 'ZIPs e repositórios com HTML, CSS, JavaScript e Vercel agora podem ser reconhecidos como site estático/portfólio.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.downloading_rounded,
-                      title: 'Retomada e integridade de APK',
-                      description: 'Falhas temporárias permitem até duas reconexões. O app verifica transferências incompletas e não junta intervalos incompatíveis.',
+                      title: 'Downloads continuam otimizados',
+                      description: 'A estabilidade de velocidade e a retomada automática de APKs da versão anterior foram preservadas.',
                     ),
                   ],
                 ),

@@ -1,10 +1,10 @@
-## 2.0.121+200135 — 2026-10-12
+## 2.0.122+200136 — 2026-10-14
 
-- Agrupa Evento + Branch em cartão horizontal responsivo no resumo da build; preserva mensagem de commit recolhida em Detalhes técnicos.
-- Suaviza medição da velocidade dos downloads com média temporal de 5 segundos e limita atualizações visuais a ~350 ms, reduzindo pressão na renderização durante transferência de APKs grandes.
-- Releases e Artifacts recuperam interrupções transitórias com até duas reconexões e revalidação de URL assinada, retomando pelos bytes persistidos em disco quando HTTP Range é aceito.
-- Impede anexar Range 206 incompatível e identifica encerramento prematuro em transferências com comprimento conhecido. Falhas definitivas de autenticação/permissão não geram retentativas.
-- Mantém proteção de workflow legado da 2.0.120, inspeção de APK/ABI e metadados. Documentação e histórico sincronizados; build Android pendente.
+- Reconhece melhor projetos de site estático/portfólio em ZIPs e repositórios, usando pistas como `index.html`, `styles.css`, `app.js`, `README.md` e `vercel.json`.
+- Quando faltam metadados explícitos, infere nome de projetos web pelo primeiro título do `README.md` ou pelo `<title>` do `index.html`, sem sobrescrever metadados fortes já existentes.
+- No detalhe da execução em Builds, reorganiza o resumo em quatro cartões compactos (Evento, Branch, Tempo e Etapas) na mesma linha quando a largura permitir; reduz rótulos e densidade vertical.
+- Mantém as otimizações de downloads da 2.0.121 e sincroniza documentação, tela de Novidades, Configurações, notas de release e versionCode `200136`.
+- Foram acrescentados testes para projeto web estático e ajustado o contrato visual do resumo; Flutter/Android não puderam ser executados localmente.
 
 ## 2.0.120+200134 — 2026-10-12
 

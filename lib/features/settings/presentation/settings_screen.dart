@@ -298,8 +298,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.121',
-                      text: 'Une Evento e Branch, simplifica a tela das builds e estabiliza downloads de APK com média de velocidade, menos atualizações e retomada automática.',
+                      version: '2.0.122',
+                      text: 'Reconhece melhor projetos web/portfólio e compacta o resumo das builds em 4 blocos na mesma linha quando possível.',
                     ),
                     _ChangeNote(
                       version: '2.0.120',

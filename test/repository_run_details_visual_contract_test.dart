@@ -10,13 +10,12 @@ void main() {
 
     expect(widgets, contains("'Resumo'"));
     expect(widgets, contains('class _RunSummaryTile'));
-    expect(widgets, contains('class _RunEventBranchTile'));
-    expect(widgets, contains('class _RunCompactInfo'));
     expect(widgets, contains("label: 'Mensagem'"));
     expect(widgets, contains("'Evento'"));
     expect(widgets, contains("'Branch'"));
-    expect(widgets, contains("'Duração'"));
+    expect(widgets, contains("'Tempo'"));
     expect(widgets, contains("'Etapas'"));
+    expect(widgets, contains('columns = constraints.maxWidth >= 320 ? 4 : 2'));
     expect(widgets, contains("'Detalhes técnicos'"));
     expect(widgets, contains("'Execução, commit, horários e workflow'"));
     expect(widgets, isNot(contains("'Informações da execução'")));

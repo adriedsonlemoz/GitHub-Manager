@@ -1,6 +1,6 @@
-### 2.0.121
+### 2.0.122
 
-A versão 2.0.121+200135 compacta Evento/Branch no resumo das execuções, mantém a mensagem de commit recolhida e melhora downloads grandes por média móvel, atualização visual limitada, novas tentativas de rede com retomada e checagens HTTP de integridade. Veja `docs/RELEASE_2.0.121.md`.
+A versão 2.0.122+200136 amplia a identificação de projetos web/portfólio, infere nome por `README.md` ou `index.html` quando apropriado e compacta o resumo de Builds para exibir Evento, Branch, Tempo e Etapas em uma única linha quando houver espaço. Veja `docs/RELEASE_2.0.122.md`.
 
 ### 2.0.120
 
@@ -52,7 +52,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.121+200135`
+`version: 2.0.122+200136`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

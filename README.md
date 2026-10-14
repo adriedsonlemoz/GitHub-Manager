@@ -1,13 +1,14 @@
-# GitHub Manager 2.0.121
+# GitHub Manager 2.0.122
 
-## Builds compactos e Downloads estáveis — 2.0.121
+## Resumo de Builds mais denso e projetos web reconhecidos — 2.0.122
 
-- **Resumo das execuções:** Evento e Branch no mesmo cartão, economizando espaço vertical; Mensagem do commit removida da área principal e preservada dentro de Detalhes técnicos.
-- **Central de Downloads:** interface/ETA atualizadas no máximo a cada ~350 ms em vez de a cada chunk; velocidade calculada por média móvel de 5 s, evitando valores instantâneos artificiais; contador de bytes continua acompanhando a transferência real.
-- **APKs de Releases e Artifacts:** duas novas tentativas automáticas após falhas transitórias, com URL assinada do GitHub renovada e retomada por HTTP Range sempre que possível. Respostas 401/403/404 não são repetidas automaticamente.
-- **Segurança:** respostas HTTP 206 com Content-Range incoerente são rejeitadas antes de anexar dados; transferências encerradas antes do tamanho declarado são detectadas. A inspeção estrutural e ABI do APK existente permanece ativa.
+- **Projetos web estáticos/portfólio:** o app agora identifica melhor ZIPs e repositórios com estrutura como `index.html`, `styles.css`, `app.js`, `README.md` e `vercel.json`, classificando-os como **Site estático**.
+- **Nome do projeto web:** quando não houver metadado mais forte, o nome pode ser inferido pelo primeiro título do `README.md` ou pelo `<title>` do `index.html`.
+- **Tecnologias detectadas:** repositórios desse tipo passam a mostrar melhor pistas como **Web**, **HTML**, **CSS**, **JavaScript** e **Vercel**.
+- **Resumo das execuções:** no detalhe da Build, os quatro blocos **Evento, Branch, Tempo e Etapas** passam a ocupar a mesma linha quando a largura permitir, reduzindo altura e rolagem.
+- **Downloads de APK:** permanecem as otimizações da 2.0.121 para velocidade mais estável, menos atualizações visuais e retomada automática em falhas transitórias.
 
-**Limites:** essas mudanças reduzem trabalho na UI e recuperam falhas transitórias, mas não removem gargalos do provedor, Wi-Fi ou CDN do GitHub. A compilação Android completa e testes em rede real precisam ser confirmados em CI/aparelho.
+**Limites:** a identificação web continua heurística e não substitui metadados explícitos. A validação final de layout/compilação depende da CI e de testes em aparelho.
 
 ## Correção da CI duplicada (Android APK #109 / CI #108) — 2.0.120
 

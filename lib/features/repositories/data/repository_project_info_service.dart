@@ -219,11 +219,12 @@ class RepositoryProjectInfoService {
         }
       }
 
+      final rootNames = names.keys.toSet();
       // Manifest/strings só são consultados quando não existe um nome mais
       // confiável; nunca inferir identidade forte apenas de um rótulo visual.
       if (projectName == repository.name) {
         final androidName = await _androidDisplayName(
-          rootNames: names.keys.toSet(),
+          rootNames: rootNames,
           readPath: readPath,
         );
         if (androidName != null) {
@@ -231,13 +232,34 @@ class RepositoryProjectInfoService {
           nameSource = 'AndroidManifest.xml / strings.xml';
         }
       }
+      if (projectName == repository.name) {
+        final webName = await _staticWebDisplayName(
+          rootNames: rootNames,
+          readPath: readPath,
+        );
+        if (webName != null) {
+          projectName = webName;
+          nameSource = 'README.md / index.html';
+        }
+      }
+
+      final technologies = <String>[];
+      if (_looksLikeStaticWebProject(rootNames)) {
+        technologies.addAll(_staticWebTechnologies(rootNames));
+      }
+      if (repository.language?.isNotEmpty == true &&
+          !technologies.any(
+            (item) => item.toLowerCase() == repository.language!.toLowerCase(),
+          )) {
+        technologies.add(repository.language!);
+      }
 
       return RepositoryProjectInfo(
         projectName: projectName,
         version: version,
         versionSource: versionSource,
         nameSource: nameSource,
-        technologies: [if (repository.language?.isNotEmpty == true) repository.language!],
+        technologies: technologies,
       );
     } on AppException catch (error) {
       return RepositoryProjectInfo(
@@ -530,33 +552,55 @@ class RepositoryProjectInfoService {
         }
       }
 
+      final rootNames = names.keys.toSet();
+      Future<String?> readAnyPath(String path) async {
+        try {
+          final response = await _client.get<Map<String, dynamic>>(
+            '/repos/${repository.fullName}/contents/${path.split('/').map(Uri.encodeComponent).join('/')}',
+            queryParameters: {'ref': resolvedBranch},
+          );
+          final data = response.data ?? const <String, dynamic>{};
+          if (data['encoding'] != 'base64') return null;
+          final encoded = (data['content'] as String? ?? '').replaceAll('\n', '');
+          return encoded.isEmpty
+              ? null
+              : utf8.decode(base64.decode(encoded), allowMalformed: true);
+        } catch (_) {
+          return null;
+        }
+      }
+
       if (projectName == repository.name) {
         final androidName = await _androidDisplayName(
-          rootNames: names.keys.toSet(),
-          readPath: (path) async {
-            try {
-              final response = await _client.get<Map<String, dynamic>>(
-                '/repos/${repository.fullName}/contents/${path.split('/').map(Uri.encodeComponent).join('/')}',
-                queryParameters: {'ref': resolvedBranch},
-              );
-              final data = response.data ?? const <String, dynamic>{};
-              if (data['encoding'] != 'base64') return null;
-              final encoded = (data['content'] as String? ?? '').replaceAll('\n', '');
-              return encoded.isEmpty
-                  ? null
-                  : utf8.decode(base64.decode(encoded), allowMalformed: true);
-            } catch (_) {
-              return null;
-            }
-          },
+          rootNames: rootNames,
+          readPath: readAnyPath,
         );
         if (androidName != null) {
           projectName = androidName;
           nameSource = 'AndroidManifest.xml / strings.xml';
         }
       }
+      if (projectName == repository.name) {
+        final webName = await _staticWebDisplayName(
+          rootNames: rootNames,
+          readPath: readAnyPath,
+        );
+        if (webName != null) {
+          projectName = webName;
+          nameSource = 'README.md / index.html';
+        }
+      }
 
       final technologies = <String>[...metadataTechnologies];
+      if (_looksLikeStaticWebProject(rootNames)) {
+        for (final item in _staticWebTechnologies(rootNames)) {
+          if (!technologies.any(
+            (value) => value.toLowerCase() == item.toLowerCase(),
+          )) {
+            technologies.add(item);
+          }
+        }
+      }
       if (names.containsKey('pubspec.yaml')) {
         technologies.add('Flutter');
       }
@@ -643,6 +687,74 @@ class RepositoryProjectInfoService {
       if (resolved != null) return resolved;
     }
     return null;
+  }
+
+  static Future<String?> _staticWebDisplayName({
+    required Set<String> rootNames,
+    required Future<String?> Function(String path) readPath,
+  }) async {
+    if (!_looksLikeStaticWebProject(rootNames)) return null;
+    final readmePath = rootNames.contains('readme.md') ? 'README.md' : null;
+    if (readmePath != null) {
+      final readme = await readPath(readmePath);
+      final heading = RegExp(r'^#\s+(.+)$', multiLine: true)
+          .firstMatch(readme ?? '')
+          ?.group(1)
+          ?.trim();
+      if (heading != null && heading.isNotEmpty) {
+        return heading;
+      }
+    }
+    final htmlPath = rootNames.contains('index.html')
+        ? 'index.html'
+        : rootNames.contains('index.htm')
+            ? 'index.htm'
+            : null;
+    if (htmlPath != null) {
+      final html = await readPath(htmlPath);
+      final title = RegExp(r'<title>([^<]+)</title>', caseSensitive: false)
+          .firstMatch(html ?? '')
+          ?.group(1)
+          ?.trim();
+      if (title != null && title.isNotEmpty) {
+        return title.replaceAll('&amp;', '&');
+      }
+    }
+    return null;
+  }
+
+  static bool _looksLikeStaticWebProject(Iterable<String> rootNames) {
+    final names = rootNames.map((item) => item.toLowerCase()).toSet();
+    final hasHtml = names.contains('index.html') || names.contains('index.htm');
+    final hasCss = names.any((item) => item.endsWith('.css'));
+    final hasJs = names.any(
+      (item) => item.endsWith('.js') || item.endsWith('.mjs') || item.endsWith('.cjs'),
+    );
+    final hasHosting = names.contains('vercel.json') ||
+        names.contains('netlify.toml') ||
+        names.contains('_headers') ||
+        names.contains('_redirects');
+    return hasHtml || (hasCss && hasJs) || hasHosting;
+  }
+
+  static List<String> _staticWebTechnologies(Iterable<String> rootNames) {
+    final names = rootNames.map((item) => item.toLowerCase()).toSet();
+    final technologies = <String>['Web'];
+    if (names.any((item) => item.endsWith('.html') || item.endsWith('.htm'))) {
+      technologies.add('HTML');
+    }
+    if (names.any((item) => item.endsWith('.css'))) {
+      technologies.add('CSS');
+    }
+    if (names.any(
+      (item) => item.endsWith('.js') || item.endsWith('.mjs') || item.endsWith('.cjs'),
+    )) {
+      technologies.add('JavaScript');
+    }
+    if (names.contains('vercel.json')) {
+      technologies.add('Vercel');
+    }
+    return technologies;
   }
 
   static String? _versionFromJsonMap(Map<String, dynamic> map) {

@@ -1,9 +1,10 @@
-# Atualização 2.0.121+200135
+# Atualização 2.0.122+200136
 
-- Interface de Builds: Evento + Branch combinados em um cartão, com mensagem do commit somente nos Detalhes técnicos.
-- Downloads: média móvel de velocidade (~5 s), limite de atualização visual (~350 ms), reconexão automática limitada a duas tentativas extras de Releases e Artifacts com recuperação por HTTP Range.
-- GitHub API: verifica Content-Range de 206 e encerramento antes do Content-Length conhecido; preserva inspeção de APK.
-- Revisão: executar os testes e a compilação no GitHub Actions; validar desempenho em Wi-Fi real e arquivos grandes. Nenhum dado de terceiros ou token deve ser incluído em logs.
+- Identificação de projetos: adicionada heurística para **site estático/portfólio** em ZIPs e repositórios, usando `index.html`, `styles.css`, `app.js`, `README.md`, `vercel.json`, `netlify.toml`, `_headers` e `_redirects`.
+- Nome de projeto web: quando não há metadado mais forte, o app pode usar o primeiro `#` do `README.md` ou o `<title>` do `index.html`.
+- Builds: resumo do detalhe da execução reorganizado em **4 cartões** (Evento, Branch, Tempo, Etapas) na mesma linha quando houver largura suficiente; rótulos e texto reduzidos para celular.
+- Downloads: mantidas as otimizações da 2.0.121 para velocidade/retomada de APK.
+- Revisão: validar em CI/aparelho o layout dos 4 cartões e a identificação do portfólio web. Sem Flutter/Dart local neste ambiente.
 
 # Histórico 2.0.120+200134
 

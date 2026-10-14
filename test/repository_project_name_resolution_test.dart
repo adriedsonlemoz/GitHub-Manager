@@ -40,6 +40,22 @@ void main() {
     expect(summary.version, '1.2.3');
   });
 
+  test('Web: reconhece portfólio estático por README/index e tecnologias', () async {
+    final service = RepositoryProjectInfoService(
+      _ProjectInfoClient(repositoryFullName: 'owner/adriedsonlemos'),
+    );
+    final summary = await service.loadSummary(_webRepo);
+    expect(summary.projectName, 'Adriedson Lemos | Portfólio pessoal');
+    expect(summary.nameSource, 'README.md / index.html');
+
+    final full = await service.load(_webRepo);
+    expect(full.projectName, 'Adriedson Lemos | Portfólio pessoal');
+    expect(
+      full.technologies,
+      containsAll(['Web', 'HTML', 'CSS', 'JavaScript', 'Vercel']),
+    );
+  });
+
   test('Home resolve nome Android mesmo quando versão já veio do Gradle', () async {
     final client = _ProjectInfoClient();
     final service = RepositoryProjectInfoService(client);
@@ -66,40 +82,101 @@ const _repo = GitHubRepository(
   language: 'Kotlin',
 );
 
+const _webRepo = GitHubRepository(
+  id: 2,
+  name: 'adriedsonlemos',
+  fullName: 'owner/adriedsonlemos',
+  isPrivate: false,
+  isArchived: false,
+  defaultBranch: 'main',
+  updatedAt: null,
+  htmlUrl: 'https://github.com/owner/adriedsonlemos',
+  language: 'HTML',
+);
+
 class _ProjectInfoClient extends GitHubApiClient {
-  _ProjectInfoClient({this.withMetadata = false}) : super(SecureStorageService());
+  _ProjectInfoClient({
+    this.withMetadata = false,
+    this.repositoryFullName = 'owner/Camera-Kotlin',
+  }) : super(SecureStorageService());
+
   final bool withMetadata;
+  final String repositoryFullName;
 
   @override
-  Future<Response<T>> get<T>(String path, {
+  Future<Response<T>> get<T>(
+    String path, {
     Map<String, dynamic>? queryParameters,
     CancelToken? cancelToken,
   }) async {
     dynamic result;
-    final files = <String, String>{
+    final androidFiles = <String, String>{
       'app/build.gradle.kts': 'versionName = "1.2.3"\nversionCode = 123',
-      'app/src/main/AndroidManifest.xml': '''<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="@string/app_name" /></manifest>''',
-      'app/src/main/res/values/strings.xml': '<resources><string name="app_name">Câmera da Casa</string></resources>',
+      'app/src/main/AndroidManifest.xml':
+          '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="@string/app_name" /></manifest>',
+      'app/src/main/res/values/strings.xml':
+          '<resources><string name="app_name">Câmera da Casa</string></resources>',
     };
-    if (path == '/repos/owner/Camera-Kotlin/contents') {
-      result = <dynamic>[
-        {'name': 'app', 'type': 'dir', 'path': 'app'},
-        if (withMetadata) {'name': 'app_identity.json', 'type': 'file', 'path': 'app_identity.json'},
-      ];
-    } else if (path == '/repos/owner/Camera-Kotlin/languages') {
-      result = <String, dynamic>{'Kotlin': 1500};
+    final webFiles = <String, String>{
+      'README.md':
+          '# Adriedson Lemos | Portfólio pessoal\n\nSite estático em HTML, CSS e JavaScript puro.',
+      'index.html':
+          '<!doctype html><html><head><title>Adriedson Lemos | Tecnologia &amp; Projetos</title></head><body></body></html>',
+      'styles.css': 'body{margin:0;}',
+      'app.js': 'console.log("portfolio");',
+      'vercel.json': '{}',
+    };
+
+    if (path == '/repos/$repositoryFullName/contents') {
+      if (repositoryFullName == 'owner/Camera-Kotlin') {
+        result = <dynamic>[
+          {'name': 'app', 'type': 'dir', 'path': 'app'},
+          if (withMetadata)
+            {
+              'name': 'app_identity.json',
+              'type': 'file',
+              'path': 'app_identity.json',
+            },
+        ];
+      } else if (repositoryFullName == 'owner/adriedsonlemos') {
+        result = <dynamic>[
+          {'name': 'README.md', 'type': 'file', 'path': 'README.md'},
+          {'name': 'index.html', 'type': 'file', 'path': 'index.html'},
+          {'name': 'styles.css', 'type': 'file', 'path': 'styles.css'},
+          {'name': 'app.js', 'type': 'file', 'path': 'app.js'},
+          {'name': 'vercel.json', 'type': 'file', 'path': 'vercel.json'},
+        ];
+      } else {
+        throw StateError('Repositório inesperado: $repositoryFullName');
+      }
+    } else if (path == '/repos/$repositoryFullName/languages') {
+      result = repositoryFullName == 'owner/adriedsonlemos'
+          ? <String, dynamic>{'HTML': 1000, 'CSS': 700, 'JavaScript': 650}
+          : <String, dynamic>{'Kotlin': 1500};
     } else if (path == '/repos/owner/Camera-Kotlin/contents/app_identity.json' &&
         withMetadata) {
       result = <String, dynamic>{
         'encoding': 'base64',
-        'content': base64.encode(utf8.encode(
-            '{"displayName":"Nome Oficial","version":"1.2.3"}')),
+        'content': base64.encode(
+          utf8.encode('{"displayName":"Nome Oficial","version":"1.2.3"}'),
+        ),
       };
     } else if (path.startsWith('/repos/owner/Camera-Kotlin/contents/')) {
       final filename = path.substring('/repos/owner/Camera-Kotlin/contents/'.length);
-      final contents = files[filename];
+      final contents = androidFiles[filename];
       if (contents == null) throw StateError('Arquivo ausente: $filename');
-      result = {'encoding': 'base64', 'content': base64.encode(utf8.encode(contents))};
+      result = {
+        'encoding': 'base64',
+        'content': base64.encode(utf8.encode(contents)),
+      };
+    } else if (path.startsWith('/repos/owner/adriedsonlemos/contents/')) {
+      final filename = path.substring('/repos/owner/adriedsonlemos/contents/'.length);
+      final contents = webFiles[filename];
+      if (contents == null) throw StateError('Arquivo ausente: $filename');
+      result = {
+        'encoding': 'base64',
+        'content': base64.encode(utf8.encode(contents)),
+      };
     } else {
       throw StateError('Caminho inesperado: $path');
     }

@@ -496,6 +496,9 @@ class LocalProjectService {
     if (lower.any((path) => path.endsWith('cargo.toml'))) {
       return 'Rust';
     }
+    if (_looksLikeStaticWebProject(lower)) {
+      return 'Site estático';
+    }
     if (lower.any((path) => path.endsWith('package.json'))) {
       return 'Node/JavaScript';
     }
@@ -506,6 +509,25 @@ class LocalProjectService {
       return 'PHP';
     }
     return 'Projeto genérico';
+  }
+
+  static bool _looksLikeStaticWebProject(List<String> lower) {
+    final hasHtml = lower.any(
+      (path) => path.endsWith('.html') || path.endsWith('.htm'),
+    );
+    if (!hasHtml) return false;
+    final hasRootIndex = lower.any((path) => _isLikelyRootFile(path, 'index.html'));
+    final hasCss = lower.any((path) => path.endsWith('.css'));
+    final hasJs = lower.any(
+      (path) => path.endsWith('.js') || path.endsWith('.mjs') || path.endsWith('.cjs'),
+    );
+    final hasStaticHostingConfig = lower.any(
+      (path) => _isLikelyRootFile(path, 'vercel.json') ||
+          _isLikelyRootFile(path, 'netlify.toml') ||
+          _isLikelyRootFile(path, '_headers') ||
+          _isLikelyRootFile(path, '_redirects'),
+    );
+    return hasRootIndex || (hasCss && hasJs) || hasStaticHostingConfig;
   }
 }
 
