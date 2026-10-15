@@ -1,3 +1,12 @@
+# Atualização 2.0.125+200139
+
+- Canal nativo `getInstalledAppInfo` usa PackageManager sob consulta de pacote individual validado; read `versionName`, `longVersionCode` e status installed/notInstalled/unknown. Ausência no Android 11+ não confirma desinstalação.
+- Manifest usa queries de apps com launcher, sem QUERY_ALL_PACKAGES.
+- `repositoryApkStatusProvider` combina projetos/Release/Artifacts e estado instalado, com duas fontes independentes.
+- `ApkInstallationAssessment` compara SemVer e code somente se ambos informados. Estado Atualizado sem código remoto tem ressalva explícita.
+- UI mostra status e versões, muda label do botão APK e solicita confirmação para baixar versão já instalada/mais antiga.
+- Na sequência, rodar flutter analyze/test/build no GitHub Actions; validar no Android real. 
+
 # Atualização 2.0.124+200138
 
 - Atalho APK na tela do repositório: remove guarda baseada só em Artifacts e consulta Releases+Artifacts sob demanda; mostra seletor existente para variantes da versão mais recente, iniciando downloads com DownloadManagerService.

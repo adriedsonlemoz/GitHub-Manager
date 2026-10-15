@@ -1,3 +1,12 @@
+## 2.0.125+200139 — 2026-10-15
+
+- Inclui consulta nativa à instalação por `applicationId` e leitura da versão instalada/versionCode pelo Android PackageManager, sem enumeração de aplicativos nem QUERY_ALL_PACKAGES.
+- Integra ao botão APK os estados Instalar/Atualizar/Atualizado/Mais recente no aparelho/Não foi possível verificar, exibindo versões no detalhe do repositório.
+- Compara a versão publicada mais recente das Releases/Artifacts com a instalada, prioriza dados confiáveis e informa quando só há versionName estimado sem código remoto.
+- Em Android 11+, resultado não encontrado pela consulta pode ser causado por pacote invisível; não é rotulado como ausência confirmada.
+- Ao baixar versão igual ou mais antiga, solicita confirmação; preserva seleção de ABIs, downloads, assinatura/instalação explícita, versão sequencial e metadados.
+- Acrescenta testes de comparação de versão, leitura do canal e contratos de integração. Flutter/Android precisam ser verificados na CI e no aparelho.
+
 ## 2.0.124+200138 — 2026-10-15
 
 - Corrige o botão APK cinza na tela do repositório: a disponibilidade deixou de depender exclusivamente de Artifacts; as Releases são consultadas diretamente ao tocar.

@@ -223,6 +223,10 @@ class MainActivity : FlutterActivity() {
                         GitHubManagerApplication.consumePendingEngineLifecycle(applicationContext),
                     )
                 }
+                "getInstalledAppInfo" -> {
+                    val packageName = call.argument<String>("packageName").orEmpty()
+                    queryInstalledApp(packageName, result)
+                }
                 "getDeviceInfo" -> {
                     result.success(
                         mapOf(
@@ -247,6 +251,51 @@ class MainActivity : FlutterActivity() {
                 }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun queryInstalledApp(packageName: String, result: MethodChannel.Result) {
+        // Nunca enumera apps: consulta apenas o applicationId informado pelo projeto.
+        val valid = Regex("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$")
+        if (packageName.length !in 3..255 || !valid.matches(packageName)) {
+            result.success(mapOf("status" to "unknown", "reason" to "invalid_package_id"))
+            return
+        }
+        try {
+            val info = if (Build.VERSION.SDK_INT >= 33) {
+                packageManager.getPackageInfo(
+                    packageName,
+                    PackageManager.PackageInfoFlags.of(0),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0)
+            }
+            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                info.versionCode.toLong()
+            }
+            result.success(
+                mapOf(
+                    "status" to "installed",
+                    "packageName" to info.packageName,
+                    "versionName" to (info.versionName ?: ""),
+                    "versionCode" to code,
+                ),
+            )
+        } catch (_: PackageManager.NameNotFoundException) {
+            // No Android 11+, ausência de visibilidade e desinstalação são
+            // indistinguíveis. Nunca afirmar desinstalação em caso ambíguo.
+            result.success(
+                mapOf("status" to if (Build.VERSION.SDK_INT >= 30) "unknown" else "notInstalled",
+                      "reason" to if (Build.VERSION.SDK_INT >= 30) "package_visibility" else "absent"),
+            )
+        } catch (_: SecurityException) {
+            result.success(mapOf("status" to "unknown", "reason" to "security"))
+        } catch (_: Exception) {
+            result.success(mapOf("status" to "unknown", "reason" to "query_failed"))
         }
     }
 

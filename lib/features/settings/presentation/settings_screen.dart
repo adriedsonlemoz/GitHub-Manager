@@ -298,16 +298,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.125',
+                      text: 'Compara a versão instalada com a última disponível no GitHub e mostra Instalar, Atualizar, Atualizado ou status desconhecido.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.124',
-                      text: 'Ativa o atalho APK do repositório para baixar a última versão, oferecendo seleção ARM64/ARM32/x86/Universal quando houver variantes.',
+                      text: 'Ativa o atalho APK e a seleção ARM64/ARM32/x86/Universal direto no repositório.',
                     ),
                     _ChangeNote(
                       version: '2.0.123',
-                      text: 'Corrige os 5 erros de tipos na análise Dart do APK #112, preservando sites estáticos, layout compacto e downloads.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.122',
-                      text: 'Reconhece melhor projetos web/portfólio e compacta o resumo das builds em 4 blocos na mesma linha quando possível.',
+                      text: 'Corrige a análise Dart do APK #112 e preserva a detecção de sites estáticos.',
                     ),
                   ],
                 ),

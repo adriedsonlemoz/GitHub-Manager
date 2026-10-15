@@ -1,4 +1,16 @@
-# GitHub Manager 2.0.124
+# GitHub Manager 2.0.125
+
+## APK: instalação e atualização no Android — 2.0.125
+
+- Mostra no detalhe do repositório os estados **Instalar**, **Atualizar**, **Atualizado**, **Mais recente no aparelho**, **Sem APK** e **Não foi possível verificar**. Apresenta a versão instalada e a última versão de APK identificada no GitHub.
+- Usa `applicationId` obtido dos metadados do projeto. Não infere o nome do pacote a partir do nome do repositório.
+- Consulta apenas o pacote solicitado pelo `PackageManager` Android por canal nativo, com `longVersionCode` e `versionName`. O manifesto declara visibilidade de apps com tela inicial, **sem QUERY_ALL_PACKAGES**.
+- Android 11+ pode ocultar pacotes. Quando uma consulta não encontra o pacote em um sistema sujeito a essa restrição, o app informa **Não foi possível verificar** em vez de afirmar que está desinstalado.
+- Compara as versões publicadas em Releases/Artifacts com a versão instalada. Quando só existe versionName inferido do nome do arquivo/tag e não há versionCode remoto, apresenta ressalva explícita de que a comparação é pela versão visível.
+- Mantém seleção de arquitetura e download direto; se uma versão igual ou anterior já estiver instalada, pergunta antes de baixá-la novamente.
+- A instalação da atualização continua exigindo confirmação do Android e assinatura compatível. As otimizações de transferência anteriores foram mantidas.
+
+**Limites:** a identidade e a versão real de um APK de Release não podem ser garantidas apenas pelo nome do arquivo; sem metadados suficientes a comparação é indicativa. Validação final exige `flutter analyze`, testes na CI e aparelho real.
 
 ## Atalho APK funcional no repositório — 2.0.124
 

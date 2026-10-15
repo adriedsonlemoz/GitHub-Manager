@@ -69,6 +69,7 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
       ref.invalidate(repositoryArtifactsProvider(widget.repositoryFullName));
       ref.invalidate(repositoryReleaseAssetsProvider(widget.repositoryFullName));
     }
+    ref.invalidate(repositoryApkStatusProvider);
     final repository = widget.readOnly
         ? ref.read(repositoryServiceProvider).getRepository(widget.repositoryFullName)
         : _loadRepository();
@@ -134,34 +135,15 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
     if (_apkShortcutBusy) return;
     setState(() => _apkShortcutBusy = true);
     try {
-      final service = ref.read(artifactServiceProvider);
-      List<ReleaseAsset> releases = const [];
-      List<ActionArtifact> artifacts = const [];
-      Object? releaseError;
-      Object? artifactError;
-      // As fontes são independentes: falha em uma não esconde APKs da outra.
-      Future<void> loadReleases() async {
-        try {
-          releases = await service.listReleaseAssets(repository.fullName);
-        } catch (error) {
-          releaseError = error;
-        }
-      }
-
-      Future<void> loadArtifacts() async {
-        try {
-          artifacts = await service.listArtifacts(repository.fullName);
-        } catch (error) {
-          artifactError = error;
-        }
-      }
-
-      await Future.wait<void>([loadReleases(), loadArtifacts()]);
-      if (!mounted) return;
-      final latest = LatestApkShortcut.resolve(
-        releases: releases,
-        artifacts: artifacts,
+      // A consulta alimenta tanto o status na tela quanto o atalho de APK.
+      // O cache do provider evita duas pesquisas independentes seguidas.
+      final apkStatus = await ref.read(
+        repositoryApkStatusProvider(repository).future,
       );
+      if (!mounted) return;
+      final latest = apkStatus.latest;
+      final releaseError = apkStatus.releaseError;
+      final artifactError = apkStatus.artifactError;
       if (latest.isEmpty) {
         final bothUnavailable = releaseError != null && artifactError != null;
         await showDialog<void>(
@@ -191,6 +173,38 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
           ),
         );
         return;
+      }
+
+      final assessment = apkStatus.assessment;
+      if (assessment.state == ApkInstallationState.current ||
+          assessment.state == ApkInstallationState.newerInstalled) {
+        final continueDownload = await showDialog<bool>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: Text(assessment.state == ApkInstallationState.current
+                    ? 'Esta versão já está instalada'
+                    : 'O aparelho tem uma versão mais recente'),
+                content: Text(
+                  'Instalada: ${assessment.installedVersion ?? "desconhecida"}\n'
+                  'GitHub: ${assessment.availableVersion ?? "não identificada"}\n\n'
+                  '${assessment.detail ?? ""}\n\n'
+                  'Deseja escolher um APK para baixar mesmo assim? '
+                  'A atualização exige assinatura compatível e confirmação do Android.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Cancelar'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Escolher APK'),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+        if (!mounted || !continueDownload) return;
       }
 
       AndroidDeviceInfo? deviceInfo;

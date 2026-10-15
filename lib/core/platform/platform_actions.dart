@@ -39,6 +39,37 @@ class AndroidDeviceInfo {
       );
 }
 
+enum InstalledAppQueryStatus { installed, notInstalled, unknown }
+
+class InstalledAndroidApp {
+  const InstalledAndroidApp({
+    required this.status,
+    this.packageName,
+    this.versionName,
+    this.versionCode,
+    this.reason,
+  });
+
+  final InstalledAppQueryStatus status;
+  final String? packageName;
+  final String? versionName;
+  final int? versionCode;
+  final String? reason;
+
+  factory InstalledAndroidApp.fromMap(Map<String, Object?> data) =>
+      InstalledAndroidApp(
+        status: switch (data['status']) {
+          'installed' => InstalledAppQueryStatus.installed,
+          'notInstalled' => InstalledAppQueryStatus.notInstalled,
+          _ => InstalledAppQueryStatus.unknown,
+        },
+        packageName: data['packageName'] as String?,
+        versionName: data['versionName'] as String?,
+        versionCode: (data['versionCode'] as num?)?.toInt(),
+        reason: data['reason'] as String?,
+      );
+}
+
 class ActivityLaunchState {
   const ActivityLaunchState({
     required this.cachedEngineReattach,
@@ -198,6 +229,19 @@ abstract final class PlatformActions {
       );
     }
     return AndroidDeviceInfo.fromMap(raw);
+  }
+
+  static Future<InstalledAndroidApp> getInstalledAppInfo(
+    String packageName,
+  ) async {
+    final raw = await _channel.invokeMapMethod<String, Object?>(
+      'getInstalledAppInfo',
+      {'packageName': packageName},
+    );
+    if (raw == null) {
+      return const InstalledAndroidApp(status: InstalledAppQueryStatus.unknown);
+    }
+    return InstalledAndroidApp.fromMap(raw);
   }
 
   static Future<ActivityLaunchState> getActivityLaunchState() async {

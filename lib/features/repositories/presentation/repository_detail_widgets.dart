@@ -1,5 +1,65 @@
 part of 'repository_detail_screen.dart';
 
+
+class _RepositoryApkInstallationStatus extends StatelessWidget {
+  const _RepositoryApkInstallationStatus({required this.assessment});
+
+  final ApkInstallationAssessment assessment;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final icon = switch (assessment.state) {
+      ApkInstallationState.install => Icons.download_outlined,
+      ApkInstallationState.update => Icons.system_update_alt_rounded,
+      ApkInstallationState.current => Icons.check_circle_outline_rounded,
+      ApkInstallationState.newerInstalled => Icons.phone_android_rounded,
+      ApkInstallationState.noApk => Icons.archive_outlined,
+      ApkInstallationState.unknown => Icons.help_outline_rounded,
+    };
+    final installed = assessment.installedVersion;
+    final available = assessment.availableVersion;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .35)),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: scheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('APK: ${assessment.label}',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        )),
+                if (installed != null || available != null)
+                  Text(
+                    'No aparelho: ${installed ?? "não confirmado"}  •  GitHub: ${available ?? "não identificada"}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                if (assessment.detail != null)
+                  Text(
+                    assessment.detail!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RepositoryHeader extends StatelessWidget {
   const _RepositoryHeader({
     required this.repository,

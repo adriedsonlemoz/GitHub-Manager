@@ -12,7 +12,7 @@ import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
-import 'package:github_manager/features/builds/domain/latest_apk_shortcut.dart';
+import 'package:github_manager/features/builds/domain/apk_installation_assessment.dart';
 import 'package:github_manager/features/builds/domain/apk_variant.dart';
 import 'package:github_manager/features/builds/domain/release_asset.dart';
 import 'package:github_manager/features/builds/presentation/smart_apk_picker.dart';
@@ -32,6 +32,7 @@ import 'package:github_manager/features/repositories/domain/repository_project_i
 import 'package:github_manager/features/repositories/presentation/repository_branch_selector.dart';
 import 'package:github_manager/features/repositories/presentation/repository_management_dialogs.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
+import 'package:github_manager/features/repositories/presentation/repository_apk_status_provider.dart';
 import 'package:github_manager/features/repositories/presentation/technology_badge.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
@@ -57,11 +58,26 @@ class RepositoryDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
-    with _RepositoryDetailScreenActions {
+    with _RepositoryDetailScreenActions, WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
     initializeRepositoryDetailState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Ao voltar do instalador do Android, atualiza a versão sem reiniciar o app.
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.invalidate(repositoryApkStatusProvider);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
@@ -98,6 +114,10 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                 ],
               ),
             );
+
+            final apkStatusAsync = ref.watch(repositoryApkStatusProvider(repository));
+            final apkStatus = apkStatusAsync.asData?.value;
+            final assessment = apkStatus?.assessment;
 
             return CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -183,7 +203,14 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                             icon: _apkShortcutBusy
                                 ? Icons.hourglass_top_rounded
                                 : Icons.android_rounded,
-                            label: _apkShortcutBusy ? 'Buscando' : 'APK',
+                            label: _apkShortcutBusy
+                                ? 'Buscando'
+                                : switch (assessment?.state) {
+                                    ApkInstallationState.install => 'Instalar',
+                                    ApkInstallationState.update => 'Atualizar',
+                                    ApkInstallationState.current => 'Atualizado',
+                                    _ => 'APK',
+                                  },
                             enabled: !_apkShortcutBusy,
                             onTap: () => _downloadLatestApk(repository),
                           ),
@@ -192,6 +219,14 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                     ),
                   ),
                 ),
+                if (assessment != null &&
+                    (assessment.packageName != null || apkStatus!.latest.isEmpty == false))
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(14, 7, 14, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: _RepositoryApkInstallationStatus(assessment: assessment),
+                    ),
+                  ),
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 14),

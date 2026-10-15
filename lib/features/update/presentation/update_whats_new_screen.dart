@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.124';
+  static const releaseNotesVersion = '2.0.125';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.android_rounded,
-                      title: 'Botão APK ativo',
-                      description: 'O atalho do repositório consulta Releases e Artifacts sem depender apenas da lista de builds.',
+                      title: 'Instalado ou atualização?',
+                      description: 'O botão APK compara a versão do aparelho com a mais recente encontrada no GitHub quando o pacote pode ser identificado.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.tune_rounded,
-                      title: 'Escolha da arquitetura',
-                      description: 'Se houver ARM64, ARM32, x86 ou Universal, escolha a variante antes do download.',
+                      icon: Icons.verified_user_outlined,
+                      title: 'Verificação responsável',
+                      description: 'Quando o Android não permite confirmar o pacote instalado, o app mostra Não foi possível verificar, sem adivinhar.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.downloading_rounded,
-                      title: 'Último APK direto',
-                      description: 'A versão mais recente identificada pode ser baixada diretamente na Central de Downloads.',
+                      title: 'Baixar ou atualizar',
+                      description: 'A seleção de arquitetura continua disponível. Versões iguais ou anteriores exigem confirmação antes do download.',
                     ),
                   ],
                 ),

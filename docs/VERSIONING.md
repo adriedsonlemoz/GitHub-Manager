@@ -1,3 +1,7 @@
+### 2.0.125
+
+A versão 2.0.125+200139 integra o estado de instalação do Android ao botão APK e compara a versão instalada com a última publicação disponível, com ressalvas de visibilidade de pacotes e confiança dos metadados. Veja `docs/RELEASE_2.0.125.md`.
+
 ### 2.0.124
 
 A versão 2.0.124+200138 corrige o atalho APK da tela do repositório, consultando Releases e Artifacts sob demanda, oferecendo download direto da versão mais recente e seleção de arquitetura quando há variantes. Veja `docs/RELEASE_2.0.124.md`.
@@ -60,7 +64,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.124+200138`
+`version: 2.0.125+200139`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;
