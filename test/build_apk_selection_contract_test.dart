@@ -17,7 +17,7 @@ void main() {
     expect(source, isNot(contains('apkArtifact = artifact;')));
   });
 
-  test('repository APK shortcut busca a última versão sem pré-desabilitar o botão', () {
+  test('repository APK shortcut usa provider compartilhado para última versão e instalação', () {
     final source = File(
       'lib/features/repositories/presentation/repository_detail_screen.dart',
     ).readAsStringSync();
@@ -28,9 +28,20 @@ void main() {
     expect(source, contains('onTap: () => _downloadLatestApk(repository)'));
     expect(source, contains('enabled: !_apkShortcutBusy'));
     expect(source, isNot(contains('latestApk != null')));
-    expect(actions, contains('listReleaseAssets(repository.fullName)'));
-    expect(actions, contains('listArtifacts(repository.fullName)'));
-    expect(actions, contains('LatestApkShortcut.resolve('));
+    // Desde a 2.0.125 as consultas são compartilhadas pelo provider para
+    // alimentar tanto o botão APK quanto o estado instalado/atualizado.
+    final statusProvider = File(
+      'lib/features/repositories/presentation/repository_apk_status_provider.dart',
+    ).readAsStringSync();
+    expect(actions, contains('repositoryApkStatusProvider(repository).future'));
+    expect(actions, contains('final latest = apkStatus.latest;'));
+    expect(statusProvider, contains('service.listReleaseAssets(repository.fullName)'));
+    expect(statusProvider, contains('service.listArtifacts(repository.fullName)'));
+    expect(statusProvider, contains('Future.wait<void>([loadReleases(), loadArtifacts()])'));
+    expect(statusProvider, contains('LatestApkShortcut.resolve('));
+    expect(statusProvider, contains('ApkInstallationAssessment.evaluate('));
+    expect(statusProvider, contains('releaseError = error;'));
+    expect(statusProvider, contains('artifactError = error;'));
     expect(actions, contains('showSmartApkPicker<Object>'));
     expect(actions, contains('startReleaseAsset('));
     expect(actions, contains('startArtifactApk('));

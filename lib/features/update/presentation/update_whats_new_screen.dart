@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.125';
+  static const releaseNotesVersion = '2.0.126';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.android_rounded,
-                      title: 'Instalado ou atualização?',
-                      description: 'O botão APK compara a versão do aparelho com a mais recente encontrada no GitHub quando o pacote pode ser identificado.',
+                      title: 'Correção do Android APK #115',
+                      description: 'O teste do botão APK foi alinhado ao provider compartilhado que consulta Releases, Artifacts e versão instalada.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.verified_user_outlined,
-                      title: 'Verificação responsável',
-                      description: 'Quando o Android não permite confirmar o pacote instalado, o app mostra Não foi possível verificar, sem adivinhar.',
+                      title: 'Consultas de APK preservadas',
+                      description: 'Releases e Artifacts continuam consultados de forma independente e usados no seletor de arquiteturas.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.downloading_rounded,
-                      title: 'Baixar ou atualizar',
-                      description: 'A seleção de arquitetura continua disponível. Versões iguais ou anteriores exigem confirmação antes do download.',
+                      title: 'Instalado ou atualizar',
+                      description: 'Permanece disponível a comparação com a versão no aparelho, sem instalação silenciosa.',
                     ),
                   ],
                 ),

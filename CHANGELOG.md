@@ -1,3 +1,11 @@
+## 2.0.126+200140 — 2026-10-15
+
+- Corrige o teste reprovado em Android APK #115: `test/build_apk_selection_contract_test.dart` assumia que a tela de repositório chamava `listReleaseAssets` e `listArtifacts` diretamente; desde a 2.0.125 as consultas são centralizadas em `repository_apk_status_provider.dart`.
+- Alinha o contrato à arquitetura real, conferindo provider de Releases + Artifacts, resolução da última versão, avaliação da instalação e caminho até seletor e downloads; preserva isolamento de falhas entre as fontes.
+- Log do #115: `flutter analyze` concluiu sem erros fatais, **227 testes passaram e 1 falhou**; não houve compilação APK devido à interrupção na suíte de testes.
+- Preserva os mecanismos de consulta ao pacote Android, estados Instalar/Atualizar/Atualizado, escolha de ABI e downloads existentes. Sincroniza documentação, Novidades e `versionCode` 200140.
+- `flutter analyze`, `flutter test` e `assemble` ainda precisam ser executados no GitHub Actions para esta versão.
+
 ## 2.0.125+200139 — 2026-10-15
 
 - Inclui consulta nativa à instalação por `applicationId` e leitura da versão instalada/versionCode pelo Android PackageManager, sem enumeração de aplicativos nem QUERY_ALL_PACKAGES.

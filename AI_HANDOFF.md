@@ -1,3 +1,10 @@
+# Atualização 2.0.126+200140
+
+- Origem: Android APK #115 na base 2.0.125; `flutter analyze` aprovado, teste `repository APK shortcut busca a última versão sem pré-desabilitar o botão` falhou; resumo 227 aprovados e 1 falha. A execução parou antes da compilação do APK.
+- Diagnóstico: o contrato procurava `listReleaseAssets(repository.fullName)`, `listArtifacts(repository.fullName)` e `LatestApkShortcut.resolve` no arquivo de ações; essas operações foram migradas para `repository_apk_status_provider.dart` na versão 2.0.125.
+- Correção: o teste confere o uso de `repositoryApkStatusProvider(repository).future` pelas ações e confirma consultas independentes de Releases/Artifacts, resolução de última versão, avaliação de instalação e continuidade do download pelo seletor.
+- Código de produção preservado. Sincronizados pubspec, github-manager.json, README, CHANGELOG, VERSIONING, Novidades, Configurações, release e validation. Executar testes/assemble na CI.
+
 # Atualização 2.0.125+200139
 
 - Canal nativo `getInstalledAppInfo` usa PackageManager sob consulta de pacote individual validado; read `versionName`, `longVersionCode` e status installed/notInstalled/unknown. Ausência no Android 11+ não confirma desinstalação.

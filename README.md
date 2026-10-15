@@ -1,4 +1,11 @@
-# GitHub Manager 2.0.125
+# GitHub Manager 2.0.126
+
+## Correção do teste de seleção de APK (Android APK #115) — 2.0.126
+
+- O workflow Android APK #115 passou em `flutter analyze`, mas parou em `flutter test` após **227 testes aprovados e 1 reprovado**.
+- O teste `test/build_apk_selection_contract_test.dart` ainda esperava as consultas `listReleaseAssets`, `listArtifacts` e a resolução da última versão diretamente em `repository_detail_screen_actions.dart`. Na 2.0.125, essa lógica foi centralizada em `repository_apk_status_provider.dart` para compartilhar os dados com a identificação do aplicativo instalado.
+- O teste agora valida o caminho efetivo: atalho chama provider, provider busca Releases + Artifacts independentemente, agrupa a última versão e calcula estado instalado; ações seguem com seleção de ABI e download direto.
+- **Código de produção preservado.** Trata-se da correção de um contrato de teste desatualizado, não de alteração na lógica de seleção. `flutter test` e build Android da nova versão ainda precisam ser executados na CI.
 
 ## APK: instalação e atualização no Android — 2.0.125
 
