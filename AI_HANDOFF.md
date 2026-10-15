@@ -1,3 +1,11 @@
+# Atualização 2.0.127+200141
+
+- Fonte: logs Android APK #116 (15/10/2026), `flutter analyze` aprovado, `flutter test` com 227 testes aprovados e 1 falha em `test/system_ui_settings_contract_test.dart`, linha 53.
+- Causa: últimas três notas de Configurações em ordem `2.0.126`, `2.0.124`, `2.0.125`, divergindo da ordem sequencial decrescente exigida.
+- Correção em produção: notas agora `2.0.127`, `2.0.126`, `2.0.125` com descrições correspondentes. Teste de contrato preservado.
+- VersionName e versionCode sincronizados, README, CHANGELOG, docs/VERSIONING, docs/RELEASE, docs/VALIDATION, Novidades e histórico atualizados.
+- Verificações locais de arquivos e estrutura do ZIP; `flutter test`, `flutter analyze` e build APK pendentes de execução no GitHub Actions, Flutter não está instalado no ambiente.
+
 # Atualização 2.0.126+200140
 
 - Origem: Android APK #115 na base 2.0.125; `flutter analyze` aprovado, teste `repository APK shortcut busca a última versão sem pré-desabilitar o botão` falhou; resumo 227 aprovados e 1 falha. A execução parou antes da compilação do APK.

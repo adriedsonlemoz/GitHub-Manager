@@ -1,4 +1,12 @@
-# GitHub Manager 2.0.126
+# GitHub Manager 2.0.127
+
+## Correção do histórico em Configurações (Android APK #116) — 2.0.127
+
+- No workflow Android APK #116, `flutter analyze` não teve erros bloqueantes e `flutter test` encerrou com **227 testes aprovados e 1 falha**.
+- O teste `test/system_ui_settings_contract_test.dart` esperava o histórico das últimas três versões em ordem decrescente, mas a tela listava `2.0.126, 2.0.124, 2.0.125`.
+- A seção **Configurações → Sobre e novidades → Últimas 3 mudanças** agora lista `2.0.127, 2.0.126, 2.0.125`, com textos correspondentes às suas versões.
+- O contrato de ordenação foi preservado para impedir regressões nas próximas atualizações. A lógica de downloads, Builds e APKs não foi alterada.
+- Compilação Android e execução da suíte Flutter da 2.0.127 precisam ser validadas no GitHub Actions.
 
 ## Correção do teste de seleção de APK (Android APK #115) — 2.0.126
 

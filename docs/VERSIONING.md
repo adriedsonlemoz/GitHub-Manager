@@ -1,3 +1,7 @@
+### 2.0.127
+
+A versão `2.0.127+200141` corrige o histórico de Configurações fora de ordem que reprovou o único teste do Android APK #116. A tela lista `2.0.127`, `2.0.126` e `2.0.125`, do mais recente ao mais antigo. Não altera o fluxo de APKs. Veja `docs/RELEASE_2.0.127.md`.
+
 ### 2.0.126
 
 A versão 2.0.126+200140 corrige o contrato de teste de seleção de APK que bloqueou o workflow Android APK #115 após a centralização das consultas no provider da 2.0.125. Mantém a checagem de app instalado e seleção de ABI sem alterações na lógica de produção. Veja `docs/RELEASE_2.0.126.md`.
@@ -68,7 +72,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.126+200140`
+`version: 2.0.127+200141`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

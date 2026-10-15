@@ -298,12 +298,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
-                      version: '2.0.126',
-                      text: 'Corrige o teste do botão APK nos logs #115 após a centralização das consultas no provider de estado de instalação.',
+                      version: '2.0.127',
+                      text: 'Corrige a ordem cronológica das últimas três mudanças que causava a falha do teste no Android APK #116.',
                     ),
                     _ChangeNote(
-                      version: '2.0.124',
-                      text: 'Ativa o atalho APK e a seleção ARM64/ARM32/x86/Universal direto no repositório.',
+                      version: '2.0.126',
+                      text: 'Atualiza o teste do atalho APK após a centralização das consultas e da identificação de instalação.',
                     ),
                     _ChangeNote(
                       version: '2.0.125',

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.126';
+  static const releaseNotesVersion = '2.0.127';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.android_rounded,
-                      title: 'Correção do Android APK #115',
-                      description: 'O teste do botão APK foi alinhado ao provider compartilhado que consulta Releases, Artifacts e versão instalada.',
+                      title: 'Correção do Android APK #116',
+                      description: 'As últimas três alterações em Configurações voltaram à ordem correta, da versão mais recente para a mais antiga.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.verified_user_outlined,
-                      title: 'Consultas de APK preservadas',
-                      description: 'Releases e Artifacts continuam consultados de forma independente e usados no seletor de arquiteturas.',
+                      title: 'Histórico de atualizações coerente',
+                      description: 'A interface e o teste de contrato agora seguem a mesma sequência de versões, sem alterar as notas de versões anteriores.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.downloading_rounded,
-                      title: 'Instalado ou atualizar',
-                      description: 'Permanece disponível a comparação com a versão no aparelho, sem instalação silenciosa.',
+                      title: 'Atalho APK e instalação preservados',
+                      description: 'A seleção de arquiteturas, o download de APK e a comparação com a versão instalada continuam funcionando como antes.',
                     ),
                   ],
                 ),

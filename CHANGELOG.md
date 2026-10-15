@@ -1,3 +1,11 @@
+## 2.0.127+200141 — 2026-10-15
+
+- Corrige a falha única do workflow Android APK #116: `test/system_ui_settings_contract_test.dart` detectou notas de alterações em ordem errada (`2.0.126`, `2.0.124`, `2.0.125`).
+- Reorganiza **Configurações → Últimas 3 mudanças** em ordem cronológica decrescente (`2.0.127`, `2.0.126`, `2.0.125`), corrigindo os textos associados a cada versão.
+- Mantém o teste de regressão exigindo exatamente as três versões sequenciais mais recentes, evitando retornar à ordenação errada em novos releases.
+- Preserva a seleção de APK, downloads, identificação de versão instalada e demais funcionalidades da 2.0.126. VersionCode incrementado para `200141`.
+- Log #116: análise Dart sem erros fatais, 227 testes aprovados e 1 falha; build Android não iniciado. Testes e compilação da correção pendentes em CI.
+
 ## 2.0.126+200140 — 2026-10-15
 
 - Corrige o teste reprovado em Android APK #115: `test/build_apk_selection_contract_test.dart` assumia que a tela de repositório chamava `listReleaseAssets` e `listArtifacts` diretamente; desde a 2.0.125 as consultas são centralizadas em `repository_apk_status_provider.dart`.
