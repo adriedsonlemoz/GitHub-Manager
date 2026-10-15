@@ -1,3 +1,11 @@
+# Atualização 2.0.124+200138
+
+- Atalho APK na tela do repositório: remove guarda baseada só em Artifacts e consulta Releases+Artifacts sob demanda; mostra seletor existente para variantes da versão mais recente, iniciando downloads com DownloadManagerService.
+- Novo resolvedor puro `lib/features/builds/domain/latest_apk_shortcut.dart`: filtra APKs e artifacts expirados, agrupa versões de Releases e variantes de um mesmo run, compara versão explícita de artifact com Release. Prefere Release se não houver prova de versão superior no artifact.
+- Mantém confirmação de incompatibilidade estimada pela ABI informada no nome do APK e no Android.
+- Testes: `test/latest_apk_shortcut_test.dart`, `test/build_apk_selection_contract_test.dart`.
+- Validar via GitHub Actions: `flutter analyze`, `flutter test`, `assemble` e download real de APK no celular.
+
 # Atualização 2.0.123+200137
 
 - Fonte: ZIP 2.0.122+200136, logs Android APK #112.

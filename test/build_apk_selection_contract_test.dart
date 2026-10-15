@@ -17,15 +17,24 @@ void main() {
     expect(source, isNot(contains('apkArtifact = artifact;')));
   });
 
-  test('repository APK shortcut opens the explicit APK list', () {
+  test('repository APK shortcut busca a última versão sem pré-desabilitar o botão', () {
     final source = File(
       'lib/features/repositories/presentation/repository_detail_screen.dart',
     ).readAsStringSync();
+    final actions = File(
+      'lib/features/repositories/presentation/repository_detail_screen_actions.dart',
+    ).readAsStringSync();
 
-    expect(
-      source,
-      contains("'/repositories/\${repository.fullName}/artifacts'"),
-    );
-    expect(source, isNot(contains('_downloadLatestApk(repository, latestApk)')));
+    expect(source, contains('onTap: () => _downloadLatestApk(repository)'));
+    expect(source, contains('enabled: !_apkShortcutBusy'));
+    expect(source, isNot(contains('latestApk != null')));
+    expect(actions, contains('listReleaseAssets(repository.fullName)'));
+    expect(actions, contains('listArtifacts(repository.fullName)'));
+    expect(actions, contains('LatestApkShortcut.resolve('));
+    expect(actions, contains('showSmartApkPicker<Object>'));
+    expect(actions, contains('startReleaseAsset('));
+    expect(actions, contains('startArtifactApk('));
+    expect(File('lib/features/builds/presentation/smart_apk_picker.dart').readAsStringSync(),
+        contains('if (!preferred.exactRun && runNumber > 0)'));
   });
 }

@@ -1,4 +1,15 @@
-# GitHub Manager 2.0.123
+# GitHub Manager 2.0.124
+
+## Atalho APK funcional no repositório — 2.0.124
+
+- O botão APK na tela do repositório não fica mais desabilitado por depender exclusivamente de Artifacts. A busca é iniciada ao tocar, consultando **Releases e Artifacts** independentemente.
+- Havendo um APK oficial da versão mais recente, inicia o download direto pela Central de Downloads; quando há **múltiplas variantes** (ARM64, ARM32, x86, x86_64, Universal), abre o seletor existente antes de baixar.
+- A versão é ordenada pelo nome dos arquivos/tag quando reconhecível; um Artifact pode prevalecer se sua versão identificada for maior que a Release. Sem versões comparáveis, prefere a Release publicada.
+- Artifacts expirados são ignorados e não são misturados entre execuções. Se uma das duas fontes do GitHub falhar, a outra continua disponível; se não houver APK, o app exibe uma explicação e oferece o catálogo completo.
+- Mantém confirmação para ABI possivelmente incompatível, inspeção do APK após o download, recuperação de interrupções e os demais recursos existentes.
+
+**Limite:** nome e ABI de arquivo são pistas; a compatibilidade efetiva só pode ser confirmada após inspecionar o APK. Builds que não produziram APK não oferecem download.
+
 
 ## Correção da análise Dart (Android APK #112) — 2.0.123
 

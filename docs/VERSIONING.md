@@ -1,3 +1,7 @@
+### 2.0.124
+
+A versão 2.0.124+200138 corrige o atalho APK da tela do repositório, consultando Releases e Artifacts sob demanda, oferecendo download direto da versão mais recente e seleção de arquitetura quando há variantes. Veja `docs/RELEASE_2.0.124.md`.
+
 ### 2.0.123
 
 A versão `2.0.123+200137` corrige cinco incompatibilidades `String` → `List<int>` no teste de projeto web estático que bloquearam o Android APK #112. Remove `!` desnecessário e preserva as melhorias da 2.0.122. Veja `docs/RELEASE_2.0.123.md`.
@@ -56,7 +60,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.123+200137`
+`version: 2.0.124+200138`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

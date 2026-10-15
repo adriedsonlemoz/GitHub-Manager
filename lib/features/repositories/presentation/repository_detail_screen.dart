@@ -12,6 +12,10 @@ import 'package:github_manager/core/widgets/adaptive_dialog.dart';
 import 'package:github_manager/core/widgets/app_main_navigation.dart';
 import 'package:github_manager/core/widgets/centered_notice.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
+import 'package:github_manager/features/builds/domain/latest_apk_shortcut.dart';
+import 'package:github_manager/features/builds/domain/apk_variant.dart';
+import 'package:github_manager/features/builds/domain/release_asset.dart';
+import 'package:github_manager/features/builds/presentation/smart_apk_picker.dart';
 import 'package:github_manager/features/builds/presentation/build_providers.dart';
 import 'package:github_manager/features/downloads/presentation/download_center_button.dart';
 import 'package:github_manager/features/downloads/presentation/download_providers.dart';
@@ -93,17 +97,6 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                   if (repository.language != null) repository.language!,
                 ],
               ),
-            );
-            final artifactsAsync = widget.readOnly
-                ? null
-                : ref.watch(repositoryArtifactsProvider(repository.fullName));
-            final latestApk = artifactsAsync?.maybeWhen<ActionArtifact?>(
-              data: (items) => items
-                  .where(
-                    (artifact) => artifact.likelyContainsApk && !artifact.expired,
-                  )
-                  .firstOrNull,
-              orElse: () => null,
             );
 
             return CustomScrollView(
@@ -187,18 +180,12 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                         const SizedBox(width: 6),
                         Expanded(
                           child: _CompactQuickAction(
-                            icon: Icons.android_rounded,
-                            label: 'APK',
-                            enabled: widget.readOnly || latestApk != null,
-                            onTap: widget.readOnly
-                                ? () => context.push(
-                                      '/repositories/${repository.fullName}/artifacts?readOnly=1',
-                                    )
-                                : latestApk == null
-                                    ? null
-                                    : () => context.push(
-                                          '/repositories/${repository.fullName}/artifacts',
-                                        ),
+                            icon: _apkShortcutBusy
+                                ? Icons.hourglass_top_rounded
+                                : Icons.android_rounded,
+                            label: _apkShortcutBusy ? 'Buscando' : 'APK',
+                            enabled: !_apkShortcutBusy,
+                            onTap: () => _downloadLatestApk(repository),
                           ),
                         ),
                       ],

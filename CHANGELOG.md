@@ -1,3 +1,12 @@
+## 2.0.124+200138 — 2026-10-15
+
+- Corrige o botão APK cinza na tela do repositório: a disponibilidade deixou de depender exclusivamente de Artifacts; as Releases são consultadas diretamente ao tocar.
+- Abre o download da última versão identificada e usa o seletor existente quando há mais de uma variante ARM64/ARM32/x86/x86_64/Universal. Sem variantes, inicia o download direto na Central de Downloads.
+- Seleciona versões de Releases por agrupamento semântico e variantes; Artifacts expirados não são selecionados e variantes do mesmo workflow não são confundidas com versões antigas.
+- Falhas de consulta de Releases e Artifacts são tratadas independentemente, com mensagem informativa e opção de ver todos os arquivos quando necessário.
+- Preserva verificações de ABI e integridade, downloads retomáveis e o layout compacto. Atualiza versionName/versionCode, READMEs, docs, changelog, Novidades e testes.
+- Build Flutter/Android e validação no aparelho permanecem pendentes de CI.
+
 ## 2.0.123+200137 — 2026-10-14
 
 - Corrige os 5 erros `argument_type_not_assignable` apontados no Android APK #112 em `test/static_web_project_detection_test.dart`. `ArchiveFile` passa a receber `List<int>` obtido por `utf8.encode`, com comprimento calculado pelos bytes.

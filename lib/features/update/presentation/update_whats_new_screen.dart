@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.123';
+  static const releaseNotesVersion = '2.0.124';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,21 +69,21 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.view_agenda_outlined,
-                      title: 'Compilação corrigida',
-                      description: 'Corrigidos os cinco erros de tipos no teste de detecção de sites estáticos que bloqueavam o Android APK #112.',
+                      icon: Icons.android_rounded,
+                      title: 'Botão APK ativo',
+                      description: 'O atalho do repositório consulta Releases e Artifacts sem depender apenas da lista de builds.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.language_rounded,
-                      title: 'Identificação web preservada',
-                      description: 'A detecção de HTML, CSS, JavaScript e portfólios da versão anterior permanece disponível.',
+                      icon: Icons.tune_rounded,
+                      title: 'Escolha da arquitetura',
+                      description: 'Se houver ARM64, ARM32, x86 ou Universal, escolha a variante antes do download.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.downloading_rounded,
-                      title: 'Builds e downloads mantidos',
-                      description: 'Mantidos os quatro cartões compactos no resumo da build e a retomada de downloads de APK.',
+                      title: 'Último APK direto',
+                      description: 'A versão mais recente identificada pode ser baixada diretamente na Central de Downloads.',
                     ),
                   ],
                 ),

@@ -185,7 +185,7 @@ class _SmartApkPicker<T> extends StatelessWidget {
                             const SizedBox(height: 3),
                             Text('${sizeLabel(preferred.bytes)}  •  ${preferred.source}',
                               style: Theme.of(context).textTheme.bodySmall),
-                            if (!preferred.exactRun)
+                            if (!preferred.exactRun && runNumber > 0)
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: Text('Release: vínculo com esta execução não confirmado.',

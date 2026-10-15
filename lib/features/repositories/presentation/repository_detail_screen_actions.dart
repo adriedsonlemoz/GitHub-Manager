@@ -3,6 +3,7 @@ part of 'repository_detail_screen.dart';
 mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
   late Future<GitHubRepository> _repositoryFuture;
   late Future<List<RepositoryWorkflowRun>> _runsFuture;
+  bool _apkShortcutBusy = false;
 
   void initializeRepositoryDetailState() {
     final cached = ref
@@ -123,6 +124,173 @@ mixin _RepositoryDetailScreenActions on ConsumerState<RepositoryDetailScreen> {
                 : 'Fork criado: ${fork.fullName}');
     } catch (error) {
       if (mounted) _showError(error);
+    }
+  }
+
+
+  /// Atalho direto: pesquisa releases e artifacts sob demanda, sem bloquear o
+  /// botão baseado somente em artifacts do GitHub Actions.
+  Future<void> _downloadLatestApk(GitHubRepository repository) async {
+    if (_apkShortcutBusy) return;
+    setState(() => _apkShortcutBusy = true);
+    try {
+      final service = ref.read(artifactServiceProvider);
+      List<ReleaseAsset> releases = const [];
+      List<ActionArtifact> artifacts = const [];
+      Object? releaseError;
+      Object? artifactError;
+      // As fontes são independentes: falha em uma não esconde APKs da outra.
+      Future<void> loadReleases() async {
+        try {
+          releases = await service.listReleaseAssets(repository.fullName);
+        } catch (error) {
+          releaseError = error;
+        }
+      }
+
+      Future<void> loadArtifacts() async {
+        try {
+          artifacts = await service.listArtifacts(repository.fullName);
+        } catch (error) {
+          artifactError = error;
+        }
+      }
+
+      await Future.wait<void>([loadReleases(), loadArtifacts()]);
+      if (!mounted) return;
+      final latest = LatestApkShortcut.resolve(
+        releases: releases,
+        artifacts: artifacts,
+      );
+      if (latest.isEmpty) {
+        final bothUnavailable = releaseError != null && artifactError != null;
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(bothUnavailable
+                ? 'Não foi possível consultar os APKs'
+                : 'Nenhum APK disponível'),
+            content: Text(bothUnavailable
+                ? 'O GitHub não respondeu às consultas de Releases e Artifacts. Confira sua conexão e as permissões do token.'
+                : releaseError != null || artifactError != null
+                    ? 'Nenhum APK encontrado na fonte acessível. Uma das consultas falhou, então o resultado pode estar incompleto.'
+                    : 'Este repositório não possui APK publicado nas Releases nem artifact de APK válido. Builds que falharam antes da compilação não geram APK.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Fechar'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  context.push('/repositories/${repository.fullName}/artifacts?readOnly=${widget.readOnly ? '1' : '0'}');
+                },
+                child: const Text('Ver todos os arquivos'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      AndroidDeviceInfo? deviceInfo;
+      try {
+        deviceInfo = await PlatformActions.getAndroidDeviceInfo();
+      } catch (_) {
+        // O usuário ainda pode escolher o arquivo, sem sugestão de ABI.
+      }
+      if (!mounted) return;
+
+      final options = <SmartApkOption<Object>>[
+        for (final asset in latest.releaseAssets)
+          SmartApkOption<Object>(
+            value: asset,
+            name: asset.name,
+            bytes: asset.sizeBytes,
+            source: 'Release ${asset.tagName}',
+          ),
+        for (final artifact in latest.artifacts)
+          SmartApkOption<Object>(
+            value: artifact,
+            name: artifact.name,
+            bytes: artifact.sizeBytes,
+            source: 'Artifact da build',
+            exactRun: artifact.workflowRunId != null,
+          ),
+      ];
+      Object? selected;
+      if (options.length == 1) {
+        selected = options.single.value;
+      } else {
+        selected = await showSmartApkPicker<Object>(
+          context: context,
+          options: options,
+          project: repository.name,
+          runNumber: 0,
+          version: latest.version,
+          deviceInfo: deviceInfo,
+        );
+      }
+      if (!mounted || selected == null) return;
+      final selectedName = selected is ReleaseAsset
+          ? selected.name
+          : (selected as ActionArtifact).name;
+      if (deviceInfo != null &&
+          !apkNameIsCompatible(selectedName, deviceInfo.supportedAbis)) {
+        final supportedAbisLabel = deviceInfo.supportedAbis.join(', ');
+        final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('APK possivelmente incompatível'),
+                content: Text(
+                  'O arquivo ${ApkVariantInfo.fromName(selectedName).label} '
+                  'não corresponde às arquiteturas informadas pelo seu Android '
+                  '($supportedAbisLabel). Deseja baixá-lo mesmo assim?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Cancelar'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Baixar mesmo assim'),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+        if (!mounted || !confirmed) return;
+      }
+
+      final manager = ref.read(downloadManagerProvider);
+      if (selected is ReleaseAsset) {
+        manager.startReleaseAsset(
+          title: '${selected.tagName} • ${selected.name}',
+          fileName: selected.name,
+          repositoryFullName: repository.fullName,
+          assetId: selected.id,
+          isApk: true,
+        );
+      } else if (selected is ActionArtifact) {
+        manager.startArtifactApk(
+          repositoryFullName: repository.fullName,
+          artifact: selected,
+          preferredAbi: deviceInfo?.primaryAbi,
+          supportedAbis: deviceInfo?.supportedAbis,
+        );
+      }
+      if (mounted) {
+        showCenteredNotice(
+          context,
+          'Download iniciado. Acompanhe pela Central de Downloads.',
+          kind: CenteredNoticeKind.success,
+        );
+      }
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) setState(() => _apkShortcutBusy = false);
     }
   }
 
