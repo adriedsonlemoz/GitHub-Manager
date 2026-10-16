@@ -1,4 +1,15 @@
-# GitHub Manager 2.0.127
+# GitHub Manager 2.0.128
+
+## Auditoria de publicação na Google Play (2.0.128)
+
+Dentro de cada repositório, o quinto atalho **Play** abre uma janela de avaliação parcial do código. Os quatro atalhos anteriores (Enviar, GitHub/Fork, Copiar, APK) foram compactados sem serem removidos.
+
+A avaliação analisa a árvore da branch selecionada no GitHub e os arquivos de origem permitidos, verificando configuração literal de **targetSdk >= 36** para apps Android comuns em 2026, `compileSdk` (separado do target), versionCode, applicationId, pistas de AAB/assinatura Release, política de privacidade, permissões sensíveis e requisitos de compatibilidade.
+
+Os itens externos, como Segurança dos dados, conteúdo, teste da conta, ficha da loja e publicação, aparecem como **pendentes de confirmação manual**. A leitura de um valor no Gradle não equivale a validar o AAB gerado nem a aprovação da Google Play. O app **não acessa keystores, Secrets ou dados da Play Console**. Há links para a política oficial e para o Play Console e opção de reanalisar.
+
+Limitações: Flutter/Gradle com `targetSdk` calculado dinamicamente é **desconhecido** até conferir o manifesto mesclado; análises de 64 bits/páginas de 16 KB precisam do artefato final. Workflow e diretórios podem estar incompletos; árvores truncadas são sinalizadas. O Google Play define exceções de API para TV/Wear/Automotive/XR, que devem ser conferidas no Play Console.
+
 
 ## Correção do histórico em Configurações (Android APK #116) — 2.0.127
 

@@ -1,3 +1,12 @@
+## 2.0.128+200142 — 2026-10-15
+
+- Inclui botão **Play** como quinto atalho da tela de repositório, ao lado de Enviar, GitHub/Fork, Copiar e APK, com quatro atalhos antigos mais compactos.
+- Nova janela com auditoria automática do código-fonte na branch do repositório e ação Reavaliar; registra evidências e estados verificado no código, atenção e não confirmado.
+- Identifica `targetSdk` literal e verifica mínimo API 36 (Android 16) para novos envios de apps Android comuns desde 31/08/2026. Valores dinâmicos como `flutter.targetSdkVersion` ficam como desconhecidos, sem confundir `compileSdk` com `targetSdk`.
+- Verifica `versionCode`, `applicationId`, indícios de geração AAB, assinatura de produção, permissões declaradas e política de privacidade; orienta testes, 64 bits, páginas de 16 KB e formulário de Segurança dos dados.
+- Avaliação não dá selo de aprovação da Play Console, não consulta keystores/Secrets, não altera repositórios; reconhece projetos não Android e árvores truncadas.
+- Novos testes de avaliação e interface, versão/documentação sincronizadas. Flutter/Android completos pendentes de validação CI.
+
 ## 2.0.127+200141 — 2026-10-15
 
 - Corrige a falha única do workflow Android APK #116: `test/system_ui_settings_contract_test.dart` detectou notas de alterações em ordem errada (`2.0.126`, `2.0.124`, `2.0.125`).

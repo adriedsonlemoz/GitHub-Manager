@@ -1,3 +1,12 @@
+# Atualização 2.0.128+200142
+
+- Novo botão Play em `repository_detail_screen.dart`, quinta ação em linha. Os quatro botões anteriores continuam funcionais.
+- `PlayReadinessService` busca árvore GitHub na branch padrão, lê somente Gradle/manifesto/pubspec e poucos workflows, distingue resultados confirmados no código de pendências de build/Play Console. Não consulta Secrets/keystores.
+- UI em `play_readiness_dialog.dart`, com renovação sob demanda, resultados verificado/atenção/não confirmado e links oficiais.
+- Regra API Android comum 36 a partir de 31/08/2026, exceções para outros form factors não analisadas automaticamente. `flutter.targetSdkVersion` dinâmico não é assumido como 36.
+- Testes: `test/play_readiness_service_test.dart`, `test/play_readiness_ui_contract_test.dart`.
+- Importante: Flutter/Dart não instalado localmente. Confirmar via CI (`flutter analyze`, `flutter test` e build APK).
+
 # Atualização 2.0.127+200141
 
 - Fonte: logs Android APK #116 (15/10/2026), `flutter analyze` aprovado, `flutter test` com 227 testes aprovados e 1 falha em `test/system_ui_settings_contract_test.dart`, linha 53.

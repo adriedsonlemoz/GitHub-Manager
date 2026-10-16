@@ -34,6 +34,8 @@ import 'package:github_manager/features/repositories/presentation/repository_man
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_apk_status_provider.dart';
 import 'package:github_manager/features/repositories/presentation/technology_badge.dart';
+import 'package:github_manager/features/repositories/presentation/play_readiness_dialog.dart';
+import 'package:github_manager/features/repositories/data/play_readiness_service.dart';
 import 'package:github_manager/features/uploads/domain/managed_upload.dart';
 import 'package:github_manager/features/uploads/presentation/upload_center_button.dart';
 import 'package:github_manager/features/uploads/presentation/upload_progress_dialog.dart';
@@ -175,7 +177,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                               onTap: () => _sendBuild(repository),
                             ),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 4),
                         ],
                         Expanded(
                           child: _CompactQuickAction(
@@ -189,7 +191,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                                 : () => PlatformActions.openUri(repository.htmlUrl),
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _CompactQuickAction(
                             icon: Icons.copy_rounded,
@@ -197,7 +199,7 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                             onTap: () => _copyLink(repository),
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _CompactQuickAction(
                             icon: _apkShortcutBusy
@@ -213,6 +215,20 @@ class _RepositoryDetailScreenState extends ConsumerState<RepositoryDetailScreen>
                                   },
                             enabled: !_apkShortcutBusy,
                             onTap: () => _downloadLatestApk(repository),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _CompactQuickAction(
+                            icon: Icons.storefront_outlined,
+                            label: 'Play',
+                            onTap: () => showPlayReadinessDialog(
+                              context: context,
+                              repository: repository,
+                              service: PlayReadinessService(
+                                ref.read(githubApiClientProvider),
+                              ),
+                            ),
                           ),
                         ),
                       ],

@@ -1,3 +1,7 @@
+### 2.0.128
+
+A versão 2.0.128+200142 adiciona auditoria parcial de publicação Google Play no detalhe de repositórios e quinta ação compacta Play. API 36, versão, bundle e verificações manuais são apresentados sem atestar aprovação da Play Console. Veja `docs/RELEASE_2.0.128.md`.
+
 ### 2.0.127
 
 A versão `2.0.127+200141` corrige o histórico de Configurações fora de ordem que reprovou o único teste do Android APK #116. A tela lista `2.0.127`, `2.0.126` e `2.0.125`, do mais recente ao mais antigo. Não altera o fluxo de APKs. Veja `docs/RELEASE_2.0.127.md`.
@@ -72,7 +76,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.127+200141`
+`version: 2.0.128+200142`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

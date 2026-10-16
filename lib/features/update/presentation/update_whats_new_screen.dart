@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.127';
+  static const releaseNotesVersion = '2.0.128';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,21 +69,21 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.android_rounded,
-                      title: 'Correção do Android APK #116',
-                      description: 'As últimas três alterações em Configurações voltaram à ordem correta, da versão mais recente para a mais antiga.',
+                      icon: Icons.storefront_outlined,
+                      title: 'Auditoria para Google Play',
+                      description: 'Novo botão Play dentro do projeto: revisa API 36, versão e evidências de publicação.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.verified_user_outlined,
-                      title: 'Histórico de atualizações coerente',
-                      description: 'A interface e o teste de contrato agora seguem a mesma sequência de versões, sem alterar as notas de versões anteriores.',
+                      icon: Icons.fact_check_outlined,
+                      title: 'Verificações claras e rastreáveis',
+                      description: 'Distingue o que foi detectado no código do que requer confirmação no pacote final ou na Play Console.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.downloading_rounded,
-                      title: 'Atalho APK e instalação preservados',
-                      description: 'A seleção de arquiteturas, o download de APK e a comparação com a versão instalada continuam funcionando como antes.',
+                      icon: Icons.view_agenda_outlined,
+                      title: 'Cinco atalhos compactos',
+                      description: 'Enviar, GitHub/Fork, Copiar, APK e Play na mesma linha, preservando as ações anteriores.',
                     ),
                   ],
                 ),

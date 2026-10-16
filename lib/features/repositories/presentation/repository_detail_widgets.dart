@@ -418,18 +418,19 @@ class _CompactQuickAction extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18),
+        Icon(icon, size: 17),
         const SizedBox(height: 2),
         Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
         ),
       ],
     );
     return SizedBox(
-      height: 48,
+      height: 46,
       child: filled
           ? FilledButton(
               onPressed: callback,
@@ -438,7 +439,7 @@ class _CompactQuickAction extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               ),
-              child: child,
+              child: Tooltip(message: label, child: child),
             )
           : OutlinedButton(
               onPressed: callback,
@@ -450,7 +451,7 @@ class _CompactQuickAction extends StatelessWidget {
                 ),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               ),
-              child: child,
+              child: Tooltip(message: label, child: child),
             ),
     );
   }
