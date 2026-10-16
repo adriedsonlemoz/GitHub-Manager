@@ -1,3 +1,11 @@
+# Atualização 2.0.130+200144
+
+- `DownloadManagerService`: adiciona estado paused, `pause`, `resume`, `cancelPaused`, registro de operações em andamento e espera pelo fechamento do sink antes de retomar. Downloads ativos mantêm a proteção de fluxo em Releases/Artifacts; opção pública valida Content-Range e total.
+- `ManagedDownload`: estado serializado `paused`, `isHistoryClearable` e `resetForRetry(preserveProgress: true)`. Pausados permanecem fora da limpeza de histórico e não são retomados ao restaurar o aplicativo.
+- UI `downloads_screen` e `downloads_widgets`: ação Pausar, seção Pausados, Retomar/Cancelar. Monitor leve por Timer de 5 s detecta downloads sem avanço há 15 s e zera velocidade/ETA obsoletos; mostra observação sobre banda compartilhada em downloads simultâneos.
+- Riscos a testar no Android: alternar Pausar/Retomar rápido; rede Wi-Fi/móvel; Release/Artifact com Range e URL temporária; servidor que ignora Range; fechar o app durante a pausa; salvar/abrir APK. A velocidade depende da rede e CDN; não há ganho garantido por reconexão.
+- Testes adicionados em `test/download_pause_resume_test.dart`, versionCode e notas sincronizados. Flutter/Dart indisponíveis localmente, executar `flutter analyze`, `flutter test` e build em CI.
+
 # Atualização 2.0.129+200143
 
 - Na janela de auditoria Play (`play_readiness_dialog.dart`), botão **Copiar relatório** habilitado só depois de `Future<PlayReadinessReport>` concluir com dados válidos. Usa `Clipboard.setData(ClipboardData(text: ...))` e feedback visível.

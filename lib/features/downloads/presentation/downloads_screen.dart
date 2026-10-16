@@ -29,7 +29,7 @@ class DownloadsScreen extends ConsumerWidget {
             initialData: manager.items,
             builder: (context, snapshot) {
               final hasHistory =
-                  (snapshot.data ?? manager.items).any((item) => !item.isActive);
+                  (snapshot.data ?? manager.items).any((item) => item.isHistoryClearable);
               return IconButton(
                 tooltip: 'Limpar histórico',
                 onPressed: hasHistory
@@ -66,6 +66,9 @@ class DownloadsScreen extends ConsumerWidget {
           }
           final selectedDownload = focus;
           final active = items.where((item) => item.isActive).toList();
+          final paused = items
+              .where((item) => item.isPaused)
+              .toList();
           final completed = items
               .where((item) => item.status == ManagedDownloadStatus.completed)
               .toList();
@@ -114,7 +117,27 @@ class DownloadsScreen extends ConsumerWidget {
                 ...active.map(
                   (item) => _ActiveDownloadCard(
                     item: item,
+                    simultaneousCount: active.length,
+                    stalled: manager.isStalled(item.id),
                     onCancel: () => manager.cancel(item.id),
+                    onPause: item.status == ManagedDownloadStatus.downloading
+                        ? () => manager.pause(item.id)
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              if (paused.isNotEmpty) ...[
+                _SectionTitle(
+                  icon: Icons.pause_circle_outline_rounded,
+                  title: 'Pausados',
+                  count: paused.length,
+                ),
+                ...paused.map(
+                  (item) => _PausedDownloadCard(
+                    item: item,
+                    onResume: () => manager.resume(item.id),
+                    onCancel: () => manager.cancelPaused(item.id),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -172,7 +195,7 @@ class DownloadsScreen extends ConsumerWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Limpar histórico?'),
         content: const Text(
-          'Os registros concluídos, cancelados e com falha serão removidos da Central. Os arquivos já salvos em Downloads não serão apagados.',
+          'Os registros concluídos, cancelados e com falha serão removidos. Downloads pausados e seus arquivos parciais serão preservados. Os arquivos já salvos em Downloads não serão apagados.',
         ),
         actions: [
           TextButton(

@@ -32,10 +32,19 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _ActiveDownloadCard extends StatelessWidget {
-  const _ActiveDownloadCard({required this.item, required this.onCancel});
+  const _ActiveDownloadCard({
+    required this.item,
+    required this.onCancel,
+    required this.onPause,
+    required this.simultaneousCount,
+    required this.stalled,
+  });
 
   final ManagedDownload item;
   final VoidCallback onCancel;
+  final VoidCallback? onPause;
+  final int simultaneousCount;
+  final bool stalled;
 
   @override
   Widget build(BuildContext context) {
@@ -61,9 +70,24 @@ class _ActiveDownloadCard extends StatelessWidget {
         if (item.bytesPerSecond > 0) '${_formatBytes(item.bytesPerSecond.round())}/s',
         if (item.estimatedSecondsRemaining != null)
           _etaText(item.estimatedSecondsRemaining!),
+        if (stalled)
+          'Sem avanço há 15 s ou mais. Você pode pausar e retomar para tentar reconectar.',
+        if (simultaneousCount > 1)
+          '$simultaneousCount downloads ativos compartilham a rede.',
+        if (item.bytesPerSecond > 0 &&
+            item.bytesPerSecond < 64 * 1024 &&
+            item.receivedBytes >= 1024 * 1024)
+          'Conexão lenta neste momento. Pausar e retomar pode tentar nova conexão.',
       ],
       progress: item.progress,
       actions: [
+        if (onPause != null)
+          _CompactDownloadButton(
+            onPressed: onPause,
+            icon: Icons.pause_rounded,
+            label: 'Pausar',
+            primary: true,
+          ),
         _CompactDownloadButton(
           onPressed: onCancel,
           icon: Icons.close_rounded,
@@ -72,6 +96,50 @@ class _ActiveDownloadCard extends StatelessWidget {
       ],
     );
   }
+}
+
+class _PausedDownloadCard extends StatelessWidget {
+  const _PausedDownloadCard({
+    required this.item,
+    required this.onResume,
+    required this.onCancel,
+  });
+
+  final ManagedDownload item;
+  final VoidCallback onResume;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) => _DownloadCardShell(
+        item: item,
+        badges: [
+          _DownloadBadge(label: item.typeLabel, icon: _typeIcon(item.type)),
+          _DownloadBadge(label: item.sourceLabel, icon: Icons.link_rounded),
+          const _DownloadBadge(
+            label: 'Pausado',
+            icon: Icons.pause_circle_outline_rounded,
+            emphasized: true,
+          ),
+        ],
+        progress: item.progress,
+        details: [
+          '${_formatBytes(item.receivedBytes)} preservados',
+          'Retomar conserva os bytes e solicita o trecho restante quando o servidor permite.',
+        ],
+        actions: [
+          _CompactDownloadButton(
+            onPressed: onResume,
+            icon: Icons.play_arrow_rounded,
+            label: 'Retomar',
+            primary: true,
+          ),
+          _CompactDownloadButton(
+            onPressed: onCancel,
+            icon: Icons.close_rounded,
+            label: 'Cancelar',
+          ),
+        ],
+      );
 }
 
 class _CompletedDownloadCard extends StatelessWidget {

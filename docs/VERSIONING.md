@@ -1,3 +1,7 @@
+### 2.0.130
+
+A versão `2.0.130+200144` introduz pausas reais, retomada segura por HTTP Range, persistência de estado pausado, proteção do histórico e alertas de conexão sem progresso. Preserva os mecanismos de integridade e download de APK. Configuração canônica: `version: 2.0.130+200144`. Veja `docs/RELEASE_2.0.130.md`.
+
 ### 2.0.129
 
 A versão `2.0.129+200143` permite copiar o relatório completo da auditoria da Google Play pela janela Play, preservando resultados, evidências, limitações e pendências manuais. O botão só é ativado após a análise bem-sucedida e confirma a cópia. Consulte `docs/RELEASE_2.0.129.md`.

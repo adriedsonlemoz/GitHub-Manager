@@ -3,6 +3,7 @@ enum ManagedDownloadType { apk, projectZip, logs, artifact, file }
 enum ManagedDownloadStatus {
   queued,
   downloading,
+  paused,
   completed,
   failed,
   interrupted,
@@ -70,6 +71,10 @@ class ManagedDownload {
       status == ManagedDownloadStatus.queued ||
       status == ManagedDownloadStatus.downloading;
 
+  bool get isPaused => status == ManagedDownloadStatus.paused;
+
+  bool get isHistoryClearable => !isActive && !isPaused;
+
   bool get isApk =>
       type == ManagedDownloadType.apk || fileName.toLowerCase().endsWith('.apk');
 
@@ -97,7 +102,7 @@ class ManagedDownload {
       sourceEndpoint!.isNotEmpty;
 
   bool get canResume =>
-      canRetry &&
+      (canRetry || isPaused) &&
       workingPath?.isNotEmpty == true &&
       receivedBytes > 0;
 
@@ -120,6 +125,7 @@ class ManagedDownload {
   String get statusLabel => switch (status) {
         ManagedDownloadStatus.queued => 'Aguardando',
         ManagedDownloadStatus.downloading => 'Baixando',
+        ManagedDownloadStatus.paused => 'Pausado',
         ManagedDownloadStatus.completed => 'Concluído',
         ManagedDownloadStatus.failed => 'Falhou',
         ManagedDownloadStatus.interrupted => 'Interrompido',
@@ -150,6 +156,17 @@ class ManagedDownload {
     return lines.join('\n');
   }
 
+  void markPaused() {
+    status = ManagedDownloadStatus.paused;
+    bytesPerSecond = 0;
+    estimatedSecondsRemaining = null;
+    errorMessage = null;
+    errorCode = null;
+    failureStage = null;
+    httpStatus = null;
+    responseMessage = null;
+  }
+
   void markInterruptedByAppExit() {
     status = ManagedDownloadStatus.interrupted;
     failedAt = DateTime.now();
@@ -162,14 +179,16 @@ class ManagedDownload {
     failureStage = 'download';
   }
 
-  void resetForRetry() {
+  void resetForRetry({bool preserveProgress = false}) {
     status = ManagedDownloadStatus.queued;
     localPath = null;
     startedAt = null;
     completedAt = null;
     failedAt = null;
-    receivedBytes = 0;
-    totalBytes = 0;
+    if (!preserveProgress) {
+      receivedBytes = 0;
+      totalBytes = 0;
+    }
     bytesPerSecond = 0;
     estimatedSecondsRemaining = null;
     errorMessage = null;

@@ -1,3 +1,12 @@
+## 2.0.130+200144 — 2026-10-16
+
+- Implementa **Pausar / Retomar** na Central de Downloads, com seção Pausados, persistência do estado e preservação do arquivo parcial para retomada segura.
+- A retomada aguarda o encerramento do download anterior para evitar duas gravações no mesmo arquivo; Releases/Artifacts renovam URLs assinadas e usam Range quando permitido.
+- Gravações do histórico são serializadas e a limpeza ignora downloads pausados; são preservados os contadores e a seleção de ABI dos APKs.
+- Detecta ausência de avanço por 15 segundos, zerando velocidade/ETA obsoletos; sinaliza downloads simultâneos e velocidade baixa, sem prometer aceleração da rede.
+- Reforça downloads públicos: verifica Content-Range e comprimento recebido. Evita anexar segmentos incompatíveis; atualiza testes de regressão, notas, configuração e versionCode 200144.
+- Validação Flutter/Android completa pendente de execução no GitHub Actions e em aparelho.
+
 ## 2.0.129+200143 — 2026-10-15
 
 - Adiciona **Copiar relatório** ao pop-up de auditoria Google Play, copiando conteúdo completo para área de transferência via Clipboard nativo.

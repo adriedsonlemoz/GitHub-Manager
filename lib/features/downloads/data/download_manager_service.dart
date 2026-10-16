@@ -26,6 +26,18 @@ class DownloadManagerService {
   final _controller = StreamController<List<ManagedDownload>>.broadcast();
   final List<ManagedDownload> _items = [];
   final Map<String, CancelToken> _cancelTokens = {};
+  // Uma retomada deve aguardar o fechamento do sink da tentativa anterior.
+  final Map<String, Future<void>> _operations = {};
+  final Set<String> _finalizing = <String>{};
+  // Links públicos com query assinada ficam apenas em memória; o histórico
+  // persiste somente a URL sem parâmetros sensíveis.
+  final Map<String, String> _publicSourceUrls = {};
+  final Map<String, DateTime> _lastChunkAt = {};
+  final Set<String> _stalledIds = <String>{};
+  Timer? _stalledTimer;
+  // Gravações em paralelo do histórico poderiam sobrescrever estado pausado.
+  Future<void> _historyWrites = Future<void>.value();
+
   final Map<String, DownloadSpeedMeter> _progressSamples = {};
   DateTime? _lastForegroundUpdate;
   int _sequence = 0;
@@ -33,6 +45,121 @@ class DownloadManagerService {
   Stream<List<ManagedDownload>> get stream => _controller.stream;
   List<ManagedDownload> get items => List.unmodifiable(_items);
   int get activeCount => _items.where((item) => item.isActive).length;
+  bool isStalled(String id) => _stalledIds.contains(id);
+
+  void _ensureStalledTimer() {
+    _stalledTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
+      final now = DateTime.now();
+      var changed = false;
+      for (final item in _items) {
+        if (item.status != ManagedDownloadStatus.downloading) continue;
+        final last = _lastChunkAt[item.id];
+        if (last == null ||
+            now.difference(last) < const Duration(seconds: 15)) continue;
+        if (_stalledIds.add(item.id)) changed = true;
+        if (item.bytesPerSecond != 0 || item.estimatedSecondsRemaining != null) {
+          item
+            ..bytesPerSecond = 0
+            ..estimatedSecondsRemaining = null;
+          changed = true;
+        }
+      }
+      if (changed) _emit();
+    });
+  }
+
+  void _stopStalledTimerIfIdle() {
+    if (_items.any((item) => item.isActive)) return;
+    _stalledTimer?.cancel();
+    _stalledTimer = null;
+  }
+
+  void _launch(ManagedDownload item, Future<void> Function() action) {
+    final operation = action();
+    _operations[item.id] = operation;
+    unawaited(operation.then<void>(
+      (_) {
+        if (identical(_operations[item.id], operation)) {
+          _operations.remove(item.id);
+        }
+      },
+      onError: (Object error, StackTrace stack) {
+        if (identical(_operations[item.id], operation)) {
+          _operations.remove(item.id);
+        }
+      },
+    ));
+  }
+
+  Future<void> pause(String id) async {
+    final item = _find(id);
+    if (item == null ||
+        item.status != ManagedDownloadStatus.downloading ||
+        _finalizing.contains(id)) {
+      return;
+    }
+    // Marcar antes de cancelar evita que o erro de rede vire uma falha comum.
+    item.markPaused();
+    _cancelTokens[id]?.cancel('Pausado pelo usuário');
+    _progressSamples.remove(id);
+    _lastChunkAt.remove(id);
+    _stalledIds.remove(id);
+    _emit();
+    await _persistHistory();
+    await _syncDownloadForegroundService();
+  }
+
+  Future<void> cancelPaused(String id) async {
+    final item = _find(id);
+    if (item == null || !item.isPaused) return;
+    item
+      ..status = ManagedDownloadStatus.cancelled
+      ..failedAt = DateTime.now()
+      ..errorMessage = 'Download cancelado pelo usuário. O arquivo parcial poderá ser reutilizado.'
+      ..errorCode = 'DOWNLOAD_CANCELLED'
+      ..failureStage = 'download';
+    _emit();
+    await _persistHistory();
+  }
+
+  Future<void> resume(String id) async {
+    final item = _find(id);
+    if (item == null || !item.isPaused) return;
+    // O stream e o arquivo parcial precisam estar fechados antes do Range.
+    final previous = _operations[id];
+    if (previous != null) {
+      try {
+        await previous;
+      } catch (_) {
+        // O estado pausado já foi registrado; a retomada usa o arquivo em disco.
+      }
+    }
+    if (!item.isPaused) return;
+    final endpoint = item.sourceEndpoint;
+    if (endpoint == null || endpoint.isEmpty) return;
+    item.resetForRetry(preserveProgress: true);
+    _emit();
+    await _persistHistory();
+    _startExisting(item, endpoint);
+  }
+
+  void _startExisting(ManagedDownload item, String endpoint) {
+    if (endpoint.startsWith('https://') || endpoint.startsWith('http://')) {
+      _launch(item, () => _runDirectUrl(item, _publicSourceUrls[item.id] ?? endpoint));
+    } else if (item.isApk && item.artifactId != null) {
+      _launch(item, () => _runArtifactApk(
+        item,
+        endpoint,
+        preferredAbis: item.preferredAbis.isNotEmpty
+            ? item.preferredAbis
+            : (item.preferredAbi?.trim().isNotEmpty == true
+                ? <String>[item.preferredAbi!.trim()]
+                : const <String>[]),
+      ));
+    } else {
+      _launch(item, () => _runRedirected(item, endpoint));
+    }
+  }
 
   ManagedDownload startRepositoryZip({
     required String repositoryFullName,
@@ -105,7 +232,7 @@ class DownloadManagerService {
       sourceEndpoint: endpoint,
       artifactId: artifact.id,
     );
-    unawaited(_runRedirected(item, endpoint));
+    _launch(item, () => _runRedirected(item, endpoint));
     return item;
   }
 
@@ -130,13 +257,11 @@ class DownloadManagerService {
               ? <String>[preferredAbi!.trim()]
               : const <String>[]),
     );
-    unawaited(
-      _runArtifactApk(
-        item,
-        endpoint,
-        preferredAbis: item.preferredAbis,
-      ),
-    );
+    _launch(item, () => _runArtifactApk(
+      item,
+      endpoint,
+      preferredAbis: item.preferredAbis,
+    ));
     return item;
   }
 
@@ -186,13 +311,14 @@ class DownloadManagerService {
       repositoryFullName: repositoryFullName,
       sourceEndpoint: _sanitizeDiagnosticEndpoint(url),
     );
-    unawaited(_runDirectUrl(item, url));
+    _publicSourceUrls[item.id] = url;
+    _launch(item, () => _runDirectUrl(item, url));
     return item;
   }
 
   Future<void> cancel(String id) async {
     final item = _find(id);
-    if (item == null || !item.isActive) {
+    if (item == null || !item.isActive || _finalizing.contains(id)) {
       return;
     }
     _cancelTokens[id]?.cancel('Cancelado pelo usuário');
@@ -205,6 +331,8 @@ class DownloadManagerService {
       ..errorCode = 'DOWNLOAD_CANCELLED'
       ..failureStage = 'download';
     _progressSamples.remove(id);
+    _lastChunkAt.remove(id);
+    _stalledIds.remove(id);
     _emit();
     await _persistHistory();
     await _syncDownloadForegroundService();
@@ -212,29 +340,26 @@ class DownloadManagerService {
 
   Future<void> retry(String id) async {
     final item = _find(id);
-    final endpoint = item?.sourceEndpoint;
-    if (item == null || item.isActive || endpoint == null || endpoint.isEmpty) {
+    if (item == null) return;
+    if (item.isPaused) {
+      await resume(id);
       return;
     }
+    final endpoint = item.sourceEndpoint;
+    if (item.isActive || !item.canRetry || endpoint == null || endpoint.isEmpty) {
+      return;
+    }
+    final previous = _operations[id];
+    if (previous != null) {
+      try {
+        await previous;
+      } catch (_) {}
+    }
+    if (item.isActive || item.isPaused) return;
     item.resetForRetry();
     _emit();
-    if (endpoint.startsWith('https://') || endpoint.startsWith('http://')) {
-      unawaited(_runDirectUrl(item, endpoint));
-    } else if (item.isApk && item.artifactId != null) {
-      unawaited(
-        _runArtifactApk(
-          item,
-          endpoint,
-          preferredAbis: item.preferredAbis.isNotEmpty
-              ? item.preferredAbis
-              : (item.preferredAbi?.trim().isNotEmpty == true
-                  ? <String>[item.preferredAbi!.trim()]
-                  : const <String>[]),
-        ),
-      );
-    } else {
-      unawaited(_runRedirected(item, endpoint));
-    }
+    await _persistHistory();
+    _startExisting(item, endpoint);
   }
 
   Future<void> removeFromHistory(String id) async {
@@ -243,6 +368,7 @@ class DownloadManagerService {
       return;
     }
     await _deleteWorkingFile(item);
+    _publicSourceUrls.remove(id);
     _items.remove(item);
     _emit();
     await _persistHistory();
@@ -264,17 +390,21 @@ class DownloadManagerService {
       }
     }
     await _deleteWorkingFile(item);
+    _publicSourceUrls.remove(id);
     _items.remove(item);
     _emit();
     await _persistHistory();
   }
 
   Future<void> clearFinishedHistory() async {
-    final finished = _items.where((item) => !item.isActive).toList(growable: false);
+    final finished = _items.where((item) => item.isHistoryClearable).toList(growable: false);
     for (final item in finished) {
       await _deleteWorkingFile(item);
     }
-    _items.removeWhere((item) => !item.isActive);
+    _items.removeWhere((item) => item.isHistoryClearable);
+    for (final item in finished) {
+      _publicSourceUrls.remove(item.id);
+    }
     _emit();
     await _persistHistory();
   }
@@ -309,7 +439,7 @@ class DownloadManagerService {
       repositoryFullName: repositoryFullName,
       sourceEndpoint: endpoint,
     );
-    unawaited(_runRedirected(item, endpoint));
+    _launch(item, () => _runRedirected(item, endpoint));
     return item;
   }
 
@@ -356,6 +486,8 @@ class DownloadManagerService {
         ..fileName = p.basename(completedFile.path)
         ..sourceEndpoint = _sanitizeDiagnosticEndpoint(url)
         ..receivedBytes = resumeFrom;
+      if (cancelToken.isCancelled ||
+          item.status == ManagedDownloadStatus.cancelled || item.isPaused) return;
       _markStarted(item, initialBytes: resumeFrom);
 
       await _downloadPublicUrl(
@@ -366,7 +498,8 @@ class DownloadManagerService {
         onProgress: (received, total) => _updateProgress(item, received, total),
       );
 
-      if (item.status == ManagedDownloadStatus.cancelled) return;
+      if (item.status == ManagedDownloadStatus.cancelled || item.isPaused) return;
+      _finalizing.add(item.id);
       completedFile = await partialFile.rename(completedFile.path);
       partialFile = null;
       item
@@ -376,7 +509,7 @@ class DownloadManagerService {
       await _publishCompleted(item, completedFile);
       completedFile = null;
     } catch (error) {
-      if (item.status != ManagedDownloadStatus.cancelled) {
+      if (item.status != ManagedDownloadStatus.cancelled && !item.isPaused) {
         _recordFailure(
           item,
           error is DioException
@@ -394,6 +527,10 @@ class DownloadManagerService {
     } finally {
       _cancelTokens.remove(item.id);
       _progressSamples.remove(item.id);
+      _finalizing.remove(item.id);
+      _lastChunkAt.remove(item.id);
+      _stalledIds.remove(item.id);
+      await _refreshPausedBytes(item);
       if (completedFile != null && await completedFile.exists()) {
         await completedFile.delete();
       }
@@ -417,6 +554,8 @@ class DownloadManagerService {
         ..fileName = p.basename(completedFile.path)
         ..sourceEndpoint = endpoint
         ..receivedBytes = resumeFrom;
+      if (cancelToken.isCancelled ||
+          item.status == ManagedDownloadStatus.cancelled || item.isPaused) return;
       _markStarted(item, initialBytes: resumeFrom);
       await _downloadGithubWithRecovery(
         endpoint,
@@ -424,7 +563,8 @@ class DownloadManagerService {
         item: item,
         cancelToken: cancelToken,
       );
-      if (item.status == ManagedDownloadStatus.cancelled) return;
+      if (item.status == ManagedDownloadStatus.cancelled || item.isPaused) return;
+      _finalizing.add(item.id);
       completedFile = await partialFile.rename(completedFile.path);
       partialFile = null;
       item
@@ -434,7 +574,7 @@ class DownloadManagerService {
       await _publishCompleted(item, completedFile);
       completedFile = null;
     } catch (error) {
-      if (item.status != ManagedDownloadStatus.cancelled) {
+      if (item.status != ManagedDownloadStatus.cancelled && !item.isPaused) {
         _recordFailure(
           item,
           error,
@@ -444,6 +584,10 @@ class DownloadManagerService {
     } finally {
       _cancelTokens.remove(item.id);
       _progressSamples.remove(item.id);
+      _finalizing.remove(item.id);
+      _lastChunkAt.remove(item.id);
+      _stalledIds.remove(item.id);
+      await _refreshPausedBytes(item);
       if (completedFile != null && await completedFile.exists()) {
         await completedFile.delete();
       }
@@ -598,6 +742,8 @@ class DownloadManagerService {
       item
         ..sourceEndpoint = endpoint
         ..receivedBytes = resumeFrom;
+      if (cancelToken.isCancelled ||
+          item.status == ManagedDownloadStatus.cancelled || item.isPaused) return;
       _markStarted(item, initialBytes: resumeFrom);
       await _downloadGithubWithRecovery(
         endpoint,
@@ -605,7 +751,8 @@ class DownloadManagerService {
         item: item,
         cancelToken: cancelToken,
       );
-      if (item.status == ManagedDownloadStatus.cancelled) return;
+      if (item.status == ManagedDownloadStatus.cancelled || item.isPaused) return;
+      _finalizing.add(item.id);
 
       if (await _canUseArtifactAsDirectApk(item, downloadedFile)) {
         item.failureStage = 'preparar_apk_direto';
@@ -705,13 +852,14 @@ class DownloadManagerService {
         downloadedFile = null;
       }
 
+      if (item.isPaused || item.status == ManagedDownloadStatus.cancelled) return;
       if (publishFile == null) {
         throw const FormatException('Não foi possível preparar o APK baixado.');
       }
       await _publishCompleted(item, publishFile);
       publishFile = null;
     } catch (error) {
-      if (item.status != ManagedDownloadStatus.cancelled) {
+      if (item.status != ManagedDownloadStatus.cancelled && !item.isPaused) {
         _recordFailure(
           item,
           error,
@@ -721,12 +869,30 @@ class DownloadManagerService {
     } finally {
       _cancelTokens.remove(item.id);
       _progressSamples.remove(item.id);
+      _finalizing.remove(item.id);
+      _lastChunkAt.remove(item.id);
+      _stalledIds.remove(item.id);
+      await _refreshPausedBytes(item);
       if (publishFile != null && await publishFile.exists()) {
         await publishFile.delete();
       }
       _emit();
       await _persistHistory();
       await _syncDownloadForegroundService();
+    }
+  }
+
+  Future<void> _refreshPausedBytes(ManagedDownload item) async {
+    if (!item.isPaused) return;
+    final path = item.workingPath;
+    if (path == null || path.isEmpty) return;
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        item.receivedBytes = await file.length();
+      }
+    } catch (_) {
+      // Não apagar nem adivinhar bytes em caso de falha ao ler o arquivo.
     }
   }
 
@@ -792,8 +958,18 @@ class DownloadManagerService {
       throw const FormatException('O servidor retornou um download vazio.');
     }
     final acceptedResume = response.statusCode == 206 && offset > 0;
-    final startingBytes = acceptedResume ? offset : 0;
     final contentRange = response.headers.value('content-range');
+    if (acceptedResume &&
+        (contentRange == null ||
+            !contentRange.startsWith('bytes $offset-'))) {
+      throw DownloadFailureException(
+        'O servidor retornou um intervalo diferente do solicitado.',
+        code: 'PUBLIC_DOWNLOAD_RESUME_INVALID',
+        endpoint: _sanitizeDiagnosticEndpoint(url),
+        stage: 'retomar_download',
+      );
+    }
+    final startingBytes = acceptedResume ? offset : 0;
     final rangeTotal = contentRange == null
         ? null
         : int.tryParse(contentRange.split('/').last.trim());
@@ -813,8 +989,17 @@ class DownloadManagerService {
         onProgress(received, total);
       }
       await sink.flush();
+      if (!cancelToken.isCancelled && total > 0 && received != total) {
+        throw DownloadFailureException(
+          'Transferência encerrada antes de concluir o arquivo esperado.',
+          code: 'PUBLIC_DOWNLOAD_INCOMPLETE',
+          endpoint: _sanitizeDiagnosticEndpoint(url),
+          stage: 'baixar_arquivo',
+        );
+      }
     } finally {
       await sink.close();
+      dio.close(force: true);
     }
   }
 
@@ -833,6 +1018,9 @@ class DownloadManagerService {
       ..bytesPerSecond = 0
       ..estimatedSecondsRemaining = null;
     _progressSamples[item.id] = DownloadSpeedMeter(now, initialBytes);
+    _lastChunkAt[item.id] = now;
+    _stalledIds.remove(item.id);
+    _ensureStalledTimer();
     _emit();
     unawaited(_persistHistory());
     unawaited(AppNotificationService.requestPermission());
@@ -840,7 +1028,12 @@ class DownloadManagerService {
   }
 
   void _updateProgress(ManagedDownload item, int received, int total) {
+    if (!item.isActive) return;
     final now = DateTime.now();
+    if (received > item.receivedBytes) {
+      _lastChunkAt[item.id] = now;
+      _stalledIds.remove(item.id);
+    }
     // Os contadores continuam exatos, mas não redesenhamos a tela a cada
     // pacote recebido (podem ser centenas por segundo em Wi-Fi rápido).
     item
@@ -868,6 +1061,7 @@ class DownloadManagerService {
   Future<void> _syncDownloadForegroundService({bool startService = false}) async {
     final active = _items.where((item) => item.isActive).toList(growable: false);
     if (active.isEmpty) {
+      _stopStalledTimerIfIdle();
       _lastForegroundUpdate = null;
       try {
         await PlatformActions.stopDownloadForegroundService();
@@ -934,6 +1128,7 @@ class DownloadManagerService {
       location = await publish();
     }
 
+    _publicSourceUrls.remove(item.id);
     item
       ..localPath = location
       ..workingPath = null
@@ -1170,17 +1365,22 @@ class DownloadManagerService {
     }
   }
 
-  Future<void> _persistHistory() async {
-    try {
-      final file = await _historyFile();
-      final history = _items
-          .take(100)
-          .map((item) => item.toJson())
-          .toList(growable: false);
-      await file.writeAsString(jsonEncode(history), flush: true);
-    } catch (_) {
-      // Falha de histórico não invalida o download já concluído no Android.
-    }
+  Future<void> _persistHistory() {
+    // Fotografia capturada no instante do evento, gravada em ordem.
+    final snapshot = _items
+        .take(100)
+        .map((item) => item.toJson())
+        .toList(growable: false);
+    final pending = _historyWrites.then((_) async {
+      try {
+        final file = await _historyFile();
+        await file.writeAsString(jsonEncode(snapshot), flush: true);
+      } catch (_) {
+        // Histórico é auxiliar; falha de disco não deve cancelar o download.
+      }
+    });
+    _historyWrites = pending;
+    return pending;
   }
 
   Future<Directory> _workingDirectory() async {
@@ -1267,6 +1467,13 @@ class DownloadManagerService {
       token.cancel('Download manager encerrado');
     }
     _cancelTokens.clear();
+    _stalledTimer?.cancel();
+    _stalledTimer = null;
+    _stalledIds.clear();
+    _lastChunkAt.clear();
+    _operations.clear();
+    _finalizing.clear();
+    _publicSourceUrls.clear();
     _progressSamples.clear();
     unawaited(_stopDownloadForegroundService());
     _controller.close();

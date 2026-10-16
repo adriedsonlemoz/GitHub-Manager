@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.129';
+  static const releaseNotesVersion = '2.0.130';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -69,21 +69,21 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     const _UpdateItem(
-                      icon: Icons.storefront_outlined,
-                      title: 'Copiar relatório da análise',
-                      description: 'Na janela Play, copie o relatório completo em texto, com verificações, evidências e pendências para compartilhar ou guardar.',
+                      icon: Icons.pause_circle_outline_rounded,
+                      title: 'Pausar e retomar downloads',
+                      description: 'Pare a transferência sem apagar os bytes salvos. Retome na Central quando quiser, com proteção contra gravações simultâneas.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.fact_check_outlined,
-                      title: 'Cópia sem omitir ressalvas',
-                      description: 'Inclui branch, estados, origem dos achados e os itens que ainda precisam de confirmação manual.',
+                      icon: Icons.speed_rounded,
+                      title: 'Diagnóstico de conexão lenta',
+                      description: 'O app destaca transferências simultâneas e conexões sem avanço; velocidade e ETA são zeradas após inatividade prolongada.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
-                      icon: Icons.view_agenda_outlined,
-                      title: 'Botão sempre no lugar certo',
-                      description: 'A função Copiar relatório aparece ao lado de Fechar e só fica ativa após a análise terminar com sucesso.',
+                      icon: Icons.shield_outlined,
+                      title: 'Retomada com verificação',
+                      description: 'Releases/Artifacts continuam com retomada; links públicos agora conferem intervalo e tamanho para evitar arquivos corrompidos.',
                     ),
                   ],
                 ),

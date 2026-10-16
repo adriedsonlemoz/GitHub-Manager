@@ -1,4 +1,14 @@
-# GitHub Manager 2.0.129
+# GitHub Manager 2.0.130
+
+## Downloads pausáveis e diagnóstico de lentidão (2.0.130)
+
+- Na **Central de Downloads**, tocar em **Pausar** cancela a requisição de rede e mantém a parte já gravada no armazenamento temporário do aplicativo. A transferência aparece na seção **Pausados**, com **Retomar** e **Cancelar**.
+- **Retomar** aguarda o fechamento do arquivo da conexão anterior, lê os bytes efetivamente salvos e solicita o restante do arquivo via HTTP Range quando o servidor aceita. Links de Releases/Artifacts do GitHub obtêm novamente um URL autorizado. Se o servidor não suportar Range e responder com conteúdo completo, o download recomeça do zero para evitar corrupção.
+- Pausas são persistidas no histórico. **Limpar histórico não apaga downloads pausados** nem os arquivos parciais. Downloads pausados não retomam automaticamente ao abrir o app.
+- O tempo estimado permanece dependente da velocidade medida, e não pode prever congestionamento da internet/CDN. Depois de 15 segundos sem novos bytes, o app zera a velocidade/ETA desatualizados e mostra aviso. A Central sinaliza quando múltiplos downloads dividem o acesso à rede.
+- **Proteção de integridade:** downloads por link público conferem `Content-Range` e comprimento informado antes de aceitar uma retomada; uma resposta incompatível causa erro em vez de anexar bytes errados.
+- Não há aceleração artificial ou mudança na banda disponível. Reiniciar a conexão **pode** ajudar em algumas condições, sem garantia de aumentar a taxa. Ao perder a URL assinada de um link público com parâmetros efêmeros após reinício do app, a retomada pode exigir um novo link.
+
 
 ## Copiar relatório da auditoria Google Play (2.0.129)
 
