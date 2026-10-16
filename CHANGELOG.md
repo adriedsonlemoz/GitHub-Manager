@@ -1,3 +1,12 @@
+## 2.0.129+200143 — 2026-10-15
+
+- Adiciona **Copiar relatório** ao pop-up de auditoria Google Play, copiando conteúdo completo para área de transferência via Clipboard nativo.
+- O relatório contém repositório/branch, diagnóstico do projeto, abrangência da árvore, ressalvas, totais, verificações técnicas e pendências Play Console, incluindo estados, detalhes e evidências.
+- Botão desabilitado enquanto a análise está em andamento ou falhou; mostra confirmação de cópia e falha, e limpa status ao **Reavaliar**.
+- Garante que uma cópia de relatório anterior não altere o estado visual após uma nova análise.
+- Testes novos para formatação, incluindo projeto não Android, e contrato do botão; versão, documentação, Novidades e últimas mudanças sincronizados.
+- Flutter/Android completos pendentes de CI e teste no aparelho.
+
 ## 2.0.128+200142 — 2026-10-15
 
 - Inclui botão **Play** como quinto atalho da tela de repositório, ao lado de Enviar, GitHub/Fork, Copiar e APK, com quatro atalhos antigos mais compactos.

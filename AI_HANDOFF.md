@@ -1,3 +1,11 @@
+# Atualização 2.0.129+200143
+
+- Na janela de auditoria Play (`play_readiness_dialog.dart`), botão **Copiar relatório** habilitado só depois de `Future<PlayReadinessReport>` concluir com dados válidos. Usa `Clipboard.setData(ClipboardData(text: ...))` e feedback visível.
+- Formatação pura e testável em `PlayReadinessReport.toCopyText(repositoryFullName: ...)`, cobrindo todos os achados automáticos, manuais, evidências, estados e limites de leitura da árvore, inclusive projetos não Android.
+- Reavaliar invalida feedback e cópia pendente anterior. Sem alterações na lógica de API 36, avaliação, downloads ou assinatura.
+- Adicionados `test/play_readiness_report_copy_test.dart` e extensões a `test/play_readiness_ui_contract_test.dart`.
+- VersionName 2.0.129, versionCode 200143, changelog, README, Versioning, release, validation, WhatsNew e histórico sincronizados. Flutter/Gradle indisponíveis localmente; validar no CI.
+
 # Atualização 2.0.128+200142
 
 - Novo botão Play em `repository_detail_screen.dart`, quinta ação em linha. Os quatro botões anteriores continuam funcionais.

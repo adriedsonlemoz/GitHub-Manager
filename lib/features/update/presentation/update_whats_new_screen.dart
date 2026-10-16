@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.128';
+  static const releaseNotesVersion = '2.0.129';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,20 +70,20 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.storefront_outlined,
-                      title: 'Auditoria para Google Play',
-                      description: 'Novo botão Play dentro do projeto: revisa API 36, versão e evidências de publicação.',
+                      title: 'Copiar relatório da análise',
+                      description: 'Na janela Play, copie o relatório completo em texto, com verificações, evidências e pendências para compartilhar ou guardar.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.fact_check_outlined,
-                      title: 'Verificações claras e rastreáveis',
-                      description: 'Distingue o que foi detectado no código do que requer confirmação no pacote final ou na Play Console.',
+                      title: 'Cópia sem omitir ressalvas',
+                      description: 'Inclui branch, estados, origem dos achados e os itens que ainda precisam de confirmação manual.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.view_agenda_outlined,
-                      title: 'Cinco atalhos compactos',
-                      description: 'Enviar, GitHub/Fork, Copiar, APK e Play na mesma linha, preservando as ações anteriores.',
+                      title: 'Botão sempre no lugar certo',
+                      description: 'A função Copiar relatório aparece ao lado de Fechar e só fica ativa após a análise terminar com sucesso.',
                     ),
                   ],
                 ),

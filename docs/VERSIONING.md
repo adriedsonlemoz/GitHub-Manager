@@ -1,3 +1,7 @@
+### 2.0.129
+
+A versão `2.0.129+200143` permite copiar o relatório completo da auditoria da Google Play pela janela Play, preservando resultados, evidências, limitações e pendências manuais. O botão só é ativado após a análise bem-sucedida e confirma a cópia. Consulte `docs/RELEASE_2.0.129.md`.
+
 ### 2.0.128
 
 A versão 2.0.128+200142 adiciona auditoria parcial de publicação Google Play no detalhe de repositórios e quinta ação compacta Play. API 36, versão, bundle e verificações manuais são apresentados sem atestar aprovação da Play Console. Veja `docs/RELEASE_2.0.128.md`.
@@ -76,7 +80,7 @@ A fonte canônica é `pubspec.yaml`.
 
 Versão atual:
 
-`version: 2.0.128+200142`
+`version: 2.0.129+200143`
 
 - antes do `+`: versionName exibido ao usuário;
 - depois do `+`: versionCode Android;

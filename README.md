@@ -1,4 +1,10 @@
-# GitHub Manager 2.0.128
+# GitHub Manager 2.0.129
+
+## Copiar relatório da auditoria Google Play (2.0.129)
+
+Na janela **Play → Preparação para Google Play**, há o botão **Copiar relatório** ao lado de **Fechar**. Ele fica habilitado somente quando a consulta da branch terminar com sucesso. A cópia usa a área de transferência do Android (sem gravar o relatório no repositório) e inclui repositório, branch, resultado geral, cobertura da árvore, observações e ressalvas, verificações técnicas com status/detalhes/evidências e pendências para a Play Console.
+
+O próprio botão confirma **Copiado** quando o Android recebe o texto e mostra mensagem de erro se a cópia falhar. **Reavaliar** invalida o estado anterior e exige uma nova análise antes de copiar. A auditoria continua sendo uma avaliação parcial, não uma certificação de publicação.
 
 ## Auditoria de publicação na Google Play (2.0.128)
 

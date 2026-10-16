@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/features/repositories/data/play_readiness_service.dart';
 import 'package:github_manager/features/repositories/domain/github_repository.dart';
@@ -30,6 +31,9 @@ class _PlayReadinessDialog extends StatefulWidget {
 
 class _PlayReadinessDialogState extends State<_PlayReadinessDialog> {
   late Future<PlayReadinessReport> _future;
+  bool _copying = false;
+  int _revision = 0;
+  String? _copyFeedback;
 
   @override
   void initState() {
@@ -38,7 +42,31 @@ class _PlayReadinessDialogState extends State<_PlayReadinessDialog> {
   }
 
   void _refresh() {
+    _revision++;
+    _copying = false;
+    _copyFeedback = null;
     _future = widget.service.inspect(widget.repository);
+  }
+
+  Future<void> _copyReport(PlayReadinessReport report) async {
+    if (_copying) return;
+    final revision = _revision;
+    setState(() {
+      _copying = true;
+      _copyFeedback = null;
+    });
+    try {
+      await Clipboard.setData(ClipboardData(
+        text: report.toCopyText(repositoryFullName: widget.repository.fullName),
+      ));
+      if (!mounted || revision != _revision) return;
+      setState(() => _copyFeedback = 'Relatório copiado para a área de transferência.');
+    } catch (_) {
+      if (!mounted || revision != _revision) return;
+      setState(() => _copyFeedback = 'Não foi possível copiar o relatório.');
+    } finally {
+      if (mounted && revision == _revision) setState(() => _copying = false);
+    }
   }
 
   @override
@@ -180,12 +208,49 @@ class _PlayReadinessDialogState extends State<_PlayReadinessDialog> {
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Fechar'),
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FutureBuilder<PlayReadinessReport>(
+                          future: _future,
+                          builder: (context, snapshot) {
+                            final canCopy = snapshot.connectionState == ConnectionState.done &&
+                                snapshot.hasData && !snapshot.hasError && !_copying;
+                            return OutlinedButton.icon(
+                              onPressed: canCopy
+                                  ? () => _copyReport(snapshot.data!)
+                                  : null,
+                              icon: Icon(_copyFeedback?.startsWith('Relatório copiado') == true
+                                  ? Icons.check_rounded
+                                  : Icons.copy_rounded),
+                              label: Text(_copyFeedback?.startsWith('Relatório copiado') == true
+                                  ? 'Copiado'
+                                  : 'Copiar relatório'),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Fechar'),
+                      ),
+                    ],
+                  ),
+                  if (_copyFeedback != null) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      _copyFeedback!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],

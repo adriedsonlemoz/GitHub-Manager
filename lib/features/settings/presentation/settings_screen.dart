@@ -298,16 +298,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.129',
+                      text: 'Adiciona Copiar relatório à auditoria Play, com achados, evidências, ressalvas e pendências em texto.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.128',
                       text: 'Adiciona auditoria Google Play por projeto, com API 36, versão, bundle, segurança e itens manuais na Play Console.',
                     ),
                     _ChangeNote(
                       version: '2.0.127',
                       text: 'Corrige a ordem das três alterações na tela Configurações e o teste do workflow APK #116.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.126',
-                      text: 'Ajusta o contrato de consulta de APKs e mantém a detecção de versões instaladas.',
                     ),
                   ],
                 ),
