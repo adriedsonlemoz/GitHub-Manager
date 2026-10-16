@@ -1,4 +1,15 @@
-# GitHub Manager 2.0.130
+# GitHub Manager 2.0.131
+
+## Limpeza automática por projeto (2.0.131)
+
+**Configurações → Transferências → Limpeza automática dos downloads** oferece:
+
+- **Após concluir (padrão):** publica e valida o arquivo novo antes de retirar os demais arquivos finais gerenciados na pasta do projeto.
+- **Antes de iniciar:** remove os arquivos finais antigos antes de começar. Se o novo download falhar, o anterior poderá já ter sido excluído. Depois da publicação, faz uma conferência para respeitar downloads simultâneos.
+- **Desativada:** conserva os arquivos até o usuário decidir removê-los.
+
+A limpeza se limita aos arquivos finais de propriedade do GitHub Manager em `Downloads/GitHub/<projeto>` (Android 10+). Downloads `.part` privados, pausados e em andamento não são excluídos. Em Android 9 ou inferior a limpeza só alcança caminhos gerenciados previamente registrados no histórico; arquivos de terceiros e pastas pessoais são preservados. Se o Android não confirmar a limpeza, o app informa o problema, sem considerar silenciosamente o diretório limpo. A proteção se aplica a APKs, ZIPs de projetos, logs, artifacts e demais arquivos publicados pelo gerenciador. A publicação é serializada por pasta, evitando que duas conclusões concorrentes causem limpeza incorreta.
+
 
 ## Downloads pausáveis e diagnóstico de lentidão (2.0.130)
 

@@ -18,6 +18,7 @@ import 'package:github_manager/features/home/presentation/home_providers.dart';
 import 'package:github_manager/features/repositories/presentation/repository_providers.dart';
 import 'package:github_manager/features/repositories/data/repository_description_settings.dart';
 import 'package:github_manager/features/uploads/data/upload_recovery_settings.dart';
+import 'package:github_manager/features/downloads/data/download_cleanup_settings.dart';
 import 'package:github_manager/features/update/presentation/update_whats_new_screen.dart';
 import 'package:go_router/go_router.dart';
 
@@ -205,6 +206,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => context.push('/downloads'),
                 ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.cleaning_services_outlined),
+                  title: const Text('Limpeza automática dos downloads'),
+                  subtitle: Text(
+                    _downloadCleanupMode == null
+                        ? 'Carregando preferência…'
+                        : '${DownloadCleanupSettings.label(_downloadCleanupMode!)} • '
+                            'somente arquivos desta pasta gerenciados pelo aplicativo',
+                  ),
+                  trailing: const Icon(Icons.tune_rounded),
+                  onTap: _downloadCleanupMode == null ? null : _chooseDownloadCleanupMode,
+                ),
               ],
             ),
           ),
@@ -298,16 +312,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: const [
                     _ChangeNote(
+                      version: '2.0.131',
+                      text: 'Limpeza automática de downloads por projeto, configurável antes, depois ou desativada, com proteção dos arquivos parciais.',
+                    ),
+                    _ChangeNote(
                       version: '2.0.130',
                       text: 'Pausar e Retomar downloads com arquivo parcial preservado, aviso de conexão sem progresso e proteção de Range.',
                     ),
                     _ChangeNote(
                       version: '2.0.129',
                       text: 'Adiciona Copiar relatório à auditoria Play, com achados, evidências, ressalvas e pendências em texto.',
-                    ),
-                    _ChangeNote(
-                      version: '2.0.128',
-                      text: 'Adiciona auditoria Google Play por projeto, com API 36, versão, bundle, segurança e itens manuais na Play Console.',
                     ),
                   ],
                 ),

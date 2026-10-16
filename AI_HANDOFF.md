@@ -1,3 +1,11 @@
+# GitHub Manager 2.0.131+200145
+
+- Preferência `settings.download_cleanup_mode` em SQLite com opções `afterSuccess`, `beforeStart` e `disabled`, padrão `afterSuccess`.
+- Limpeza restrita à pasta `Downloads/GitHub/<projeto>` via MediaStore, apenas itens criados pelo próprio pacote Android e não pendentes (API 29+); no legado, apenas caminhos de arquivos explicitamente registrados no histórico.
+- Publicações e limpeza serializadas por pasta. O modo Antes de iniciar remove os finais antigos antes de transferir, mantendo proteção dos parciais; a consolidação após publicar preserva a regra de somente um arquivo em downloads concorrentes.
+- `cleanupWarning` persiste avisos de falha após publicação. Código não lê Secrets nem exclui ZIPs-fonte, arquivos externos ao diretório dedicado ou `.part`.
+- `flutter test`, `flutter analyze` e compilação Android permanecem pendentes neste ambiente; validar no GitHub Actions e Android 9/10/13+ antes de depender da limpeza em produção.
+
 # Atualização 2.0.130+200144
 
 - `DownloadManagerService`: adiciona estado paused, `pause`, `resume`, `cancelPaused`, registro de operações em andamento e espera pelo fechamento do sink antes de retomar. Downloads ativos mantêm a proteção de fluxo em Releases/Artifacts; opção pública valida Content-Range e total.

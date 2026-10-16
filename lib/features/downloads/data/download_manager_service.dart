@@ -12,6 +12,7 @@ import 'package:github_manager/core/platform/platform_actions.dart';
 import 'package:github_manager/features/builds/domain/action_artifact.dart';
 import 'package:github_manager/features/builds/domain/apk_variant.dart';
 import 'package:github_manager/features/downloads/data/download_speed_meter.dart';
+import 'package:github_manager/features/downloads/data/download_cleanup_settings.dart';
 import 'package:github_manager/features/downloads/domain/managed_download.dart';
 import 'package:github_manager/features/downloads/domain/apk_package_inspector.dart';
 import 'package:path/path.dart' as p;
@@ -19,10 +20,13 @@ import 'package:path_provider/path_provider.dart';
 
 class DownloadManagerService {
   DownloadManagerService(this._client) {
-    unawaited(_restoreHistory());
+    _historyReady = _restoreHistory();
   }
 
   final GitHubApiClient _client;
+  late final Future<void> _historyReady;
+  final Map<String, Future<void>> _projectCleanupLocks = {};
+  final Set<String> _alreadyCleanedBefore = <String>{};
   final _controller = StreamController<List<ManagedDownload>>.broadcast();
   final List<ManagedDownload> _items = [];
   final Map<String, CancelToken> _cancelTokens = {};
@@ -369,6 +373,7 @@ class DownloadManagerService {
     }
     await _deleteWorkingFile(item);
     _publicSourceUrls.remove(id);
+    _alreadyCleanedBefore.remove(id);
     _items.remove(item);
     _emit();
     await _persistHistory();
@@ -391,6 +396,7 @@ class DownloadManagerService {
     }
     await _deleteWorkingFile(item);
     _publicSourceUrls.remove(id);
+    _alreadyCleanedBefore.remove(id);
     _items.remove(item);
     _emit();
     await _persistHistory();
@@ -472,12 +478,114 @@ class DownloadManagerService {
     return item;
   }
 
+  Future<T> _withProjectCleanupLock<T>(
+    String folder,
+    Future<T> Function() operation,
+  ) async {
+    final previous = _projectCleanupLocks[folder];
+    final completer = Completer<void>();
+    final locked = completer.future;
+    _projectCleanupLocks[folder] = locked;
+    try {
+      if (previous != null) await previous;
+      return await operation();
+    } finally {
+      if (identical(_projectCleanupLocks[folder], locked)) {
+        _projectCleanupLocks.remove(folder);
+      }
+      completer.complete();
+    }
+  }
+
+  Future<DownloadCleanupMode> _cleanupMode() async {
+    try {
+      return await DownloadCleanupSettings.read();
+    } catch (_) {
+      // Sempre preservar o anterior até o novo estar publicado por padrão.
+      return DownloadCleanupMode.afterSuccess;
+    }
+  }
+
+  Future<void> _cleanManagedProject(
+    ManagedDownload item, {
+    String? keepLocation,
+  }) async {
+    final folder = _projectFolderName(item.repositoryFullName);
+    if (folder == null) return;
+    // O histórico ainda pode estar sendo restaurado na primeira abertura.
+    await _historyReady;
+    final result = await PlatformActions.cleanupManagedProjectDownloads(
+      relativeFolder: folder,
+      keepLocation: keepLocation,
+    );
+    final nativeErrors = result['failed'];
+    var failedCount = nativeErrors is num ? nativeErrors.toInt() : 0;
+
+    // Reconcilia o histórico do Android 10+ usando as URIs efetivamente
+    // removidas pelo provedor. Em Android antigo, só aceita caminhos já
+    // registrados e que apontem diretamente à pasta gerenciada do projeto.
+    final nativeRemoved = (result['removed'] as List?)
+            ?.whereType<String>()
+            .toSet() ??
+        <String>{};
+    final removedIds = <String>{};
+    for (final previous in _items.toList(growable: false)) {
+      if (previous.id == item.id ||
+          previous.repositoryFullName != item.repositoryFullName ||
+          previous.status != ManagedDownloadStatus.completed) continue;
+      final location = previous.localPath;
+      if (location == null || location.isEmpty || location == keepLocation) continue;
+      if (!nativeRemoved.contains(location)) {
+        // URIs não listadas pelo MediaStore não são excluídas às cegas.
+        if (location.startsWith('content://')) continue;
+        final directory = p.normalize(p.dirname(location));
+        if (p.basename(directory) != folder ||
+            p.basename(p.dirname(directory)) != 'GitHub' ||
+            p.basename(p.dirname(p.dirname(directory))) != 'Download') {
+          continue;
+        }
+        try {
+          if (!await PlatformActions.deletePublishedDownload(location)) {
+            failedCount++;
+            continue;
+          }
+        } catch (_) {
+          failedCount++;
+          continue;
+        }
+      }
+      removedIds.add(previous.id);
+    }
+    if (removedIds.isNotEmpty) {
+      _items.removeWhere((entry) => removedIds.contains(entry.id));
+      _emit();
+      await _persistHistory();
+    }
+    if (failedCount > 0) {
+      throw StateError(
+        'O Android não confirmou a exclusão de $failedCount arquivo(s) do projeto.',
+      );
+    }
+  }
+
+  Future<void> _cleanBeforeStart(ManagedDownload item) async {
+    if (item.isPaused || item.status == ManagedDownloadStatus.cancelled) return;
+    if (!_alreadyCleanedBefore.add(item.id)) return;
+    final mode = await _cleanupMode();
+    if (mode != DownloadCleanupMode.beforeStart) return;
+    if (item.isPaused || item.status == ManagedDownloadStatus.cancelled) return;
+    final folder = _projectFolderName(item.repositoryFullName);
+    if (folder == null) return;
+    await _withProjectCleanupLock(folder, () => _cleanManagedProject(item));
+  }
+
   Future<void> _runDirectUrl(ManagedDownload item, String url) async {
     final cancelToken = CancelToken();
     _cancelTokens[item.id] = cancelToken;
     File? partialFile;
     File? completedFile;
     try {
+      await _cleanBeforeStart(item);
       final directory = await _workingDirectory();
       completedFile = await _uniqueFile(directory, item.fileName);
       partialFile = await _partialFileFor(item, directory, item.fileName);
@@ -546,6 +654,7 @@ class DownloadManagerService {
     File? partialFile;
     File? completedFile;
     try {
+      await _cleanBeforeStart(item);
       final directory = await _workingDirectory();
       completedFile = await _uniqueFile(directory, item.fileName);
       partialFile = await _partialFileFor(item, directory, item.fileName);
@@ -730,6 +839,7 @@ class DownloadManagerService {
     File? downloadedFile;
     File? publishFile;
     try {
+      await _cleanBeforeStart(item);
       final directory = await _workingDirectory();
       downloadedFile = await _partialFileFor(
         item,
@@ -1087,10 +1197,7 @@ class DownloadManagerService {
     }
   }
 
-  Future<void> _publishCompleted(
-    ManagedDownload item,
-    File source,
-  ) async {
+  Future<void> _publishCompleted(ManagedDownload item, File source) async {
     if (item.type == ManagedDownloadType.apk) {
       item.failureStage = 'verificar_estrutura_apk';
       final inspection = await ApkPackageInspection.inspect(source);
@@ -1105,50 +1212,65 @@ class DownloadManagerService {
     }
     item.failureStage = 'salvar_downloads';
     final projectFolder = _projectFolderName(item.repositoryFullName);
-    Future<String> publish() => PlatformActions.publishToDownloads(
-          sourcePath: source.path,
-          fileName: item.fileName,
-          mimeType: _mimeType(item),
-          relativeFolder: projectFolder,
-        );
+    Future<void> publishAndClean() async {
+      Future<String> publish() => PlatformActions.publishToDownloads(
+            sourcePath: source.path,
+            fileName: item.fileName,
+            mimeType: _mimeType(item),
+            relativeFolder: projectFolder,
+          );
 
-    String location;
-    try {
-      location = await publish();
-    } on PlatformException catch (error) {
-      if (error.code != 'STORAGE_PERMISSION_REQUIRED') {
-        rethrow;
+      String location;
+      try {
+        location = await publish();
+      } on PlatformException catch (error) {
+        if (error.code != 'STORAGE_PERMISSION_REQUIRED') rethrow;
+        final granted = await PlatformActions.requestLegacyDownloadsPermission();
+        if (!granted) {
+          throw FileSystemException('Permissão negada para salvar na pasta Downloads.');
+        }
+        location = await publish();
       }
-      final granted = await PlatformActions.requestLegacyDownloadsPermission();
-      if (!granted) {
-        throw FileSystemException(
-          'Permissão negada para salvar na pasta Downloads.',
-        );
+
+      // O download já foi salvo. Uma falha de limpeza nunca o transforma em
+      // falha de transferência, mas deve ser mostrada ao usuário.
+      _publicSourceUrls.remove(item.id);
+      item
+        ..localPath = location
+        ..workingPath = null
+        ..status = ManagedDownloadStatus.completed
+        ..completedAt = DateTime.now()
+        ..failedAt = null
+        ..errorMessage = null
+        ..errorCode = null
+        ..failureStage = null
+        ..httpStatus = null
+        ..responseMessage = null
+        ..bytesPerSecond = 0
+        ..estimatedSecondsRemaining = null;
+
+      final mode = await _cleanupMode();
+      if (mode != DownloadCleanupMode.disabled && projectFolder != null) {
+        try {
+          await _cleanManagedProject(item, keepLocation: location);
+        } catch (_) {
+          item.cleanupWarning =
+              'Arquivo salvo, mas a limpeza automática não foi concluída. '
+              'Confira Downloads/GitHub/$projectFolder.';
+        }
       }
-      location = await publish();
+      await AppNotificationService.showDownloadCompleted(
+        id: item.id,
+        fileName: item.fileName,
+        repository: item.repositoryFullName ?? '',
+      );
+      if (await source.exists()) await source.delete();
     }
 
-    _publicSourceUrls.remove(item.id);
-    item
-      ..localPath = location
-      ..workingPath = null
-      ..status = ManagedDownloadStatus.completed
-      ..completedAt = DateTime.now()
-      ..failedAt = null
-      ..errorMessage = null
-      ..errorCode = null
-      ..failureStage = null
-      ..httpStatus = null
-      ..responseMessage = null
-      ..bytesPerSecond = 0
-      ..estimatedSecondsRemaining = null;
-    await AppNotificationService.showDownloadCompleted(
-      id: item.id,
-      fileName: item.fileName,
-      repository: item.repositoryFullName ?? '',
-    );
-    if (await source.exists()) {
-      await source.delete();
+    if (projectFolder == null) {
+      await publishAndClean();
+    } else {
+      await _withProjectCleanupLock(projectFolder, publishAndClean);
     }
   }
 
@@ -1474,6 +1596,8 @@ class DownloadManagerService {
     _operations.clear();
     _finalizing.clear();
     _publicSourceUrls.clear();
+    _alreadyCleanedBefore.clear();
+    _projectCleanupLocks.clear();
     _progressSamples.clear();
     unawaited(_stopDownloadForegroundService());
     _controller.close();

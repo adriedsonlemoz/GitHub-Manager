@@ -1,3 +1,7 @@
+### 2.0.131
+
+A versão `version: 2.0.131+200145` adiciona a configuração persistente de limpeza automática de downloads por projeto (após conclusão, antes de iniciar, desligada), excluindo apenas arquivos finais gerenciados na pasta exata e preservando parciais, pausados e outros documentos. Veja `docs/RELEASE_2.0.131.md`.
+
 ### 2.0.130
 
 A versão `2.0.130+200144` introduz pausas reais, retomada segura por HTTP Range, persistência de estado pausado, proteção do histórico e alertas de conexão sem progresso. Preserva os mecanismos de integridade e download de APK. Configuração canônica: `version: 2.0.130+200144`. Veja `docs/RELEASE_2.0.130.md`.

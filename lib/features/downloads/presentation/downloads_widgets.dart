@@ -210,6 +210,7 @@ class _CompletedDownloadCard extends StatelessWidget {
         size,
         _formatDate(item.completedAt ?? item.createdAt),
         'Downloads/${item.fileName}',
+        if (item.cleanupWarning?.isNotEmpty == true) item.cleanupWarning!,
       ],
       actions: [
         _CompactDownloadButton(

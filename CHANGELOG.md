@@ -1,3 +1,11 @@
+## 2.0.131+200145 — 2026-10-16
+
+- Adiciona em Configurações → Transferências a preferência persistente **Limpeza automática dos downloads** com modos Após concluir (padrão), Antes de iniciar e Desativada.
+- Remove apenas arquivos finais do GitHub Manager na pasta correspondente ao projeto; a verificação MediaStore limita a exclusão à pasta exata e ao proprietário do arquivo, e protege arquivos de outros aplicativos.
+- Serializa publicações e limpezas por pasta; mantém os arquivos `.part`, downloads pausados e transferências em andamento. Na opção Antes de iniciar, repete a consolidação após salvar para lidar com concorrência.
+- Em Android anterior à API 29, a limpeza opera somente em caminhos do projeto que constam no histórico do aplicativo. Erros de limpeza não são ocultados; após publicação, gera aviso no cartão concluído sem perder o download.
+- Preserva Pausar/Retomar, análise Google Play, metadados e proteção de downloads. Inclui testes de contrato e sincroniza versão/versionCode `200145`, notas e documentação. Flutter e Gradle não executados localmente.
+
 ## 2.0.130+200144 — 2026-10-16
 
 - Implementa **Pausar / Retomar** na Central de Downloads, com seção Pausados, persistência do estado e preservação do arquivo parcial para retomada segura.

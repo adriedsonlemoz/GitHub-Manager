@@ -154,6 +154,11 @@ class MainActivity : FlutterActivity() {
                     location = call.argument<String>("location"),
                     result = result,
                 )
+                "cleanupManagedProjectDownloads" -> cleanupManagedProjectDownloads(
+                    relativeFolder = call.argument<String>("relativeFolder"),
+                    keepLocation = call.argument<String>("keepLocation"),
+                    result = result,
+                )
                 "showUploadForegroundService" -> {
                     try {
                         val arguments = UploadForegroundService.Arguments(
@@ -567,6 +572,79 @@ class MainActivity : FlutterActivity() {
             result.success(true)
         } catch (error: Exception) {
             result.error("DELETE_DOWNLOAD_FAILED", error.message, null)
+        }
+    }
+
+    /**
+     * Limpeza conservadora: somente arquivos publicados por ESTE aplicativo
+     * no nível exato de Downloads/GitHub/<projeto>. Nunca percorre subpastas,
+     * nem remove arquivos de outros aplicativos, parciais ou IS_PENDING.
+     * Em Android 9 ou anterior, o Dart exclui somente caminhos que constam
+     * de seu histórico de downloads, evitando varrer dados de terceiros.
+     */
+    private fun cleanupManagedProjectDownloads(
+        relativeFolder: String?,
+        keepLocation: String?,
+        result: MethodChannel.Result,
+    ) {
+        if (relativeFolder.isNullOrBlank()) {
+            result.error("DOWNLOAD_FOLDER_REQUIRED", "Pasta do projeto ausente.", null)
+            return
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            result.success(mapOf("removed" to emptyList<String>(), "failed" to 0))
+            return
+        }
+        val folder = safeFolderName(relativeFolder)
+        val expectedPath = "${Environment.DIRECTORY_DOWNLOADS}/GitHub/$folder/"
+        val removed = mutableListOf<String>()
+        var failed = 0
+        try {
+            val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+            val projection = arrayOf(
+                MediaStore.MediaColumns._ID,
+                MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.MediaColumns.OWNER_PACKAGE_NAME,
+            )
+            // A comparação também é conferida em Kotlin; não confiar somente
+            // na cláusula SQL se algum provedor normalizar barras/case.
+            val where = "${MediaStore.MediaColumns.RELATIVE_PATH}=? AND ${MediaStore.MediaColumns.IS_PENDING}=0"
+            val toDelete = mutableListOf<Uri>()
+            val cursor = contentResolver.query(
+                collection, projection, where, arrayOf(expectedPath), null,
+            ) ?: throw IllegalStateException("O MediaStore não retornou a lista de downloads.")
+            cursor.use {
+                val idIndex = it.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                val folderIndex = it.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
+                val ownerIndex = it.getColumnIndexOrThrow(MediaStore.MediaColumns.OWNER_PACKAGE_NAME)
+                while (it.moveToNext()) {
+                    val actualFolder = it.getString(folderIndex).orEmpty()
+                    val owner = it.getString(ownerIndex).orEmpty()
+                    if (!actualFolder.equals(expectedPath, ignoreCase = true) || owner != packageName) {
+                        continue
+                    }
+                    val uri = android.content.ContentUris.withAppendedId(collection, it.getLong(idIndex))
+                    val location = uri.toString()
+                    if (location == keepLocation) continue
+                    toDelete.add(uri)
+                }
+            }
+            // Evitar exclusão enquanto o cursor MediaStore ainda percorre
+            // a consulta: alguns provedores invalidam a posição da consulta.
+            for (uri in toDelete) {
+                try {
+                    if (contentResolver.delete(uri, null, null) > 0) {
+                        removed.add(uri.toString())
+                    } else {
+                        failed++
+                    }
+                } catch (_: Exception) {
+                    failed++
+                }
+            }
+            result.success(mapOf("removed" to removed, "failed" to failed))
+        } catch (error: Exception) {
+            result.error("DOWNLOAD_CLEANUP_FAILED", error.message, null)
         }
     }
 

@@ -5,6 +5,7 @@ mixin _SettingsScreenActions on ConsumerState<SettingsScreen> {
   Map<String, String>? _apiSettings;
   bool? _buildNotificationsEnabled;
   bool? _automaticUploadRecoveryEnabled;
+  DownloadCleanupMode? _downloadCleanupMode;
   bool _updatingFullScreen = false;
 
   void initializeSettingsState() {
@@ -12,6 +13,78 @@ mixin _SettingsScreenActions on ConsumerState<SettingsScreen> {
     _loadApiSettings();
     _loadNotificationSettings();
     _loadUploadRecoverySettings();
+    _loadDownloadCleanupSettings();
+  }
+
+  Future<void> _loadDownloadCleanupSettings() async {
+    var mode = DownloadCleanupMode.afterSuccess;
+    try {
+      mode = await DownloadCleanupSettings.read(
+        database: ref.read(localDatabaseProvider),
+      );
+    } catch (_) {
+      // Valor seguro: não remover nada antes de ter novo arquivo válido.
+    }
+    if (mounted) setState(() => _downloadCleanupMode = mode);
+  }
+
+  Future<void> _chooseDownloadCleanupMode() async {
+    final chosen = await showDialog<DownloadCleanupMode>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Limpeza automática'),
+        content: SingleChildScrollView(
+          child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final mode in DownloadCleanupMode.values)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  mode == _downloadCleanupMode
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                ),
+                title: Text(DownloadCleanupSettings.label(mode)),
+                subtitle: Text(DownloadCleanupSettings.description(mode)),
+                onTap: () => Navigator.pop(dialogContext, mode),
+              ),
+            const Text(
+              'A opção afeta apenas os arquivos finais de cada projeto na '
+              'pasta Downloads/GitHub. Downloads pausados e parciais são protegidos.',
+            ),
+          ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+    if (chosen == null || chosen == _downloadCleanupMode) return;
+    try {
+      await DownloadCleanupSettings.write(
+        chosen,
+        database: ref.read(localDatabaseProvider),
+      );
+      if (!mounted) return;
+      setState(() => _downloadCleanupMode = chosen);
+      showCenteredNotice(
+        context,
+        'Limpeza automática: ${DownloadCleanupSettings.label(chosen).toLowerCase()}.',
+        kind: CenteredNoticeKind.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showCenteredNotice(
+        context,
+        'Não foi possível salvar a preferência de limpeza.',
+        kind: CenteredNoticeKind.error,
+      );
+    }
   }
 
   Future<void> _loadApiSettings() async {

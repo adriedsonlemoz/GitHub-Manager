@@ -164,6 +164,25 @@ abstract final class PlatformActions {
       }) ??
       false;
 
+  /// Remove arquivos finais de propriedade do app, na pasta exata do projeto.
+  /// Não percorre pastas de usuários nem alcança arquivos .part.
+  static Future<Map<String, dynamic>> cleanupManagedProjectDownloads({
+    required String relativeFolder,
+    String? keepLocation,
+  }) async {
+    final response = await _channel.invokeMapMethod<String, dynamic>(
+      'cleanupManagedProjectDownloads',
+      {'relativeFolder': relativeFolder, 'keepLocation': keepLocation},
+    );
+    if (response == null) {
+      throw PlatformException(
+        code: 'DOWNLOAD_CLEANUP_NOT_CONFIRMED',
+        message: 'O Android não confirmou a limpeza dos downloads.',
+      );
+    }
+    return response;
+  }
+
   static Future<void> showUploadForegroundService({
     required bool startService,
     required String uploadId,

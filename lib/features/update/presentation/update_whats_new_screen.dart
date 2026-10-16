@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UpdateWhatsNewScreen extends StatelessWidget {
-  static const releaseNotesVersion = '2.0.130';
+  static const releaseNotesVersion = '2.0.131';
 
   const UpdateWhatsNewScreen({
     required this.versionLabel,
@@ -70,14 +70,14 @@ class UpdateWhatsNewScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _UpdateItem(
                       icon: Icons.pause_circle_outline_rounded,
-                      title: 'Pausar e retomar downloads',
-                      description: 'Pare a transferência sem apagar os bytes salvos. Retome na Central quando quiser, com proteção contra gravações simultâneas.',
+                      title: 'Limpeza automática por projeto',
+                      description: 'Escolha em Configurações: após concluir (padrão), antes de começar ou desativada. Cada pasta mantém apenas o arquivo final mais recente do gerenciador.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(
                       icon: Icons.speed_rounded,
-                      title: 'Diagnóstico de conexão lenta',
-                      description: 'O app destaca transferências simultâneas e conexões sem avanço; velocidade e ETA são zeradas após inatividade prolongada.',
+                      title: 'Proteção de downloads e arquivos pessoais',
+                      description: 'A limpeza fica limitada aos arquivos finais da pasta do projeto que pertencem ao app, preservando downloads parciais e pausados.',
                     ),
                     const SizedBox(height: 12),
                     const _UpdateItem(

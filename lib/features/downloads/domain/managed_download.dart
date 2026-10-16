@@ -38,6 +38,7 @@ class ManagedDownload {
     this.failureStage,
     this.httpStatus,
     this.responseMessage,
+    this.cleanupWarning,
   });
 
   final String id;
@@ -66,6 +67,7 @@ class ManagedDownload {
   String? failureStage;
   int? httpStatus;
   String? responseMessage;
+  String? cleanupWarning;
 
   bool get isActive =>
       status == ManagedDownloadStatus.queued ||
@@ -165,6 +167,7 @@ class ManagedDownload {
     failureStage = null;
     httpStatus = null;
     responseMessage = null;
+    cleanupWarning = null;
   }
 
   void markInterruptedByAppExit() {
@@ -226,6 +229,7 @@ class ManagedDownload {
         'failureStage': failureStage,
         'httpStatus': httpStatus,
         'responseMessage': responseMessage,
+        'cleanupWarning': cleanupWarning,
       };
 
   factory ManagedDownload.fromJson(Map<String, dynamic> json) {
@@ -274,6 +278,7 @@ class ManagedDownload {
       failureStage: json['failureStage']?.toString(),
       httpStatus: (json['httpStatus'] as num?)?.toInt(),
       responseMessage: json['responseMessage']?.toString(),
+      cleanupWarning: json['cleanupWarning']?.toString(),
     );
   }
 }
